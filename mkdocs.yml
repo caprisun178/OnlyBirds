@@ -40,5 +40,6 @@ markdown_extensions:
 nav:
   - Environment Setup: index.md
   - Architecture: architecture.md
+  - Features: features.md
   - Backend API: backend.md
   - Contributing: contributing.md
