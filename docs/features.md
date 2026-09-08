@@ -4,14 +4,15 @@ MVP feature breakdown. Each section is a spec: what the user sees, the data it
 needs, the API surface, and how it maps onto the `Dao` / `Services` /
 `Presenters` / `Components` layering.
 
-**Status legend:** ✅ built · 🚧 partial · 📋 planned
+**Status** is one of *Partial* (some API already exists) or *Planned* (not
+started). Nothing here is fully built yet.
 
 | Feature | Status |
 |---|---|
-| [Life List page](#1-life-list-page) | 🚧 API returns entries; region filter + checklist view planned |
-| [Add Observation](#2-add-observation) | 🚧 `POST /observations` exists; identification flow planned |
-| [User profiles](#3-user-profiles) | 📋 planned |
-| [Stickers](#4-stickers) | 📋 planned |
+| [Life List page](#1-life-list-page) | Partial — API returns entries; region filter + checklist view planned |
+| [Add Observation](#2-add-observation) | Partial — `POST /observations` exists; identification flow planned |
+| [User profiles](#3-user-profiles) | Planned |
+| [Stickers](#4-stickers) | Planned |
 
 ---
 
@@ -166,7 +167,7 @@ linked `Identification` (method, input, chosen candidate, confidence, outcome).
 |---|---|---|
 | `POST` | `/identify/describe` | body: text + optional hints → `{candidates: [{species, confidence, photo_url}]}` |
 | `POST` | `/identify/photo` | multipart image → same candidate shape (stub returns empty list until CV is added) |
-| `POST` | `/observations` |  exists — create the observation once species is confirmed |
+| `POST` | `/observations` | exists today — create the observation once species is confirmed |
 | `POST` | `/observations/{id}/confirm` | record correct/incorrect on the identification |
 
 ### Layering
