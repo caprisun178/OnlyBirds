@@ -1,0 +1,5 @@
+# Tooling for building this documentation site.
+#   pip install -r docs/requirements.txt
+#   mkdocs serve
+mkdocs>=1.6
+mkdocs-material>=9.5
