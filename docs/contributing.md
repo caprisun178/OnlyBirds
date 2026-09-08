@@ -58,8 +58,8 @@ Pages live in `docs/`; the nav is defined in `mkdocs.yml`. Keep
 
 ## Roadmap
 
-1. ~~Scaffold FastAPI backend, hello-world endpoint~~ ✅
-2. ~~One real call against each external API~~ ✅ (`/species/search`, `/sightings/nearby`)
+1. Scaffold FastAPI backend, hello-world endpoint *(done)*
+2. One real call against each external API *(done — `/species/search`, `/sightings/nearby`)*
 3. Postgres + PostGIS schema; back `/observations` and `/life-list` with it
 4. Scaffold the React app against our own API
 5. CV integration (stretch goal)
