@@ -16,6 +16,25 @@ sources, the API, the SQL, and the code layout.
 
 Nothing here is fully built yet. *Partial* means some API already exists.
 
+## Who's working on what
+
+**Claiming a feature:** put your name in the Owner column, add your branch, set
+the status, and open a PR against this file so everyone can see it's taken.
+One owner per feature at a time — if a row already has a name, ping that person
+before starting.
+
+| Feature | Owner | Branch | Status | Notes |
+|---|---|---|---|---|
+| [Life List page](life-list.md) | _unassigned_ | | not started | |
+| [Add Observation](add-observation.md) | _unassigned_ | | not started | |
+| [User profiles](user-profiles.md) | _unassigned_ | | not started | |
+| [Stickers](stickers.md) | _unassigned_ | | not started | |
+| [Pinned birds](pinned-birds.md) | _unassigned_ | | not started | |
+| [Bird information page](bird-info.md) | _unassigned_ | | not started | |
+| [Explore map](explore-map.md) | _unassigned_ | | not started | |
+
+*Status* is one of: `not started` · `in progress` · `in review` · `done`.
+
 ## How to use a feature page
 
 Every feature page has the same seven sections:
