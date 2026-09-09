@@ -56,7 +56,7 @@ Every sticker is one rule type plus `criteria`:
 | Which stickers a user has earned | our engine, after each lifer | `user_stickers` table |
 | The user's life list (engine input) | our own data | `life_list_entries` (already exists) |
 | Region checklist (for `region_complete`) | reuse the [Life List](life-list.md) cache | `region_checklists` |
-| Sticker art images | designed assets in the repo / a CDN | `stickers.image_url` |
+| Sticker art images | one file per `code` in `backend/app/data/stickers/`, served at `/static/stickers/<code>.svg` | `stickers.image_url` holds that path |
 
 No external API. The catalog and groups are **our data, checked into the repo**
 and loaded into Postgres by a seed script — treat them like code.

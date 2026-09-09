@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Only Birds — your life list, everywhere</title>
+  <meta
+    name="description"
+    content="Log the birds you see, chase the ones you haven't. A friendly life list for birdwatchers, built on eBird and iNaturalist."
+  />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🐤</text></svg>" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <!-- floating background bubbles -->
+  <div class="bubbles" aria-hidden="true">
+    <span class="bubble b1"></span>
+    <span class="bubble b2"></span>
+    <span class="bubble b3"></span>
+    <span class="bubble b4"></span>
+    <span class="bubble b5"></span>
+    <span class="bubble b6"></span>
+  </div>
+
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true">🐤</span>
+        <span>Only Birds</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="#features">Features</a>
+        <a href="#how">How it works</a>
+        <a href="https://github.com/caprisun178/OnlyBirds">GitHub</a>
+        <a class="btn btn-small" href="#get-started">Get started</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- Hero -->
+    <section class="hero">
+      <div class="wrap hero-inner">
+        <p class="eyebrow">🐦 your pocket life list</p>
+        <h1>Every bird you've<br />ever seen, in one&nbsp;place.</h1>
+        <p class="lede">
+          Spot a bird, pop it on your list. See which ones you're still missing
+          for your area, and get a little <em>ping!</em> when a friend finds one
+          you've been chasing.
+        </p>
+        <div class="cta-row" id="get-started">
+          <a class="btn btn-primary" href="#get-started">Start my list</a>
+          <a class="btn btn-ghost" href="#features">Take a peek</a>
+        </div>
+        <p class="fine-print">No account needed to look around — sign-in is on its way.</p>
+      </div>
+    </section>
+
+    <!-- What it is -->
+    <section class="band" id="how">
+      <div class="wrap">
+        <div class="blob-card">
+          <h2>A logbook <em>and</em> a treasure map</h2>
+          <p>
+            Other apps make you pick: keep a diary, or browse everyone else's
+            sightings. Only Birds does both — the whole checklist for your
+            region with your birds coloured in, built from what you've logged
+            plus the wider record from eBird and iNaturalist.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Feature grid -->
+    <section class="wrap" id="features" aria-labelledby="features-title">
+      <h2 id="features-title" class="section-title">Stuff you can do 🎉</h2>
+      <ul class="feature-grid">
+        <li class="feature-card">
+          <span class="emoji" aria-hidden="true">📋</span>
+          <span class="tag tag-partial">Building now</span>
+          <h3>Life List</h3>
+          <p>Your region's full checklist, your finds filled in, a bar creeping toward 100%.</p>
+        </li>
+        <li class="feature-card">
+          <span class="emoji" aria-hidden="true">📸</span>
+          <span class="tag tag-partial">Building now</span>
+          <h3>Add a bird</h3>
+          <p>Snap a photo or just describe it — "little brown, streaky, in the reeds" — and pick from the guesses.</p>
+        </li>
+        <li class="feature-card">
+          <span class="emoji" aria-hidden="true">🗺️</span>
+          <span class="tag">Coming soon</span>
+          <h3>Explore map</h3>
+          <p>Drift around the map and see what's been spotted near you, from every source at once.</p>
+        </li>
+        <li class="feature-card">
+          <span class="emoji" aria-hidden="true">📌</span>
+          <span class="tag">Coming soon</span>
+          <h3>Pin a bird</h3>
+          <p>Mark the ones you want. We'll nudge you when someone reports it in your area.</p>
+        </li>
+        <li class="feature-card">
+          <span class="emoji" aria-hidden="true">✨</span>
+          <span class="tag">Coming soon</span>
+          <h3>Stickers</h3>
+          <p>First owl. All the eagles. A hundred species. Collect them on your profile.</p>
+        </li>
+        <li class="feature-card">
+          <span class="emoji" aria-hidden="true">🔊</span>
+          <span class="tag">Coming soon</span>
+          <h3>Bird guide</h3>
+          <p>Look up any species for its calls, range, migration and photos from the Cornell Lab.</p>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Closing CTA -->
+    <section class="closing-wrap">
+      <div class="wrap">
+        <div class="closing">
+          <h2>Ready to start collecting? 🐣</h2>
+          <p>Free, friendly, and built in the open.</p>
+          <a class="btn btn-primary btn-big" href="#get-started">Start my list</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <p><span class="brand-mark" aria-hidden="true">🐤</span> Only Birds</p>
+      <nav aria-label="Footer">
+        <a href="https://github.com/caprisun178/OnlyBirds">Source</a>
+        <a href="https://ebird.org">eBird</a>
+        <a href="https://www.inaturalist.org">iNaturalist</a>
+      </nav>
+      <p class="colophon">Sightings from eBird (Cornell Lab of Ornithology) &amp; iNaturalist.</p>
+    </div>
+  </footer>
+</body>
+</html>
