@@ -94,8 +94,8 @@ numbered `.sql` file you run with `psql`.
 
 ## Baseline schema — `0001_baseline.sql`
 
-Roadmap step 3. This formalises the "starting point" bullets in the root
-`README.md` and is what every feature change builds on.
+The schema every feature builds on — it matches the core data model in the root
+`README.md`. Committed as `backend/migrations/0001_baseline.sql`.
 
 ```sql
 -- 0001_baseline.sql

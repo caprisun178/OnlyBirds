@@ -61,8 +61,8 @@ python -m pytest                       # test (offline, no key)
 
 ## Known limitations
 
-- Observations live in an in-memory store — they reset on restart (Postgres is
-  roadmap step 3).
+- Observations live in an in-memory store — they reset on restart. Moving to
+  Postgres is in progress; see [Deployment](deployment.md).
 - `user_id` / `auth_provider_id` are trusted as passed; no token verification.
 - Cross-source species dedupe in the life list is name-based until external
   `source_ids` are resolved to our own `species` rows.

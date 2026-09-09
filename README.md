@@ -23,6 +23,7 @@ mkdocs serve          # http://127.0.0.1:8000
 | [Contributing](docs/contributing.md) | branch & PR workflow, backend conventions, the frontend styling standard |
 
 ## Tech stack
+## Tech stack
 
 | Layer | Technology |
 |---|---|
@@ -35,6 +36,8 @@ mkdocs serve          # http://127.0.0.1:8000
 
 ## Why a backend server
 
+The FastAPI backend sits between the frontends and the external APIs for three
+reasons:
 The FastAPI backend sits between the frontends and the external APIs for three
 reasons:
 
@@ -113,6 +116,7 @@ Both are called only from `backend/app/dao/`. See
 - **iNaturalist API v1** — taxon search, observations. No key for reads. Docs:
   <https://api.inaturalist.org/v1/docs/>
 
+### Computer vision — important caveat
 ### Computer vision — important caveat
 
 iNaturalist's full species-classification model is **not** publicly available —
