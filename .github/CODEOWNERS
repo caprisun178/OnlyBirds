@@ -1,0 +1,21 @@
+# Code owners for Only Birds.
+#
+# Owners are automatically requested for review on pull requests that touch
+# matching paths. If branch protection on `main` has "Require review from Code
+# Owners" enabled, a matching owner's approval is required to merge.
+#
+# Syntax: https://docs.github.com/articles/about-code-owners
+# Last matching pattern wins.
+
+# Default owner for everything in the repo.
+*                   @caprisun178
+
+# Backend
+/backend/           @caprisun178
+
+# Frontend
+/frontend/          @caprisun178
+
+# Documentation
+/docs/              @caprisun178
+/mkdocs.yml         @caprisun178

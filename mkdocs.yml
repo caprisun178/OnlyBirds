@@ -40,5 +40,16 @@ markdown_extensions:
 nav:
   - Environment Setup: index.md
   - Architecture: architecture.md
+  - Features:
+      - Overview: features/overview.md
+      - Database & migrations: features/database.md
+      - Life List page: features/life-list.md
+      - Add Observation: features/add-observation.md
+      - User profiles: features/user-profiles.md
+      - Stickers: features/stickers.md
+      - Pinned birds: features/pinned-birds.md
+      - Bird information page: features/bird-info.md
+      - Explore map: features/explore-map.md
   - Backend API: backend.md
+  - Deployment: deployment.md
   - Contributing: contributing.md
