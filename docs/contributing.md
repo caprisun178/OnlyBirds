@@ -123,6 +123,24 @@ Rules:
   `Presenters/` may. (An ESLint `import/no-restricted-paths` rule should enforce
   this once tooling is set up.)
 
+## Styling standard
+
+There is one stylesheet: `frontend/src/styles/base.css`. It defines the design
+tokens (`--ob-*` variables) and the shared `.ob-*` component classes — buttons,
+cards, tags, form fields, alerts, layout helpers. Import it once at the app
+entry point.
+
+- Build shared components out of `.ob-*` classes; give a component at most one
+  layout class of its own (`.ob-species-card`).
+- In any CSS, use tokens — `var(--ob-space-4)`, `var(--ob-color-brand)` — never
+  raw `px` or hex. Need a new value? Add a token to `base.css`.
+- Class names: `ob-` prefix, BEM-style — block `.ob-card`, element
+  `.ob-card__title`, variant `.ob-btn--primary`.
+- Don't restyle an `.ob-*` class for a one-off; add a variant to `base.css`.
+
+Full catalogue, the naming table, and a worked component example:
+[`frontend/src/styles/README.md`](https://github.com/caprisun178/OnlyBirds/blob/main/frontend/src/styles/README.md).
+
 ## Documentation
 
 This site is MkDocs + Material.

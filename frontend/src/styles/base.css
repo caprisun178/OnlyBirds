@@ -1,0 +1,414 @@
+/* =========================================================================
+   Only Birds — base stylesheet / design system
+   =========================================================================
+   Import this ONCE at the app entry point:
+
+       import './styles/base.css';
+
+   Then build shared components out of the `.ob-*` classes below. Rules:
+
+   1. Every colour, size, radius, and shadow is a token (a `--ob-*` CSS
+      variable). Components use `var(--ob-...)`, never a raw hex or px value.
+   2. Class names are prefixed `ob-`. Pattern:
+         block      .ob-card
+         element    .ob-card__title      (double underscore)
+         variant    .ob-btn--primary     (double dash)
+   3. A component may add ONE scoped class of its own for layout
+      (e.g. `.ob-species-card`) but colours/spacing inside it still come
+      from tokens.
+   4. Don't edit component rules to do a one-off. Add a variant here, or a
+      token, so the change is shared.
+
+   Sections:  TOKENS · DARK MODE · RESET · LAYOUT · BUTTONS · CARDS ·
+              TAGS & BADGES · FORMS · FEEDBACK · UTILITIES
+   ========================================================================= */
+
+/* ----------------------------------------------------------------------
+   TOKENS
+   ---------------------------------------------------------------------- */
+:root {
+  /* Brand palette (raw scale — prefer the semantic tokens further down) */
+  --ob-blue-50:  #eef7ff;
+  --ob-blue-100: #dbefff;
+  --ob-blue-200: #bfe1ff;
+  --ob-blue-300: #93ccff;
+  --ob-blue-400: #5aacff;
+  --ob-blue-500: #3aa0ff;   /* brand */
+  --ob-blue-600: #1c82ec;   /* brand, stronger */
+  --ob-blue-700: #1668c2;
+
+  --ob-ink-900:  #0f2c4d;
+  --ob-ink-700:  #143a63;
+  --ob-ink-500:  #3d5f86;
+  --ob-ink-400:  #5a7fa6;
+  --ob-ink-200:  #b9cbe0;
+
+  --ob-paper:    #ffffff;
+  --ob-mist:     #f4fbff;
+
+  --ob-amber-bg:   #ffe9c2;
+  --ob-amber-text: #9a5a12;
+  --ob-green-bg:   #d6f2e0;
+  --ob-green-text: #1c6b45;
+  --ob-red-bg:     #ffe0e0;
+  --ob-red-text:   #b23a3a;
+
+  /* --- Semantic colours: THIS is what components should reference --- */
+  --ob-color-bg:             var(--ob-mist);
+  --ob-color-surface:        var(--ob-paper);
+  --ob-color-surface-alt:    var(--ob-blue-50);
+  --ob-color-border:         #d5e3f6;
+  --ob-color-text:           var(--ob-ink-700);
+  --ob-color-text-muted:     var(--ob-ink-400);
+  --ob-color-brand:          var(--ob-blue-500);
+  --ob-color-brand-strong:   var(--ob-blue-600);
+  --ob-color-brand-contrast: #ffffff;
+  --ob-color-focus:          var(--ob-blue-600);
+
+  --ob-color-info-bg:     var(--ob-blue-100);
+  --ob-color-info-text:   var(--ob-blue-700);
+  --ob-color-success-bg: var(--ob-green-bg);
+  --ob-color-success-text: var(--ob-green-text);
+  --ob-color-warning-bg: var(--ob-amber-bg);
+  --ob-color-warning-text: var(--ob-amber-text);
+  --ob-color-danger-bg:  var(--ob-red-bg);
+  --ob-color-danger-text: var(--ob-red-text);
+
+  /* Spacing — 4px base. Use these for margin/padding/gap. */
+  --ob-space-1: 0.25rem;   /*  4px */
+  --ob-space-2: 0.5rem;    /*  8px */
+  --ob-space-3: 0.75rem;   /* 12px */
+  --ob-space-4: 1rem;      /* 16px */
+  --ob-space-5: 1.5rem;    /* 24px */
+  --ob-space-6: 2rem;      /* 32px */
+  --ob-space-7: 3rem;      /* 48px */
+  --ob-space-8: 4rem;      /* 64px */
+
+  /* Radius — the app is intentionally round */
+  --ob-radius-sm:   12px;
+  --ob-radius-md:   18px;
+  --ob-radius-lg:   30px;
+  --ob-radius-pill: 999px;
+
+  /* Shadows — soft and puffy, never hard */
+  --ob-shadow-sm: 0 12px 26px -16px rgba(38, 120, 200, 0.40);
+  --ob-shadow-md: 0 20px 40px -20px rgba(38, 120, 200, 0.42);
+  --ob-shadow-lg: 0 28px 56px -24px rgba(38, 120, 200, 0.48);
+
+  /* Typography */
+  --ob-font-sans: "Fredoka", "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  --ob-weight-normal:   400;
+  --ob-weight-medium:   500;
+  --ob-weight-semibold: 600;
+  --ob-weight-bold:     700;
+
+  --ob-text-xs:  0.78rem;
+  --ob-text-sm:  0.9rem;
+  --ob-text-md:  1rem;
+  --ob-text-lg:  1.15rem;
+  --ob-text-xl:  1.4rem;
+  --ob-text-2xl: 1.8rem;
+  --ob-text-3xl: clamp(2.1rem, 5vw, 3.2rem);
+
+  --ob-leading-tight:  1.15;
+  --ob-leading-normal: 1.6;
+
+  /* Motion */
+  --ob-transition: 150ms ease;
+
+  /* Layout */
+  --ob-container:  1060px;
+  --ob-z-header:   100;
+  --ob-z-dropdown: 200;
+  --ob-z-modal:    300;
+  --ob-z-toast:    400;
+}
+
+/* ----------------------------------------------------------------------
+   DARK MODE
+   Only the semantic tokens change. Follows the system setting, and an
+   explicit [data-theme] on <html> wins over it (for a future toggle).
+   ---------------------------------------------------------------------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ob-color-bg:             #0b1626;
+    --ob-color-surface:        #152742;
+    --ob-color-surface-alt:    #1b3151;
+    --ob-color-border:         #294364;
+    --ob-color-text:           #eaf3ff;
+    --ob-color-text-muted:     #9fb6d4;
+    --ob-color-brand:          #58abff;
+    --ob-color-brand-strong:   #8ac6ff;
+    --ob-color-brand-contrast: #06192f;
+    --ob-color-focus:          #8ac6ff;
+
+    --ob-color-info-bg: #1d3557;   --ob-color-info-text: #a9c9ef;
+    --ob-color-success-bg: #17402b; --ob-color-success-text: #86e2ac;
+    --ob-color-warning-bg: #4a3517; --ob-color-warning-text: #ffcf8f;
+    --ob-color-danger-bg: #4a2020;  --ob-color-danger-text: #ff9d9d;
+
+    --ob-shadow-sm: 0 12px 26px -16px rgba(0, 0, 0, 0.55);
+    --ob-shadow-md: 0 20px 40px -20px rgba(0, 0, 0, 0.6);
+    --ob-shadow-lg: 0 28px 56px -24px rgba(0, 0, 0, 0.65);
+  }
+}
+
+:root[data-theme="dark"] {
+  --ob-color-bg:             #0b1626;
+  --ob-color-surface:        #152742;
+  --ob-color-surface-alt:    #1b3151;
+  --ob-color-border:         #294364;
+  --ob-color-text:           #eaf3ff;
+  --ob-color-text-muted:     #9fb6d4;
+  --ob-color-brand:          #58abff;
+  --ob-color-brand-strong:   #8ac6ff;
+  --ob-color-brand-contrast: #06192f;
+  --ob-color-focus:          #8ac6ff;
+
+  --ob-color-info-bg: #1d3557;   --ob-color-info-text: #a9c9ef;
+  --ob-color-success-bg: #17402b; --ob-color-success-text: #86e2ac;
+  --ob-color-warning-bg: #4a3517; --ob-color-warning-text: #ffcf8f;
+  --ob-color-danger-bg: #4a2020;  --ob-color-danger-text: #ff9d9d;
+
+  --ob-shadow-sm: 0 12px 26px -16px rgba(0, 0, 0, 0.55);
+  --ob-shadow-md: 0 20px 40px -20px rgba(0, 0, 0, 0.6);
+  --ob-shadow-lg: 0 28px 56px -24px rgba(0, 0, 0, 0.65);
+}
+
+/* ----------------------------------------------------------------------
+   RESET / BASE ELEMENTS
+   ---------------------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: var(--ob-font-sans);
+  font-weight: var(--ob-weight-normal);
+  font-size: var(--ob-text-md);
+  line-height: var(--ob-leading-normal);
+  color: var(--ob-color-text);
+  background: var(--ob-color-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  margin: 0 0 var(--ob-space-3);
+  line-height: var(--ob-leading-tight);
+  font-weight: var(--ob-weight-semibold);
+}
+h1 { font-size: var(--ob-text-3xl); font-weight: var(--ob-weight-bold); }
+h2 { font-size: var(--ob-text-2xl); }
+h3 { font-size: var(--ob-text-xl); }
+
+p { margin: 0 0 var(--ob-space-4); }
+
+a { color: var(--ob-color-brand-strong); }
+
+img, svg, video { max-width: 100%; height: auto; display: block; }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+
+/* One consistent focus ring everywhere */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid var(--ob-color-focus);
+  outline-offset: 2px;
+  border-radius: var(--ob-radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* ----------------------------------------------------------------------
+   LAYOUT HELPERS
+   ---------------------------------------------------------------------- */
+
+/* Centered page column */
+.ob-container {
+  width: 100%;
+  max-width: var(--ob-container);
+  margin-inline: auto;
+  padding-inline: var(--ob-space-5);
+}
+
+/* Vertical rhythm: children spaced by --ob-stack-gap (default space-4) */
+.ob-stack { display: flex; flex-direction: column; gap: var(--ob-stack-gap, var(--ob-space-4)); }
+
+/* Horizontal group that wraps */
+.ob-cluster { display: flex; flex-wrap: wrap; gap: var(--ob-cluster-gap, var(--ob-space-3)); align-items: center; }
+
+/* Responsive card grid */
+.ob-grid {
+  display: grid;
+  gap: var(--ob-space-5);
+  grid-template-columns: repeat(auto-fit, minmax(var(--ob-grid-min, 270px), 1fr));
+}
+
+/* Skip-to-content link for keyboard users */
+.ob-skip-link {
+  position: absolute;
+  left: -999px;
+  top: 0;
+  z-index: var(--ob-z-toast);
+  background: var(--ob-color-brand);
+  color: var(--ob-color-brand-contrast);
+  padding: var(--ob-space-2) var(--ob-space-4);
+  border-radius: 0 0 var(--ob-radius-sm) 0;
+}
+.ob-skip-link:focus { left: 0; }
+
+/* ----------------------------------------------------------------------
+   BUTTONS   .ob-btn  +  --primary | --ghost | --subtle   +   --sm | --lg | --block
+   ---------------------------------------------------------------------- */
+.ob-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ob-space-2);
+  padding: var(--ob-space-3) var(--ob-space-5);
+  border: none;
+  border-radius: var(--ob-radius-pill);
+  font-weight: var(--ob-weight-semibold);
+  font-size: var(--ob-text-md);
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform var(--ob-transition), background var(--ob-transition), box-shadow var(--ob-transition);
+}
+.ob-btn:disabled, .ob-btn[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
+
+.ob-btn--primary {
+  background: var(--ob-color-brand);
+  color: var(--ob-color-brand-contrast);
+  box-shadow: 0 8px 0 -2px var(--ob-color-brand-strong), var(--ob-shadow-sm);
+}
+.ob-btn--primary:hover:not(:disabled) { transform: translateY(-2px); background: var(--ob-color-brand-strong); }
+.ob-btn--primary:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 3px 0 -2px var(--ob-color-brand-strong); }
+
+.ob-btn--ghost {
+  background: var(--ob-color-surface);
+  color: var(--ob-color-text);
+  box-shadow: var(--ob-shadow-sm);
+}
+.ob-btn--ghost:hover:not(:disabled) { transform: translateY(-2px); }
+
+.ob-btn--subtle {
+  background: var(--ob-color-surface-alt);
+  color: var(--ob-color-brand-strong);
+}
+.ob-btn--subtle:hover:not(:disabled) { background: var(--ob-color-info-bg); }
+
+.ob-btn--sm { padding: var(--ob-space-2) var(--ob-space-4); font-size: var(--ob-text-sm); }
+.ob-btn--lg { padding: var(--ob-space-4) var(--ob-space-7); font-size: var(--ob-text-lg); }
+.ob-btn--block { display: flex; width: 100%; }
+
+/* ----------------------------------------------------------------------
+   CARDS   .ob-card  (+ __title / __body)  +  --flat | --interactive
+   ---------------------------------------------------------------------- */
+.ob-card {
+  background: var(--ob-color-surface);
+  border-radius: var(--ob-radius-lg);
+  padding: var(--ob-space-5);
+  box-shadow: var(--ob-shadow-sm);
+}
+.ob-card--flat { box-shadow: none; border: 1px solid var(--ob-color-border); }
+.ob-card--interactive { transition: transform var(--ob-transition), box-shadow var(--ob-transition); }
+.ob-card--interactive:hover { transform: translateY(-6px) rotate(-0.4deg); box-shadow: var(--ob-shadow-md); }
+.ob-card__title { font-size: var(--ob-text-lg); margin: 0 0 var(--ob-space-2); }
+.ob-card__body  { color: var(--ob-color-text-muted); margin: 0; }
+
+/* ----------------------------------------------------------------------
+   TAGS & BADGES
+   .ob-tag  +  --info | --progress | --success | --warning | --danger
+   .ob-badge  = small round count bubble
+   ---------------------------------------------------------------------- */
+.ob-tag {
+  display: inline-block;
+  font-size: var(--ob-text-xs);
+  font-weight: var(--ob-weight-semibold);
+  padding: var(--ob-space-1) var(--ob-space-3);
+  border-radius: var(--ob-radius-pill);
+  background: var(--ob-color-surface-alt);
+  color: var(--ob-color-text-muted);
+}
+.ob-tag--info     { background: var(--ob-color-info-bg);    color: var(--ob-color-info-text); }
+.ob-tag--progress { background: var(--ob-color-warning-bg); color: var(--ob-color-warning-text); }
+.ob-tag--success  { background: var(--ob-color-success-bg); color: var(--ob-color-success-text); }
+.ob-tag--warning  { background: var(--ob-color-warning-bg); color: var(--ob-color-warning-text); }
+.ob-tag--danger   { background: var(--ob-color-danger-bg);  color: var(--ob-color-danger-text); }
+
+.ob-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 var(--ob-space-2);
+  border-radius: var(--ob-radius-pill);
+  background: var(--ob-color-brand);
+  color: var(--ob-color-brand-contrast);
+  font-size: var(--ob-text-xs);
+  font-weight: var(--ob-weight-bold);
+}
+
+/* ----------------------------------------------------------------------
+   FORMS   .ob-field (wrapper)  .ob-label  .ob-input / .ob-select / .ob-textarea  .ob-hint
+   ---------------------------------------------------------------------- */
+.ob-field { display: flex; flex-direction: column; gap: var(--ob-space-2); }
+.ob-label { font-weight: var(--ob-weight-medium); font-size: var(--ob-text-sm); }
+.ob-input, .ob-select, .ob-textarea {
+  width: 100%;
+  padding: var(--ob-space-3) var(--ob-space-4);
+  background: var(--ob-color-surface);
+  border: 2px solid var(--ob-color-border);
+  border-radius: var(--ob-radius-md);
+  transition: border-color var(--ob-transition);
+}
+.ob-input:focus, .ob-select:focus, .ob-textarea:focus {
+  border-color: var(--ob-color-brand);
+  outline: none;
+}
+.ob-textarea { min-height: 6rem; resize: vertical; }
+.ob-hint { font-size: var(--ob-text-xs); color: var(--ob-color-text-muted); }
+.ob-field--error .ob-input,
+.ob-field--error .ob-select,
+.ob-field--error .ob-textarea { border-color: var(--ob-color-danger-text); }
+.ob-field--error .ob-hint { color: var(--ob-color-danger-text); }
+
+/* ----------------------------------------------------------------------
+   FEEDBACK   .ob-alert (+ --info | --success | --warning | --danger)   .ob-spinner
+   ---------------------------------------------------------------------- */
+.ob-alert {
+  padding: var(--ob-space-4);
+  border-radius: var(--ob-radius-md);
+  background: var(--ob-color-info-bg);
+  color: var(--ob-color-info-text);
+  font-size: var(--ob-text-sm);
+}
+.ob-alert--success { background: var(--ob-color-success-bg); color: var(--ob-color-success-text); }
+.ob-alert--warning { background: var(--ob-color-warning-bg); color: var(--ob-color-warning-text); }
+.ob-alert--danger  { background: var(--ob-color-danger-bg);  color: var(--ob-color-danger-text); }
+
+.ob-spinner {
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 3px solid var(--ob-color-border);
+  border-top-color: var(--ob-color-brand);
+  border-radius: 50%;
+  animation: ob-spin 0.8s linear infinite;
+}
+@keyframes ob-spin { to { transform: rotate(360deg); } }
+
+/* ----------------------------------------------------------------------
+   UTILITIES  (use sparingly — prefer a real component class)
+   ---------------------------------------------------------------------- */
+.ob-visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  clip: rect(0 0 0 0); clip-path: inset(50%);
+  overflow: hidden; white-space: nowrap;
+}
+.ob-text-muted  { color: var(--ob-color-text-muted); }
+.ob-text-center { text-align: center; }
+.ob-text-sm     { font-size: var(--ob-text-sm); }
