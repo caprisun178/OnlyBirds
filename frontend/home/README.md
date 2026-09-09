@@ -1,7 +1,9 @@
 # Landing page
 
-The public marketing page for Only Birds. Plain HTML + CSS, **no build step** —
-this is separate from the React app that will live in `frontend/src/`.
+The public marketing page for Only Birds. Plain HTML + CSS, **no build step**.
+It is deliberately standalone (its own `styles.css`) so it can deploy on its
+own; it follows the same visual language as the app's shared design system
+(`frontend/src/styles/base.css`) and can adopt it later.
 
 ## Preview it
 

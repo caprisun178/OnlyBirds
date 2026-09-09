@@ -8,9 +8,14 @@ to be **managed** — no servers to patch, no Docker to learn.
 | Postgres + PostGIS | **Supabase** | also provides Auth and file Storage in the same project |
 | Auth | Supabase Auth | wired up with the [User profiles](features/user-profiles.md) feature |
 | Photo / avatar files | Supabase Storage | wired up with [Add Observation](features/add-observation.md) |
-| Backend API (FastAPI) | **Render** web service | auto-deploys on push; see `render.yaml` |
-| Web frontend | Vercel | *not yet* — `frontend/` has no build tooling |
+| Backend API (FastAPI) | **Render** web service | auto-deploys from `main`; see `render.yaml` |
+| Web frontend | static host (Vercel / Netlify / GitHub Pages) | the landing page (`frontend/home/`) is plain HTML/CSS and can deploy now; app screens later |
 | Mobile | Expo EAS | *not yet* |
+
+!!! note "Render tracks `main` only"
+    Feature work merges to `dev/current` first; a **release PR `dev/current` →
+    `main`** is what ships. See
+    [Contributing → Branch & PR workflow](contributing.md#branch--pr-workflow).
 
 !!! danger "Secrets"
     The database password, `EBIRD_API_KEY`, and the Supabase service key live in
@@ -98,16 +103,18 @@ Do these when you start the features that need them:
   **Storage** → create buckets `photos` and `avatars`. The backend issues signed
   upload URLs using `SUPABASE_SERVICE_ROLE_KEY` (secret).
 
-## 5. Frontend (later)
+## 5. Frontend
 
-`frontend/` is a layered skeleton with no build tooling yet. Once it is
-scaffolded:
+- **Landing page** — `frontend/home/` is static HTML/CSS. Point a static host
+  (Vercel / Netlify / GitHub Pages) at that folder; no build step. Deploy from
+  `main`.
+- **App screens** — built on the shared design system
+  (`frontend/src/styles/base.css`). Deploy the same way once they exist, with
+  `SUPABASE_URL` + `SUPABASE_ANON_KEY` (the anon key is public) and the Render
+  API URL.
+- **Mobile** — Expo EAS Build, later, same API base URL.
 
-- **Web** → Vercel, root `frontend/`, env `VITE_API_BASE_URL` = the Render URL,
-  `SUPABASE_URL` + `SUPABASE_ANON_KEY` (the anon key is public).
-- **Mobile** → Expo EAS Build, same API base URL.
-
-Add the web app's deployed origin to `CORS_ORIGINS` on the Render service.
+Add each deployed web origin to `CORS_ORIGINS` on the Render service.
 
 ## Environment variables — full list
 

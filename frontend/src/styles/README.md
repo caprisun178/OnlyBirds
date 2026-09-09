@@ -1,15 +1,19 @@
 # Styling standard
 
-`base.css` is the one stylesheet every screen and shared component builds on.
-Import it once, at the app entry point:
+`base.css` is the one stylesheet every screen and reusable block builds on.
+Plain CSS, no build step. Link it in each HTML page **before** the page's own
+stylesheet:
 
-```js
-// src/main.jsx
-import './styles/base.css';
+```html
+<link rel="stylesheet" href="/src/styles/base.css" />
+<link rel="stylesheet" href="page.css" />        <!-- this page's extras, optional -->
 ```
 
-Then style with the `.ob-*` classes below. **Do not** add a second global
-stylesheet or a component library — this is the standard.
+(If a bundler is added later, `import './styles/base.css'` once at the entry
+point does the same thing.)
+
+Then write markup with the `.ob-*` classes below. **Do not** add a second global
+stylesheet or a CSS framework — this is the standard.
 
 ## The rules
 
@@ -28,8 +32,8 @@ stylesheet or a component library — this is the standard.
    (buttons, tags, inputs) reuses the shared classes.
 4. **Never** restyle an `.ob-*` class inside a component to get a one-off. Add a
    variant to `base.css` instead.
-5. `Components/` stay presentational — they take props and render markup with
-   these classes. No data fetching (see [Contributing](../../../docs/contributing.md)).
+5. Reusable blocks stay presentational — markup + these classes, no data
+   fetching (see [Contributing](../../../docs/contributing.md)).
 
 ## Class catalogue
 
@@ -55,40 +59,34 @@ Token groups (see the top of `base.css`): `--ob-space-1..8`, `--ob-radius-*`,
 (always use the **semantic** `--ob-color-…` names, not the raw `--ob-blue-500`
 scale).
 
-## Example — a shared component
+## Example — a reusable block
 
-```jsx
-// src/Components/SpeciesCard.jsx  — presentational only
-import './SpeciesCard.css';
-
-export function SpeciesCard({ name, seen, photoUrl, onPin }) {
-  return (
-    <article className="ob-card ob-card--interactive ob-species-card">
-      <img className="ob-species-card__photo" src={photoUrl} alt="" />
-      <h3 className="ob-card__title">{name}</h3>
-      <span className={`ob-tag ${seen ? 'ob-tag--success' : ''}`}>
-        {seen ? 'On your list' : 'Not seen yet'}
-      </span>
-      <button className="ob-btn ob-btn--subtle ob-btn--sm" onClick={onPin}>
-        Pin
-      </button>
-    </article>
-  );
-}
+```html
+<!-- Components/species-card.html -->
+<article class="ob-card ob-card--interactive ob-species-card">
+  <img class="ob-species-card__photo" src="" alt="" />
+  <h3 class="ob-card__title">Barn Owl</h3>
+  <span class="ob-tag ob-tag--success">On your list</span>
+  <button class="ob-btn ob-btn--subtle ob-btn--sm" type="button">Pin</button>
+</article>
 ```
 
 ```css
-/* src/Components/SpeciesCard.css — layout only, tokens only */
+/* Components/species-card.css — layout only, tokens only */
 .ob-species-card { display: flex; flex-direction: column; gap: var(--ob-space-3); }
-.ob-species-card__photo { border-radius: var(--ob-radius-md); aspect-ratio: 4 / 3; object-fit: cover; }
+.ob-species-card__photo {
+  border-radius: var(--ob-radius-md);
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
 ```
 
 ## Dark mode
 
 `base.css` ships a dark palette that follows the OS setting automatically. A
-future toggle just sets `document.documentElement.dataset.theme = 'dark' | 'light'`.
-Because components only use `--ob-color-*` tokens, they adapt for free — don't
-write per-theme rules in a component.
+future toggle just sets `document.documentElement.dataset.theme` to `"dark"` or
+`"light"`. Because markup only uses `--ob-color-*` tokens, it adapts for free —
+don't write per-theme rules in a page or block.
 
 ## Relationship to the landing page
 

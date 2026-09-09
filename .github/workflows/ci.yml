@@ -1,11 +1,12 @@
 name: CI
 
-# Runs on every PR and on pushes to main. Make this check "required" in the
-# branch protection rule for main so nothing merges without it passing.
+# Runs on every PR (any base) and on pushes to main / dev/current. Make these
+# checks "required" in the branch protection rules for main and dev/current so
+# nothing merges without them passing.
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, dev/current]
 
 jobs:
   backend:

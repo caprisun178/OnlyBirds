@@ -18,8 +18,9 @@ Nothing here is fully built yet. *Partial* means some API already exists.
 
 ## Who's working on what
 
-**Claiming a feature:** put your name in the Owner column, add your branch, set
-the status, and open a PR against this file so everyone can see it's taken.
+**Claiming a feature:** put your name in the Owner column, add your branch
+(`working/<you>/<feature>`, cut from `dev/current`), set the status, and open a
+quick PR into `dev/current` so everyone can see it's taken.
 One owner per feature at a time — if a row already has a name, ping that person
 before starting.
 

@@ -15,7 +15,7 @@ reasons (from the root `README.md`):
 ## Request flow
 
 ```text
-React Web / React Native
+web / mobile clients
         │  HTTPS / JSON
         ▼
 ┌─────────────────────────────┐
@@ -35,7 +35,7 @@ in-memory      iNaturalist v1 + eBird 2.0
 observation
 store
 (→ Postgres,
- roadmap 3)
+ in progress)
 ```
 
 ## Backend layers
@@ -48,12 +48,14 @@ store
 | `app/models/` | shared Pydantic shapes | imported anywhere |
 
 `app/dao/observation_repo.py` defines an `ObservationRepo` `Protocol` with an
-`InMemoryObservationRepo` implementation. Roadmap step 3 swaps in a
-PostgreSQL + PostGIS implementation behind the same protocol.
+`InMemoryObservationRepo` implementation. A PostgreSQL + PostGIS implementation
+(see [Deployment](deployment.md)) swaps in behind the same protocol — this is
+the current work.
 
 ## Data model
 
-Pydantic models in `app/models/`, mirroring the README's starting schema:
+Pydantic models in `app/models/`, mirroring the baseline migration
+(`backend/migrations/0001_baseline.sql`):
 
 - `SpeciesRef` — `scientific_name`, `common_name`, `taxon_group`, `source_ids`
   (`{"inat": ..., "ebird": ...}`)

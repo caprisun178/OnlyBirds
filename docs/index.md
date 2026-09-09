@@ -9,15 +9,21 @@ only touch the API, you can stop after [Run the tests](#4-run-the-tests).
 OnlyBirds/
 ├── backend/        FastAPI service (Python) — the API the apps talk to
 │   ├── app/        dao / services / models / routers
+│   ├── migrations/ numbered .sql files
+│   ├── scripts/    migrate.sh
 │   └── tests/      pytest, no network
-├── frontend/       React (web) + React Native (mobile) — layered stubs, no build tooling yet
+├── frontend/
+│   ├── home/       landing page (static HTML/CSS)
+│   └── src/        app skeleton — dao / services / presenters / components / styles
 ├── docs/           this MkDocs site
+├── render.yaml     Render deployment blueprint
 └── mkdocs.yml
 ```
 
-The backend is the only part that runs today. The frontend currently holds the
-DAO / service / presenter skeleton described in
-[Contributing](contributing.md#frontend-layering); wiring is still to come.
+The backend runs and is deployed. The frontend has a static landing page
+(`frontend/home/`) and the shared design system (`frontend/src/styles/`); the
+app screens come next. Layer rules are in
+[Contributing](contributing.md#frontend-layering).
 
 ## Prerequisites
 
@@ -26,8 +32,9 @@ DAO / service / presenter skeleton described in
 | Git | any recent | cloning | |
 | Python | 3.13+ (3.13.14 known good) | backend | `python --version` |
 | eBird API key | — | live bird sightings | free, see step 2. iNaturalist needs no key. |
-| Node.js | 20+ | frontend | not required yet — no `package.json` in `frontend/` |
-| PostgreSQL + PostGIS | 16 | persistence | **optional**, only once roadmap step 3 lands; the base server uses an in-memory store |
+| Node.js | — | frontend | not required — the frontend is plain HTML/CSS |
+| PostgreSQL + PostGIS | 16 | persistence | needed to run migrations; the base server still runs on an in-memory store — see [Deployment](deployment.md) |
+| `psql` client | any | migrations | only if you run `backend/scripts/migrate.sh`; otherwise use the Supabase SQL editor |
 
 !!! note "Windows"
     Commands are shown for both PowerShell and bash. On Windows, prefer
@@ -40,6 +47,9 @@ DAO / service / presenter skeleton described in
 git clone <your-fork-or-origin-url> OnlyBirds
 cd OnlyBirds
 ```
+
+To just run things locally, `main` is fine. To contribute, branch off
+`dev/current` — see [Contributing](contributing.md#branch--pr-workflow).
 
 ## 2. Get an eBird API key
 
@@ -98,13 +108,21 @@ python -m pytest        # or: pytest
 The suite uses FastAPI's `TestClient` and never hits the network, so it passes
 offline and without any API key.
 
-## 5. Front-end setup
+## 5. Front-end
 
-Not runnable yet. `frontend/src/` contains the layered skeleton
-(`Dao/`, `Services/`, `Presenters/`, `Components/`, `Models/`, `Pages/`) and the
-rules in [Contributing](contributing.md#frontend-layering). Once build tooling is
-added the flow will be the usual `npm install` / `npm run dev` (web) and Expo
-for React Native — this page will be updated then.
+The landing page is plain HTML/CSS — open `frontend/home/index.html`, or serve
+it:
+
+```bash
+cd frontend/home
+python -m http.server 4173      # http://localhost:4173
+```
+
+Shared styles and the `.ob-*` component classes live in `frontend/src/styles/`;
+the rules are in [Contributing](contributing.md#styling-standard). App logic
+under `frontend/src/` (`Dao/`, `Services/`, `Presenters/`, `Components/`) follows
+the [layering rules](contributing.md#frontend-layering); the screens themselves
+are still to come.
 
 ## Environment variables
 
@@ -113,8 +131,8 @@ Set in `backend/.env` (copied from `backend/.env.example`):
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
 | `EBIRD_API_KEY` | for eBird data | _unset_ | eBird API 2.0 token; sent server-side as `X-eBirdApiToken` |
-| `CORS_ORIGINS` | no | `http://localhost:3000,http://localhost:5173,http://localhost:8081` | comma-separated allowed browser / Metro origins |
-| `DATABASE_URL` | no (roadmap step 3) | _unset_ | Postgres connection string; unused by the in-memory base server |
+| `CORS_ORIGINS` | no | `http://localhost:3000,http://localhost:5173,http://localhost:8081` | comma-separated allowed web origins |
+| `DATABASE_URL` | for migrations | _unset_ | Postgres connection string (Supabase). Used by `scripts/migrate.sh`; the base server still runs without it. See [Deployment](deployment.md). |
 
 `.env` is git-ignored. Never commit real keys.
 
