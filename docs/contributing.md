@@ -101,15 +101,16 @@ python -m pytest
 
 ## Frontend layering
 
-From the root `README.md` — the same DAO / Services / Presenters split as the
-backend:
+JavaScript logic under `frontend/src/` uses the same layer split as the
+backend. Markup and styling follow the [Styling standard](#styling-standard)
+below.
 
 ```text
 frontend/src/
   Dao/          raw API access only, no logic (talks to our FastAPI backend)
   Services/     business logic; transforms DAO output into UI-ready shape
-  Presenters/   smart components — own state, handlers, render JSX
-  Components/   pure, presentational only — no state, no DAO/Service imports
+  Presenters/   wire a screen together — state, handlers, render the markup
+  Components/   reusable markup blocks — no state, no DAO/Service imports
   Models/       shared data shapes
 ```
 
@@ -125,21 +126,28 @@ Rules:
 
 ## Styling standard
 
-There is one stylesheet: `frontend/src/styles/base.css`. It defines the design
-tokens (`--ob-*` variables) and the shared `.ob-*` component classes — buttons,
-cards, tags, form fields, alerts, layout helpers. Import it once at the app
-entry point.
+There is one shared stylesheet: `frontend/styles/base.css` — plain CSS, no
+build step. It defines the design tokens (`--ob-*` variables) and the shared
+`.ob-*` classes (buttons, cards, tags, form fields, alerts, layout helpers).
+Every HTML page links it before its own `styles.css`:
 
-- Build shared components out of `.ob-*` classes; give a component at most one
-  layout class of its own (`.ob-species-card`).
+```html
+<link rel="stylesheet" href="../styles/base.css" />
+<link rel="stylesheet" href="styles.css" />
+```
+
+- Write markup with `.ob-*` classes; a reusable block gets at most one layout
+  class of its own (`.ob-species-card`) in a small CSS file beside it.
 - In any CSS, use tokens — `var(--ob-space-4)`, `var(--ob-color-brand)` — never
   raw `px` or hex. Need a new value? Add a token to `base.css`.
 - Class names: `ob-` prefix, BEM-style — block `.ob-card`, element
   `.ob-card__title`, variant `.ob-btn--primary`.
 - Don't restyle an `.ob-*` class for a one-off; add a variant to `base.css`.
+- A page's `styles.css` is for that page's layout only; it must not redefine
+  `.ob-*` classes.
 
-Full catalogue, the naming table, and a worked component example:
-[`frontend/src/styles/README.md`](https://github.com/caprisun178/OnlyBirds/blob/main/frontend/src/styles/README.md).
+Full catalogue, folder structure, and a worked example:
+[`frontend/styles/README.md`](https://github.com/caprisun178/OnlyBirds/blob/main/frontend/styles/README.md).
 
 ## Documentation
 
