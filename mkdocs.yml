@@ -51,4 +51,5 @@ nav:
       - Bird information page: features/bird-info.md
       - Explore map: features/explore-map.md
   - Backend API: backend.md
+  - Deployment: deployment.md
   - Contributing: contributing.md

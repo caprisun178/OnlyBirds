@@ -66,31 +66,26 @@ numbered `.sql` file you run with `psql`.
 
     Look in the folder for the highest number and add one.
 
-2. **Run it** against your local database:
+2. **Run every pending migration** with the helper script:
 
-    === "macOS / Linux"
+    ```bash
+    export DATABASE_URL="postgresql://postgres:<password>@db.<ref>.supabase.co:5432/postgres"
+    ./backend/scripts/migrate.sh
+    ```
 
-        ```bash
-        psql "$DATABASE_URL" -f backend/migrations/0003_pinned_birds.sql
-        ```
+    `DATABASE_URL` also lives in `backend/.env`. The script applies each
+    `backend/migrations/*.sql` file in order and records it in a
+    `schema_migrations` table, so re-running it only applies what's new. It needs
+    the `psql` client installed; on Windows run it through Git Bash or WSL.
 
-    === "Windows (PowerShell)"
-
-        ```powershell
-        psql $env:DATABASE_URL -f backend/migrations/0003_pinned_birds.sql
-        ```
-
-    `DATABASE_URL` lives in `backend/.env`, e.g.
-    `postgresql://postgres:postgres@localhost:5432/onlybirds`.
+    No `psql`? Paste each file into the Supabase **SQL Editor** in number order.
 
 3. **Commit the `.sql` file.** It is the permanent record of the change. Never
    edit a migration that is already merged — add a new one.
 
 !!! tip "Rebuild from scratch"
-    ```bash
-    dropdb onlybirds && createdb onlybirds
-    for f in backend/migrations/*.sql; do psql "$DATABASE_URL" -f "$f"; done
-    ```
+    Drop and recreate the database (or, on Supabase, use a fresh project), then
+    run `./backend/scripts/migrate.sh` again.
 
 !!! note "When we outgrow this"
     Once the schema stabilises we will switch to Alembic (SQLAlchemy's migration

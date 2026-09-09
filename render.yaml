@@ -1,0 +1,26 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+#
+# Deploys the FastAPI backend as a web service. Create the service by pointing
+# Render at this repo (New > Blueprint). Secrets are NOT stored here: every
+# `sync: false` var must be filled in the Render dashboard after the first
+# deploy (Dashboard > the service > Environment).
+
+services:
+  - type: web
+    name: onlybirds-api
+    runtime: python
+    plan: free                       # sleeps after 15 min idle; fine for dev
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true                 # redeploy on every push to the default branch
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13.14"
+      - key: EBIRD_API_KEY           # set in dashboard — https://ebird.org/api/keygen
+        sync: false
+      - key: DATABASE_URL            # set in dashboard — Supabase > Settings > Database > URI
+        sync: false
+      - key: CORS_ORIGINS            # add the deployed web app origin once it exists
+        value: http://localhost:5173,http://localhost:3000
