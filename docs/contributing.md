@@ -2,6 +2,9 @@
 
 ## Branch & PR workflow
 
+New to the repo? [Set up & test your changes](setup-and-test.md) is the quick
+version. This section is the full reference — branch tiers, releases, protection.
+
 There are three tiers of branch. You never commit to `main` or `dev/current`
 directly — every change lands through a reviewed, CI-green pull request.
 

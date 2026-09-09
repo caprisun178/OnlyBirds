@@ -38,6 +38,7 @@ markdown_extensions:
       alternate_style: true
 
 nav:
+  - Set up & test your changes: setup-and-test.md
   - Environment Setup: index.md
   - Architecture: architecture.md
   - Features:

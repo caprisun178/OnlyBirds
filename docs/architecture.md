@@ -54,8 +54,8 @@ the current work.
 
 ## Data model
 
-Pydantic models in `app/models/`, mirroring the core data model in the root
-`README.md` and the baseline migration:
+Pydantic models in `app/models/`, mirroring the baseline migration
+(`backend/migrations/0001_baseline.sql`):
 
 - `SpeciesRef` — `scientific_name`, `common_name`, `taxon_group`, `source_ids`
   (`{"inat": ..., "ebird": ...}`)
