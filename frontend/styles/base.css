@@ -1,23 +1,27 @@
 /* =========================================================================
    Only Birds — base stylesheet / design system
    =========================================================================
-   Import this ONCE at the app entry point:
+   Plain CSS, no build step. Link it in every HTML page BEFORE the page's
+   own stylesheet:
 
-       import './styles/base.css';
+       <link rel="stylesheet" href="../styles/base.css" />
+       <link rel="stylesheet" href="styles.css" />
 
-   Then build shared components out of the `.ob-*` classes below. Rules:
+   Then write markup with the `.ob-*` classes below. Rules:
 
    1. Every colour, size, radius, and shadow is a token (a `--ob-*` CSS
-      variable). Components use `var(--ob-...)`, never a raw hex or px value.
+      variable). Your CSS uses `var(--ob-...)`, never a raw hex or px value.
    2. Class names are prefixed `ob-`. Pattern:
          block      .ob-card
          element    .ob-card__title      (double underscore)
          variant    .ob-btn--primary     (double dash)
-   3. A component may add ONE scoped class of its own for layout
+   3. A reusable block may add ONE class of its own for layout
       (e.g. `.ob-species-card`) but colours/spacing inside it still come
       from tokens.
-   4. Don't edit component rules to do a one-off. Add a variant here, or a
-      token, so the change is shared.
+   4. Don't edit these rules for a one-off. Add a variant here, or a token,
+      so the change is shared.
+
+   Full guide: frontend/styles/README.md
 
    Sections:  TOKENS · DARK MODE · RESET · LAYOUT · BUTTONS · CARDS ·
               TAGS & BADGES · FORMS · FEEDBACK · UTILITIES

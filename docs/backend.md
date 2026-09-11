@@ -26,7 +26,8 @@ Base URL in development: `http://localhost:8000`. Interactive docs (OpenAPI) at
 | `days_back` | int | 7 | 1…30 (eBird only) |
 | `source` | enum | `all` | `all` \| `ebird` \| `inat` |
 
-With no `EBIRD_API_KEY` configured, eBird results are silently omitted.
+With no `EBIRD_API_KEY` configured, eBird results are silently omitted — see
+[eBird API](ebird-api.md) for auth, endpoints, and failure behavior.
 
 ## Examples
 
@@ -61,8 +62,8 @@ python -m pytest                       # test (offline, no key)
 
 ## Known limitations
 
-- Observations live in an in-memory store — they reset on restart (Postgres is
-  roadmap step 3).
+- Observations live in an in-memory store — they reset on restart. Moving to
+  Postgres is in progress; see [Deployment](deployment.md).
 - `user_id` / `auth_provider_id` are trusted as passed; no token verification.
 - Cross-source species dedupe in the life list is name-based until external
   `source_ids` are resolved to our own `species` rows.

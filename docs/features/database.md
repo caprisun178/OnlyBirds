@@ -26,13 +26,13 @@ eBird or iNaturalist owns it, it goes in a cache table or stays remote.**
 
 | API | Needs a key? | What we use it for | Docs |
 |---|---|---|---|
-| eBird API 2.0 | Yes — `EBIRD_API_KEY` in `backend/.env` | regions, region checklists, taxonomy, recent + notable sightings | <https://documenter.getpostman.com/view/664302/S1ENwy59> |
+| eBird API 2.0 | Yes | regions, region checklists, taxonomy, recent + notable sightings | [eBird API](../ebird-api.md) |
 | iNaturalist API v1 | No | taxon search, recent sightings in a bounding box | <https://api.inaturalist.org/v1/docs/> |
 | Macaulay Library (Cornell) | Yes (Cornell account) | species photos and audio | via eBird / Cornell |
 | eBird Status & Trends | product download | migration and abundance maps | <https://science.ebird.org/en/status-and-trends> |
 
-All external calls happen in `backend/app/dao/` **only**. Never call eBird or
-iNaturalist from a router, a service, or the frontend.
+All external calls happen in `backend/app/dao/` **only** — see
+[Contributing → Backend conventions](../contributing.md#backend-conventions).
 
 ## Conventions
 
@@ -94,8 +94,8 @@ numbered `.sql` file you run with `psql`.
 
 ## Baseline schema — `0001_baseline.sql`
 
-Roadmap step 3. This formalises the "starting point" bullets in the root
-`README.md` and is what every feature change builds on.
+The schema every feature builds on — it matches the core data model in the root
+`README.md`. Committed as `backend/migrations/0001_baseline.sql`.
 
 ```sql
 -- 0001_baseline.sql

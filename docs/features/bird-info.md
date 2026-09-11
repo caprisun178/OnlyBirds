@@ -33,6 +33,9 @@ sticker, a `pin_hit` notification). Read-only; the only user data on it is a
 
 ## 2. Where the data comes from and where it goes
 
+Endpoint details (auth, base URL, failure behavior) live on the
+[eBird API](../ebird-api.md) page, not here.
+
 | Data | Comes from | Stored where |
 |---|---|---|
 | Taxonomy: names, family, codes | eBird `GET /ref/taxonomy/ebird` | `species` table (already populated by the Life List) |
@@ -124,7 +127,7 @@ switches search to our own `species` table and adds the profile + media routes.
 | `routers/` | `app/routers/species.py` (extend) | `GET /species`, `GET /species/{code}`, `GET /species/{code}/media` |
 | `Dao/` | `frontend/src/Dao/species.js` (extend) | search + profile calls |
 | `Services/` | `frontend/src/Services/species.js` (**new**) | UI-shaped profile |
-| `Presenters/` | `Presenters/SpeciesSearch.jsx`, `Presenters/SpeciesPage.jsx` (**new**) | search box + results; the profile page and its media / pin interactions |
+| `Presenters/` | `Presenters/SpeciesSearch.js`, `Presenters/SpeciesPage.js` (**new**) | search box + results; the profile page and its media / pin interactions |
 | `Components/` | `SearchBar`, `SpeciesHeader`, `MediaCarousel`, `AudioPlayer`, `RangeMap`, `AttributionFooter` | presentational |
 
 ## 6. Build order
@@ -139,7 +142,7 @@ switches search to our own `species` table and adds the profile + media routes.
 5. Extend `app/services/species.py` to assemble the profile.
 6. Add the profile + media routes.
 7. Tests: canned taxonomy + Macaulay payloads; assert the merged profile shape.
-8. Frontend: `SpeciesSearch.jsx` → `SpeciesPage.jsx` → media components +
+8. Frontend: `SpeciesSearch.js` → `SpeciesPage.js` → media components +
    `AttributionFooter`.
 
 ## Related pages
@@ -149,3 +152,4 @@ switches search to our own `species` table and adds the profile + media routes.
 - [Pinned birds](pinned-birds.md) — the pin toggle on this page
 - [Explore map](explore-map.md) — sighting popups link here
 - [Database & migrations](database.md)
+- [eBird API](../ebird-api.md) — auth, endpoints, failure behavior

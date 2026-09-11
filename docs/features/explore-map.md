@@ -37,6 +37,9 @@ record from eBird and iNaturalist.
 
 ## 2. Where the data comes from and where it goes
 
+Endpoint details (auth, base URL, failure behavior) live on the
+[eBird API](../ebird-api.md) page, not here.
+
 | Data | Comes from | Stored where |
 |---|---|---|
 | eBird recent sightings in a region | eBird `GET /data/obs/{regionCode}/recent` | **cache table `sighting_cache`** (`source = 'ebird'`) |
@@ -121,7 +124,7 @@ service, collapses to **one pin with multiple source badges**. Key on
 | `routers/` | `app/routers/sightings.py` (extend) | `GET /sightings` (bbox form) + `GET /sightings/{source}/{source_id}` |
 | `Dao/` | `frontend/src/Dao/sightings.js` (**new**) | viewport fetch |
 | `Services/` | `frontend/src/Services/map.js` (**new**) | camera seeded from `default_region`, filter state → query params |
-| `Presenters/` | `Presenters/ExploreMap.jsx` (**new**) | map camera, filters, pin selection, tap-to-log hand-off |
+| `Presenters/` | `Presenters/ExploreMap.js` (**new**) | map camera, filters, pin selection, tap-to-log hand-off |
 | `Components/` | `MapCanvas`, `SightingCluster`, `SightingPin`, `SightingPopup`, `MapFilters`, `MapLegend`, `AttributionFooter` | presentational |
 
 ## 6. Build order
@@ -136,7 +139,7 @@ service, collapses to **one pin with multiple source badges**. Key on
 7. Tests: canned eBird + iNat payloads that overlap on one species/place/day;
    assert one merged pin with two badges, and that a second call hits the cache.
 8. Frontend: `Services/map.js` (camera from `default_region`) →
-   `Presenters/ExploreMap.jsx` → map components + `AttributionFooter`.
+   `Presenters/ExploreMap.js` → map components + `AttributionFooter`.
 
 ## Related pages
 
@@ -145,3 +148,4 @@ service, collapses to **one pin with multiple source badges**. Key on
 - [Bird information page](bird-info.md) — sighting popups link here
 - [Pinned birds](pinned-birds.md) — pin a species straight from a popup
 - [Database & migrations](database.md)
+- [eBird API](../ebird-api.md) — auth, endpoints, failure behavior

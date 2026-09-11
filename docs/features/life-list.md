@@ -53,6 +53,9 @@ species as the target.
 
 ## 2. Where the data comes from and where it goes
 
+Endpoint details (auth, base URL, failure behavior) live on the
+[eBird API](../ebird-api.md) page, not here.
+
 | Data | Comes from | Stored where |
 |---|---|---|
 | Region picker options (children of a region) | eBird `GET /ref/region/list/{type}/{parentCode}` | **not stored** — read live, small responses |
@@ -125,7 +128,7 @@ zipping the last two responses together.
 | `routers/` | `app/routers/life_list.py` (extend) | add `GET /regions` and `GET /regions/{code}/checklist` |
 | `Dao/` | `frontend/src/Dao/lifelist.js`, `Dao/regions.js` (**new**) | fetch entries + checklist from our API |
 | `Services/` | `frontend/src/Services/lifeList.js` | build the completion rows, progress, region + sort |
-| `Presenters/` | `frontend/src/Presenters/LifeList.jsx` | owns region filter, sort, grid/list toggle state |
+| `Presenters/` | `frontend/src/Presenters/LifeList.js` | owns region filter, sort, grid/list toggle state |
 | `Components/` | `SpeciesCard`, `MissingBird`, `ProgressBar` | presentational only |
 
 ## 6. Build order
@@ -140,7 +143,7 @@ zipping the last two responses together.
 5. Add the two routes to `app/routers/life_list.py`.
 6. Add a test in `backend/tests/` with a canned eBird checklist payload (no
    network).
-7. Frontend: `Dao/regions.js` → `Services/lifeList.js` → `Presenters/LifeList.jsx`
+7. Frontend: `Dao/regions.js` → `Services/lifeList.js` → `Presenters/LifeList.js`
    → `MissingBird` / `ProgressBar` components.
 
 ## Related pages
@@ -149,3 +152,4 @@ zipping the last two responses together.
 - [User profiles](user-profiles.md) — supplies `default_region`
 - [Bird information page](bird-info.md) — where a species card links to
 - [Database & migrations](database.md)
+- [eBird API](../ebird-api.md) — auth, endpoints, failure behavior
