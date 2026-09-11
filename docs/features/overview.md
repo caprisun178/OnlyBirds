@@ -55,15 +55,16 @@ Every feature page has the same seven sections:
 
 ## The layering (same on backend and frontend)
 
-The FastAPI backend and the React frontend use the same layers. A feature
-touches all of them, top to bottom:
+The FastAPI backend and the frontend use the same layers. A feature touches
+all of them, top to bottom. The frontend is plain JS — no framework, no build
+step; see [Building a screen](../frontend-screens.md).
 
 | Layer | Backend | Frontend | Does |
 |---|---|---|---|
 | HTTP surface | `app/routers/` | — | defines endpoints, validates input, sets status codes |
 | Data access | `app/dao/` | `src/Dao/` | the **only** place that talks to a database or an external API |
 | Business logic | `app/services/` | `src/Services/` | turns raw data into the shape the UI needs |
-| Screens | — | `src/Presenters/` | own state and event handlers, render JSX |
+| Screens | — | `src/Presenters/` | own state and event handlers, render markup into a container element |
 | Presentational | — | `src/Components/` | pure, reusable, no data fetching |
 
 **The one rule that matters:** only `dao/` calls eBird, iNaturalist, or Postgres.

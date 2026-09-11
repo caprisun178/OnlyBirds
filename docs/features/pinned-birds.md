@@ -145,7 +145,7 @@ where p.species_code = :species_code
 | `services/` | `app/services/observation.py` (hook) | call `evaluate_pins(observation)` after every logged observation |
 | `Dao/` | `frontend/src/Dao/pins.js`, `Dao/notifications.js` (**new**) | raw calls |
 | `Services/` | `frontend/src/Services/pins.js`, `Services/notifications.js` (**new**) | UI models |
-| `Presenters/` | `PinToggle` state on the Life List card; `NotificationsFeed.jsx` (**new**) | |
+| `Presenters/` | `PinToggle` state on the Life List card; `NotificationsFeed.js` (**new**) | |
 | `Components/` | `PinButton`, `NotificationBell`, `NotificationList` | presentational |
 
 ## 6. Build order
@@ -160,7 +160,7 @@ where p.species_code = :species_code
    assert A gets exactly one `pin_hit`, and a second identical log the same day
    adds none.
 8. Frontend: `PinButton` on the `MissingBird` card, then `NotificationBell` +
-   `NotificationsFeed.jsx`.
+   `NotificationsFeed.js`.
 
 ## Related pages
 

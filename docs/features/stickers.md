@@ -143,7 +143,7 @@ There is **no** endpoint that grants a sticker — awards only happen inside
 | `services/` | `app/services/observation.py` (hook) | call `evaluate_stickers()` right after a `life_list_entries` insert |
 | `Dao/` | `frontend/src/Dao/stickers.js` (**new**) | catalog + user stickers |
 | `Services/` | `frontend/src/Services/stickers.js` (**new**) | merge catalog with earned rows → shelf model |
-| `Presenters/` | `Presenters/StickerShelf.jsx` (**new**) | shelf layout, filter by rarity / earned |
+| `Presenters/` | `Presenters/StickerShelf.js` (**new**) | shelf layout, filter by rarity / earned |
 | `Components/` | `Sticker` (earned vs locked art), `AwardToast` | presentational |
 
 ## 6. Build order
@@ -158,7 +158,7 @@ There is **no** endpoint that grants a sticker — awards only happen inside
 6. Add `app/routers/stickers.py`.
 7. Tests: seed two stickers, log observations, assert the right `user_stickers`
    rows appear and re-running the engine changes nothing.
-8. Frontend: `Services/stickers.js` → `Presenters/StickerShelf.jsx` → `Sticker`
+8. Frontend: `Services/stickers.js` → `Presenters/StickerShelf.js` → `Sticker`
    / `AwardToast`.
 
 ## Related pages

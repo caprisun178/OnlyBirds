@@ -14,16 +14,17 @@ OnlyBirds/
 │   └── tests/      pytest, no network
 ├── frontend/
 │   ├── home/       landing page (static HTML/CSS)
-│   └── src/        app skeleton — dao / services / presenters / components / styles
+│   ├── styles/     shared design system — base.css + its guide
+│   └── src/        app screens — plain JS/HTML, no build step — dao / services / presenters / components
 ├── docs/           this MkDocs site
 ├── render.yaml     Render deployment blueprint
 └── mkdocs.yml
 ```
 
 The backend runs and is deployed. The frontend has a static landing page
-(`frontend/home/`) and the shared design system (`frontend/src/styles/`); the
-app screens come next. Layer rules are in
-[Contributing](contributing.md#frontend-layering).
+(`frontend/home/`), the shared design system (`frontend/styles/`), and a plain
+JS app skeleton (`frontend/src/`) that the screens are built in — no framework,
+no build step. Layer rules are in [Contributing](contributing.md#frontend-layering).
 
 ## Prerequisites
 
@@ -32,7 +33,7 @@ app screens come next. Layer rules are in
 | Git | any recent | cloning | |
 | Python | 3.13+ (3.13.14 known good) | backend | `python --version` |
 | eBird API key | — | live bird sightings | free, see step 2. iNaturalist needs no key. |
-| Node.js | — | frontend | not required — the frontend is plain HTML/CSS |
+| Node.js | — | frontend | not required — the frontend is plain HTML/CSS/JS |
 | PostgreSQL + PostGIS | 16 | persistence | needed to run migrations; the base server still runs on an in-memory store — see [Deployment](deployment.md) |
 | `psql` client | any | migrations | only if you run `backend/scripts/migrate.sh`; otherwise use the Supabase SQL editor |
 
@@ -49,7 +50,7 @@ cd OnlyBirds
 ```
 
 To just run things locally, `main` is fine. To contribute, branch off
-`dev/current` — see [Contributing](contributing.md#branch--pr-workflow).
+`dev/current` — see [Contributing](contributing.md#branch-pr-workflow).
 
 ## 2. Get an eBird API key
 
@@ -96,7 +97,8 @@ Then check it's alive:
 
 !!! tip "Without an eBird key"
     The server still starts. `/sightings/nearby` just returns iNaturalist
-    results only, and `ebird_key_configured` is `false`.
+    results only, and `ebird_key_configured` is `false`. Details on how the
+    key is used and what happens if it's wrong: [eBird API](ebird-api.md).
 
 ## 4. Run the tests
 
@@ -110,19 +112,33 @@ offline and without any API key.
 
 ## 5. Front-end
 
-The landing page is plain HTML/CSS — open `frontend/home/index.html`, or serve
-it:
+Two separate things live under `frontend/` — both plain HTML/CSS/JS, no
+framework, no build step:
 
-```bash
-cd frontend/home
-python -m http.server 4173      # http://localhost:4173
-```
+- **The landing page** (`frontend/home/`). Open `frontend/home/index.html`, or
+  serve it:
 
-Shared styles and the `.ob-*` component classes live in `frontend/src/styles/`;
-the rules are in [Contributing](contributing.md#styling-standard). App logic
-under `frontend/src/` (`Dao/`, `Services/`, `Presenters/`, `Components/`) follows
-the [layering rules](contributing.md#frontend-layering); the screens themselves
-are still to come.
+    ```bash
+    cd frontend/home
+    python -m http.server 4173      # http://localhost:4173
+    ```
+
+- **App screens** (`frontend/src/`). Served the same way, but from `frontend/`
+  so root-relative paths resolve:
+
+    ```bash
+    cd frontend
+    python -m http.server 4174
+    ```
+
+    Then open <http://localhost:4174/src/preview.html> — see
+    [Building a screen → Preview your screen](frontend-screens.md#preview-your-screen)
+    for how to point it at the screen you're building.
+
+Shared styles and the `.ob-*` component classes live in `frontend/styles/`; the
+rules are in [Contributing](contributing.md#styling-standard). App logic under
+`frontend/src/` (`Dao/`, `Services/`, `Presenters/`, `Components/`) follows the
+[layering rules](contributing.md#frontend-layering).
 
 ## Environment variables
 
@@ -130,7 +146,7 @@ Set in `backend/.env` (copied from `backend/.env.example`):
 
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
-| `EBIRD_API_KEY` | for eBird data | _unset_ | eBird API 2.0 token; sent server-side as `X-eBirdApiToken` |
+| `EBIRD_API_KEY` | for eBird data | _unset_ | see [eBird API](ebird-api.md) |
 | `CORS_ORIGINS` | no | `http://localhost:3000,http://localhost:5173,http://localhost:8081` | comma-separated allowed web origins |
 | `DATABASE_URL` | for migrations | _unset_ | Postgres connection string (Supabase). Used by `scripts/migrate.sh`; the base server still runs without it. See [Deployment](deployment.md). |
 
@@ -153,9 +169,11 @@ Set in `backend/.env` (copied from `backend/.env.example`):
     Run from inside `backend/`. `main:app` (the shim) and `app.main:app` both
     work from that directory.
 
-??? warning "eBird requests return 403 / empty"
-    `EBIRD_API_KEY` is missing or invalid in `backend/.env`. Restart uvicorn
-    after editing `.env`. iNaturalist endpoints are unaffected (no key).
+??? warning "eBird requests fail or come back empty"
+    See [eBird API → Error & failure behavior](ebird-api.md#error-failure-behavior)
+    — a missing key degrades silently, but a wrong one returns a `502`.
+    Restart uvicorn after editing `.env`. iNaturalist endpoints are unaffected
+    (no key).
 
 ??? warning "`[Errno 48] Address already in use` / port 8000 taken"
     `python -m uvicorn main:app --reload --port 8001`.

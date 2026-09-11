@@ -26,7 +26,8 @@ Base URL in development: `http://localhost:8000`. Interactive docs (OpenAPI) at
 | `days_back` | int | 7 | 1…30 (eBird only) |
 | `source` | enum | `all` | `all` \| `ebird` \| `inat` |
 
-With no `EBIRD_API_KEY` configured, eBird results are silently omitted.
+With no `EBIRD_API_KEY` configured, eBird results are silently omitted — see
+[eBird API](ebird-api.md) for auth, endpoints, and failure behavior.
 
 ## Examples
 
