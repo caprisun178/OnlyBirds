@@ -1,9 +1,17 @@
-"""Raw access to the iNaturalist API v1 — no business logic.
-
-No auth required for reads. OAuth2 would only be needed to write observations on
-a user's behalf, which the base server does not do.
-
+"""
+==============================
+iNaturalist script library
+Description:
+Raw access to the iNaturalist API v1 — no business logic. No auth required
+for reads; OAuth2 would only be needed to write observations on a user's
+behalf, which the base server does not do.
 Docs: https://api.inaturalist.org/v1/docs/
+
+=============================
+changeLog
+=============================
+09/11/2026 ... SP ... Added obs_in_bbox() stub for Explore map
+=============================
 """
 
 import httpx
@@ -55,3 +63,22 @@ async def get_nearby_observations(
         resp = await client.get("/observations", params=params)
         resp.raise_for_status()
         return resp.json().get("results", [])
+
+
+# --- Not implemented yet — stub for a planned feature. ---------------------
+
+
+async def obs_in_bbox(
+    west: float,
+    south: float,
+    east: float,
+    north: float,
+    since: str | None = None,
+) -> list[dict]:
+    """Research-grade bird observations inside a map viewport.
+
+    `GET /observations?taxon_id=3&nelat=&nelng=&swlat=&swlng=` (taxon 3 =
+    Aves; `since=YYYY-MM-DD` narrows the date window). Needed by Explore map
+    for the bounding-box (rather than point-radius) sighting query.
+    """
+    raise NotImplementedError
