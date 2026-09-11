@@ -127,7 +127,7 @@ switches search to our own `species` table and adds the profile + media routes.
 | `routers/` | `app/routers/species.py` (extend) | `GET /species`, `GET /species/{code}`, `GET /species/{code}/media` |
 | `Dao/` | `frontend/src/Dao/species.js` (extend) | search + profile calls |
 | `Services/` | `frontend/src/Services/species.js` (**new**) | UI-shaped profile |
-| `Presenters/` | `Presenters/SpeciesSearch.jsx`, `Presenters/SpeciesPage.jsx` (**new**) | search box + results; the profile page and its media / pin interactions |
+| `Presenters/` | `Presenters/SpeciesSearch.js`, `Presenters/SpeciesPage.js` (**new**) | search box + results; the profile page and its media / pin interactions |
 | `Components/` | `SearchBar`, `SpeciesHeader`, `MediaCarousel`, `AudioPlayer`, `RangeMap`, `AttributionFooter` | presentational |
 
 ## 6. Build order
@@ -142,7 +142,7 @@ switches search to our own `species` table and adds the profile + media routes.
 5. Extend `app/services/species.py` to assemble the profile.
 6. Add the profile + media routes.
 7. Tests: canned taxonomy + Macaulay payloads; assert the merged profile shape.
-8. Frontend: `SpeciesSearch.jsx` → `SpeciesPage.jsx` → media components +
+8. Frontend: `SpeciesSearch.js` → `SpeciesPage.js` → media components +
    `AttributionFooter`.
 
 ## Related pages

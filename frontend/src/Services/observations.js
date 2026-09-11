@@ -1,6 +1,6 @@
 // services/observations.js — business logic over the observation + life-list DAOs.
-import { observationDAO } from '../Dao/observations';
-import { lifeListDAO } from '../Dao/lifelist';
+import { observationDAO } from '../Dao/observations.js';
+import { lifeListDAO } from '../Dao/lifelist.js';
 
 export const observationService = {
   async logObservation(userId, observationInput) {

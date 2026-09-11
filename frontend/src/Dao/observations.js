@@ -1,5 +1,5 @@
 // dao/observationDAO.js
-import { apiClient } from './apiClient';
+import { apiClient } from './apiClient.js';
 
 export const observationDAO = {
   getAll: (userId) => apiClient.get(`/users/${userId}/observations`),

@@ -108,10 +108,12 @@ Do these when you start the features that need them:
 - **Landing page** — `frontend/home/` is static HTML/CSS. Point a static host
   (Vercel / Netlify / GitHub Pages) at that folder; no build step. Deploy from
   `main`.
-- **App screens** — built on the shared design system
-  (`frontend/src/styles/base.css`). Deploy the same way once they exist, with
-  `SUPABASE_URL` + `SUPABASE_ANON_KEY` (the anon key is public) and the Render
-  API URL.
+- **App screens** — plain JS/HTML (`frontend/src/`), no build step, built on
+  the shared design system (`frontend/styles/base.css`). Point the same kind
+  of static host at `frontend/src/` once there's a screen worth deploying;
+  hardcode the Render API URL in `Dao/apiClient.js` (no env-var injection
+  without a build step), and wire up `SUPABASE_URL` + `SUPABASE_ANON_KEY` (the
+  anon key is public) the same way once Auth lands.
 - **Mobile** — Expo EAS Build, later, same API base URL.
 
 Add each deployed web origin to `CORS_ORIGINS` on the Render service.
@@ -127,4 +129,3 @@ Add each deployed web origin to `CORS_ORIGINS` on the Render service.
 | `SUPABASE_JWT_SECRET` | backend | Render | **yes** |
 | `SUPABASE_SERVICE_ROLE_KEY` | backend | Render | **yes** |
 | `SUPABASE_ANON_KEY` | frontend | Vercel | no (public) |
-| `VITE_API_BASE_URL` | frontend | Vercel | no |

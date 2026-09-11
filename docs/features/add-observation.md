@@ -159,7 +159,7 @@ create index identifications_observation_idx on identifications (observation_id)
 | `routers/` | `app/routers/observations.py` (extend) | add `/identify/*` and `/observations/{id}/confirm` |
 | `Dao/` | `frontend/src/Dao/identify.js` (**new**), `Dao/observations.js` | raw calls |
 | `Services/` | `frontend/src/Services/observations.js` | wizard orchestration; returns `{observation, isNewSpecies}` |
-| `Presenters/` | `frontend/src/Presenters/AddObservation.jsx` | wizard state: method, description, candidate pick, place/time |
+| `Presenters/` | `frontend/src/Presenters/AddObservation.js` | wizard state: method, description, candidate pick, place/time |
 | `Components/` | `CandidateList`, `SpeciesConfirm`, `PhotoPicker`, `PlacePicker` | presentational only |
 
 ## 6. Build order
@@ -175,7 +175,7 @@ create index identifications_observation_idx on identifications (observation_id)
 6. Tests: canned identify payload; assert an `identifications` row and the
    correct `status`.
 7. Frontend wizard: `Dao/identify.js` → `Services/observations.js` →
-   `Presenters/AddObservation.jsx` → components.
+   `Presenters/AddObservation.js` → components.
 
 ## Related pages
 

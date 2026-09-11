@@ -119,7 +119,7 @@ select count(*) from user_stickers      where user_id = $1;   -- sticker count
 | `routers/` | `app/routers/users.py` (**new**) | `POST /users`, `GET /users/{username}`, `PATCH /users/{id}` |
 | `Dao/` | `frontend/src/Dao/user.js` (extend) | profile fetch + `PATCH` |
 | `Services/` | `frontend/src/Services/profile.js` (**new**) | UI-shaped profile model |
-| `Presenters/` | `Presenters/Profile.jsx` (**new**) | own-profile edit form + public view |
+| `Presenters/` | `Presenters/Profile.js` (**new**) | own-profile edit form + public view |
 | `Components/` | `Avatar`, `RegionPicker`, `StatCount` | presentational; `RegionPicker` is shared with the Life List |
 
 ## 6. Build order
@@ -129,7 +129,7 @@ select count(*) from user_stickers      where user_id = $1;   -- sticker count
 3. Add `app/routers/users.py`; register it in `app/main.py`.
 4. Tests: create a user, `PATCH` the `default_region`, `GET` the public profile,
    assert the counts.
-5. Frontend: `Services/profile.js` → `Presenters/Profile.jsx` → `RegionPicker`
+5. Frontend: `Services/profile.js` → `Presenters/Profile.js` → `RegionPicker`
    (reuse from the Life List) + `Avatar`.
 
 ## Related pages

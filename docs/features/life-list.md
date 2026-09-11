@@ -128,7 +128,7 @@ zipping the last two responses together.
 | `routers/` | `app/routers/life_list.py` (extend) | add `GET /regions` and `GET /regions/{code}/checklist` |
 | `Dao/` | `frontend/src/Dao/lifelist.js`, `Dao/regions.js` (**new**) | fetch entries + checklist from our API |
 | `Services/` | `frontend/src/Services/lifeList.js` | build the completion rows, progress, region + sort |
-| `Presenters/` | `frontend/src/Presenters/LifeList.jsx` | owns region filter, sort, grid/list toggle state |
+| `Presenters/` | `frontend/src/Presenters/LifeList.js` | owns region filter, sort, grid/list toggle state |
 | `Components/` | `SpeciesCard`, `MissingBird`, `ProgressBar` | presentational only |
 
 ## 6. Build order
@@ -143,7 +143,7 @@ zipping the last two responses together.
 5. Add the two routes to `app/routers/life_list.py`.
 6. Add a test in `backend/tests/` with a canned eBird checklist payload (no
    network).
-7. Frontend: `Dao/regions.js` → `Services/lifeList.js` → `Presenters/LifeList.jsx`
+7. Frontend: `Dao/regions.js` → `Services/lifeList.js` → `Presenters/LifeList.js`
    → `MissingBird` / `ProgressBar` components.
 
 ## Related pages
