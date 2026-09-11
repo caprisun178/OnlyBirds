@@ -53,6 +53,9 @@ species as the target.
 
 ## 2. Where the data comes from and where it goes
 
+Endpoint details (auth, base URL, failure behavior) live on the
+[eBird API](../ebird-api.md) page, not here.
+
 | Data | Comes from | Stored where |
 |---|---|---|
 | Region picker options (children of a region) | eBird `GET /ref/region/list/{type}/{parentCode}` | **not stored** — read live, small responses |
@@ -149,3 +152,4 @@ zipping the last two responses together.
 - [User profiles](user-profiles.md) — supplies `default_region`
 - [Bird information page](bird-info.md) — where a species card links to
 - [Database & migrations](database.md)
+- [eBird API](../ebird-api.md) — auth, endpoints, failure behavior

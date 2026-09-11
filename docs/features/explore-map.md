@@ -37,6 +37,9 @@ record from eBird and iNaturalist.
 
 ## 2. Where the data comes from and where it goes
 
+Endpoint details (auth, base URL, failure behavior) live on the
+[eBird API](../ebird-api.md) page, not here.
+
 | Data | Comes from | Stored where |
 |---|---|---|
 | eBird recent sightings in a region | eBird `GET /data/obs/{regionCode}/recent` | **cache table `sighting_cache`** (`source = 'ebird'`) |
@@ -145,3 +148,4 @@ service, collapses to **one pin with multiple source badges**. Key on
 - [Bird information page](bird-info.md) — sighting popups link here
 - [Pinned birds](pinned-birds.md) — pin a species straight from a popup
 - [Database & migrations](database.md)
+- [eBird API](../ebird-api.md) — auth, endpoints, failure behavior

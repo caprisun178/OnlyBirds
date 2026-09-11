@@ -39,8 +39,10 @@ markdown_extensions:
 
 nav:
   - Set up & test your changes: setup-and-test.md
+  - Verify your setup: verify-setup.md
   - Environment Setup: index.md
   - Architecture: architecture.md
+  - Building a screen: frontend-screens.md
   - Features:
       - Overview: features/overview.md
       - Database & migrations: features/database.md
@@ -52,5 +54,6 @@ nav:
       - Bird information page: features/bird-info.md
       - Explore map: features/explore-map.md
   - Backend API: backend.md
+  - eBird API: ebird-api.md
   - Deployment: deployment.md
   - Contributing: contributing.md

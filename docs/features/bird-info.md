@@ -33,6 +33,9 @@ sticker, a `pin_hit` notification). Read-only; the only user data on it is a
 
 ## 2. Where the data comes from and where it goes
 
+Endpoint details (auth, base URL, failure behavior) live on the
+[eBird API](../ebird-api.md) page, not here.
+
 | Data | Comes from | Stored where |
 |---|---|---|
 | Taxonomy: names, family, codes | eBird `GET /ref/taxonomy/ebird` | `species` table (already populated by the Life List) |
@@ -149,3 +152,4 @@ switches search to our own `species` table and adds the profile + media routes.
 - [Pinned birds](pinned-birds.md) — the pin toggle on this page
 - [Explore map](explore-map.md) — sighting popups link here
 - [Database & migrations](database.md)
+- [eBird API](../ebird-api.md) — auth, endpoints, failure behavior

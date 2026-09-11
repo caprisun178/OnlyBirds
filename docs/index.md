@@ -49,7 +49,7 @@ cd OnlyBirds
 ```
 
 To just run things locally, `main` is fine. To contribute, branch off
-`dev/current` — see [Contributing](contributing.md#branch--pr-workflow).
+`dev/current` — see [Contributing](contributing.md#branch-pr-workflow).
 
 ## 2. Get an eBird API key
 
@@ -96,7 +96,8 @@ Then check it's alive:
 
 !!! tip "Without an eBird key"
     The server still starts. `/sightings/nearby` just returns iNaturalist
-    results only, and `ebird_key_configured` is `false`.
+    results only, and `ebird_key_configured` is `false`. Details on how the
+    key is used and what happens if it's wrong: [eBird API](ebird-api.md).
 
 ## 4. Run the tests
 
@@ -130,7 +131,7 @@ Set in `backend/.env` (copied from `backend/.env.example`):
 
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
-| `EBIRD_API_KEY` | for eBird data | _unset_ | eBird API 2.0 token; sent server-side as `X-eBirdApiToken` |
+| `EBIRD_API_KEY` | for eBird data | _unset_ | see [eBird API](ebird-api.md) |
 | `CORS_ORIGINS` | no | `http://localhost:3000,http://localhost:5173,http://localhost:8081` | comma-separated allowed web origins |
 | `DATABASE_URL` | for migrations | _unset_ | Postgres connection string (Supabase). Used by `scripts/migrate.sh`; the base server still runs without it. See [Deployment](deployment.md). |
 
@@ -153,9 +154,11 @@ Set in `backend/.env` (copied from `backend/.env.example`):
     Run from inside `backend/`. `main:app` (the shim) and `app.main:app` both
     work from that directory.
 
-??? warning "eBird requests return 403 / empty"
-    `EBIRD_API_KEY` is missing or invalid in `backend/.env`. Restart uvicorn
-    after editing `.env`. iNaturalist endpoints are unaffected (no key).
+??? warning "eBird requests fail or come back empty"
+    See [eBird API → Error & failure behavior](ebird-api.md#error-failure-behavior)
+    — a missing key degrades silently, but a wrong one returns a `502`.
+    Restart uvicorn after editing `.env`. iNaturalist endpoints are unaffected
+    (no key).
 
 ??? warning "`[Errno 48] Address already in use` / port 8000 taken"
     `python -m uvicorn main:app --reload --port 8001`.

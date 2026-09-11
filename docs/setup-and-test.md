@@ -3,6 +3,10 @@
 The short path from a fresh clone to an open pull request. Each step links to a
 deeper page if you need it.
 
+Want to confirm the setup itself is healthy? Run through
+[Verify your setup](verify-setup.md) — a checklist of commands and expected
+output.
+
 ## 1. Get the code
 
 ```bash
@@ -23,7 +27,8 @@ python -m uvicorn main:app --reload
 ```
 
 Open <http://localhost:8000/docs>. If the API page loads, you're set. No eBird
-key yet? The server still starts; eBird calls just come back empty.
+key yet? The server still starts; eBird calls just come back empty — see
+[eBird API](ebird-api.md).
 
 *Details, versions, troubleshooting →* [Environment Setup](index.md)
 
@@ -39,7 +44,7 @@ git checkout -b working/<you>/<feature>       # e.g. working/sam/pinned-birds
 Building a whole feature? Start from its page and claim it in the table first.
 
 *The full workflow (releases, protection rules) →*
-[Contributing → Branch & PR workflow](contributing.md#branch--pr-workflow) ·
+[Contributing → Branch & PR workflow](contributing.md#branch-pr-workflow) ·
 *feature specs →* [Features](features/overview.md)
 
 ## 4. Run the tests
@@ -83,7 +88,7 @@ review.
 | Symptom | Fix |
 |---|---|
 | `ModuleNotFoundError: No module named 'app'` | run commands from inside `backend/` |
-| eBird calls return 403 / empty | `EBIRD_API_KEY` missing in `backend/.env`; restart the server |
+| eBird calls fail or come back empty | see [eBird API](ebird-api.md#error-failure-behavior) |
 | `uvicorn` / `pytest` "not found" | use `python -m uvicorn …` / `python -m pytest` |
 | port 8000 in use | `python -m uvicorn main:app --reload --port 8001` |
 

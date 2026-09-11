@@ -15,7 +15,7 @@ to be **managed** — no servers to patch, no Docker to learn.
 !!! note "Render tracks `main` only"
     Feature work merges to `dev/current` first; a **release PR `dev/current` →
     `main`** is what ships. See
-    [Contributing → Branch & PR workflow](contributing.md#branch--pr-workflow).
+    [Contributing → Branch & PR workflow](contributing.md#branch-pr-workflow).
 
 !!! danger "Secrets"
     The database password, `EBIRD_API_KEY`, and the Supabase service key live in

@@ -130,18 +130,18 @@ python -m pytest
 
 ## Frontend layering
 
-JavaScript logic under `frontend/src/` uses the same layer split as the
-backend. Markup and styling follow the [Styling standard](#styling-standard)
-below.
+JavaScript under `frontend/src/` uses the same layer split as the backend.
+Markup and styling follow the [Styling standard](#styling-standard) below.
 
 ```text
-frontend/src/
-  Dao/          raw API access only, no logic (talks to our FastAPI backend)
-  Services/     business logic; transforms DAO output into UI-ready shape
-  Presenters/   wire a screen together — state, handlers, render the markup
-  Components/   reusable markup blocks — no state, no DAO/Service imports
-  Models/       shared data shapes
-  styles/       the shared design system (base.css) + its guide
+frontend/
+  styles/         the shared design system — base.css + its guide
+  src/
+    Dao/          raw API access only, no logic (talks to our FastAPI backend)
+    Services/     business logic; transforms DAO output into UI-ready shape
+    Presenters/   wire a screen together — call a service, render, handle events
+    Components/   reusable markup blocks — no state, no DAO/Service imports
+    Models/       shared data shapes
 ```
 
 Rules:
@@ -152,6 +152,9 @@ Rules:
   `export const observationDAO = {...}` / `export const observationService = {...}`.
 - `Components/` must never import from `Services/` or `Dao/` — only
   `Presenters/` may.
+
+**Building an actual screen** — a full walkthrough with which classes and
+objects to use: [Building a screen](frontend-screens.md).
 
 ## Styling standard
 
