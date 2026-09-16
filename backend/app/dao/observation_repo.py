@@ -31,11 +31,16 @@ class InMemoryObservationRepo:
             species=payload.species or None,  # type: ignore[arg-type]
             lat=payload.lat,
             lng=payload.lng,
+            location_name=payload.location_name,
             observed_at=payload.observed_at,
             source=payload.source,
             source_observation_id=payload.source_observation_id,
             photo_url=payload.photo_url,
             notes=payload.notes,
+            sex=payload.sex,
+            life_stage=payload.life_stage,
+            identification_id=payload.identification_id,
+            status=payload.status,
         )
         self._by_id[obs.id] = obs
         return obs

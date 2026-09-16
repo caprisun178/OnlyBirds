@@ -1,0 +1,487 @@
+// Presenters/AddObservation.js — the Add Observation wizard.
+//
+// Order (per the current build): describe the bird -> pick which of 6 photos
+// matches what you saw -> confirm -> field notes (date, location, sex, life
+// stage, photo, notes) -> submit. See docs/features/add-observation.md.
+//
+//   import { mount } from './Presenters/AddObservation.js';
+//   mount(document.getElementById('app'), { userId: 'u1' });
+//
+// If no `userId` prop is given, falls back to the test profile
+// (testData/testProfile.js) so this screen works before real auth/profile
+// (user-profiles.md) exists.
+
+import { identifyService } from '../Services/identify.js';
+import { speciesService } from '../Services/species.js';
+import { observationService } from '../Services/observations.js';
+import { getCurrentUser } from '../testData/testProfile.js';
+import { renderCandidateList, escapeHtml } from '../Components/CandidateList.js';
+
+const STEP = {
+  DESCRIBE: 'describe',
+  CANDIDATES: 'candidates',
+  MANUAL_SEARCH: 'manualSearch',
+  FIELD_NOTES: 'fieldNotes',
+  DONE: 'done',
+};
+
+export function mount(container, props = {}) {
+  const userId = props.userId || getCurrentUser().id;
+
+  const state = {
+    step: STEP.DESCRIBE,
+    loading: false,
+    error: null,
+
+    descriptionText: '',
+    hints: { size: '', color: '', habitat: '' },
+
+    identificationId: null,
+    candidates: [],
+    selectedCode: null,
+    feedback: null, // { tone: 'success'|'warning'|'info', message }
+
+    manualQuery: '',
+    manualResults: [],
+
+    confirmedSpecies: null, // { commonName, scientificName }
+
+    fieldNotes: {
+      observedAt: '',
+      locationName: '',
+      sex: '',
+      lifeStage: '',
+      notes: '',
+      photoDataUrl: null,
+    },
+
+    result: null, // { observation, isNewSpecies }
+  };
+
+  render();
+
+  function render() {
+    container.innerHTML = `
+      <div class="ob-stack">
+        <h1>Add an observation</h1>
+        ${renderStepper()}
+        ${state.error ? `<div class="ob-alert ob-alert--danger">${escapeHtml(state.error)}</div>` : ''}
+        ${renderStep()}
+      </div>
+    `;
+    wireStep();
+  }
+
+  function renderStepper() {
+    const labels = [
+      [STEP.DESCRIBE, 'Describe'],
+      [STEP.CANDIDATES, 'Pick a match'],
+      [STEP.FIELD_NOTES, 'Field notes'],
+      [STEP.DONE, 'Done'],
+    ];
+    const activeIndex = labels.findIndex(([key]) => key === state.step);
+    return `
+      <div class="ob-cluster ob-text-sm">
+        ${labels.map(([key, label], i) => `
+          <span class="ob-tag ${i === activeIndex ? 'ob-tag--info' : i < activeIndex ? 'ob-tag--success' : ''}">${i + 1}. ${label}</span>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  function renderStep() {
+    if (state.loading) {
+      return '<div class="ob-card ob-text-center"><div class="ob-spinner" style="margin-inline:auto"></div></div>';
+    }
+    switch (state.step) {
+      case STEP.DESCRIBE:
+        return renderDescribeStep();
+      case STEP.CANDIDATES:
+        return renderCandidatesStep();
+      case STEP.MANUAL_SEARCH:
+        return renderManualSearchStep();
+      case STEP.FIELD_NOTES:
+        return renderFieldNotesStep();
+      case STEP.DONE:
+        return renderDoneStep();
+      default:
+        return '';
+    }
+  }
+
+  // ---- Step 1: describe -----------------------------------------------
+
+  function renderDescribeStep() {
+    return `
+      <form class="ob-card ob-stack" data-form="describe">
+        <div class="ob-field">
+          <label class="ob-label" for="description">What did you see?</label>
+          <textarea id="description" class="ob-textarea" placeholder="e.g. a small brown streaky bird with a thin beak near the reeds, or straight up 'a blue jay'">${escapeHtml(state.descriptionText)}</textarea>
+          <p class="ob-hint">Be as specific as you can — an exact name works too. We'll show you photos to confirm either way.</p>
+        </div>
+        <div class="ob-grid" style="--ob-grid-min: 160px;">
+          <div class="ob-field">
+            <label class="ob-label" for="hint-size">Size (optional)</label>
+            <select id="hint-size" class="ob-select">
+              <option value="">Not sure</option>
+              <option value="small">Small</option>
+              <option value="medium">Medium</option>
+              <option value="large">Large</option>
+            </select>
+          </div>
+          <div class="ob-field">
+            <label class="ob-label" for="hint-color">Main color (optional)</label>
+            <input id="hint-color" class="ob-input" placeholder="e.g. blue, brown, yellow" value="${escapeHtml(state.hints.color)}" />
+          </div>
+          <div class="ob-field">
+            <label class="ob-label" for="hint-habitat">Habitat (optional)</label>
+            <input id="hint-habitat" class="ob-input" placeholder="e.g. backyard, wetland" value="${escapeHtml(state.hints.habitat)}" />
+          </div>
+        </div>
+        <button type="submit" class="ob-btn ob-btn--primary ob-btn--block">Show me possible matches</button>
+      </form>
+    `;
+  }
+
+  function wireDescribeStep() {
+    const form = container.querySelector('[data-form="describe"]');
+    if (!form) return;
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      state.descriptionText = form.querySelector('#description').value;
+      state.hints = {
+        size: form.querySelector('#hint-size').value,
+        color: form.querySelector('#hint-color').value,
+        habitat: form.querySelector('#hint-habitat').value,
+      };
+
+      state.error = null;
+      state.loading = true;
+      render();
+      try {
+        const response = await identifyService.describe(state.descriptionText, state.hints);
+        state.identificationId = response.identification_id;
+        state.candidates = response.candidates;
+        state.selectedCode = null;
+        state.feedback = null;
+        state.step = STEP.CANDIDATES;
+      } catch (err) {
+        state.error = err.message || 'Could not get suggestions. Try describing it differently.';
+      } finally {
+        state.loading = false;
+        render();
+      }
+    });
+  }
+
+  // ---- Step 2: candidates ----------------------------------------------
+
+  function renderCandidatesStep() {
+    return `
+      <div class="ob-stack">
+        <div class="ob-card ob-card--flat">
+          <p class="ob-card__body">Which one did you see?</p>
+        </div>
+        ${state.feedback ? `<div class="ob-alert ob-alert--${state.feedback.tone}">${escapeHtml(state.feedback.message)}</div>` : ''}
+        ${renderCandidateList(state.candidates, state.selectedCode)}
+        <div class="ob-cluster">
+          <button type="button" class="ob-btn ob-btn--ghost" data-action="back-to-describe">Start over</button>
+          <button type="button" class="ob-btn ob-btn--subtle" data-action="none-match">None of these match</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function wireCandidatesStep() {
+    const grid = container.querySelector('[data-role="candidate-grid"]');
+    if (grid) {
+      grid.querySelectorAll('[data-species-code]').forEach((btn) => {
+        btn.addEventListener('click', () => handleCandidatePick(btn.dataset.speciesCode));
+      });
+    }
+    const backBtn = container.querySelector('[data-action="back-to-describe"]');
+    if (backBtn) backBtn.addEventListener('click', () => { state.step = STEP.DESCRIBE; state.feedback = null; render(); });
+
+    const noneBtn = container.querySelector('[data-action="none-match"]');
+    if (noneBtn) noneBtn.addEventListener('click', () => handleNoneMatch());
+  }
+
+  async function handleCandidatePick(speciesCode) {
+    state.selectedCode = speciesCode;
+    state.error = null;
+    state.loading = true;
+    render();
+    try {
+      const result = await identifyService.selectCandidate(state.identificationId, speciesCode);
+      if (result.outcome === 'correct') {
+        state.confirmedSpecies = {
+          commonName: result.chosen_species.common_name,
+          scientificName: result.chosen_species.scientific_name,
+        };
+        state.feedback = { tone: 'success', message: `That's a ${result.chosen_species.common_name}! Adding it to your notes.` };
+        state.step = STEP.FIELD_NOTES;
+      } else if (result.outcome === 'incorrect') {
+        state.confirmedSpecies = null;
+        state.feedback = {
+          tone: 'warning',
+          message: `That's actually a ${result.chosen_species.common_name} — take another look at the photos, or search for something else.`,
+        };
+      } else {
+        // unconfirmed: no known target, so trust the pick.
+        state.confirmedSpecies = {
+          commonName: result.chosen_species.common_name,
+          scientificName: result.chosen_species.scientific_name,
+        };
+        state.feedback = { tone: 'info', message: `Got it — logging this as a ${result.chosen_species.common_name}.` };
+        state.step = STEP.FIELD_NOTES;
+      }
+    } catch (err) {
+      state.error = err.message || 'Could not record your pick. Please try again.';
+      state.selectedCode = null;
+    } finally {
+      state.loading = false;
+      render();
+    }
+  }
+
+  async function handleNoneMatch() {
+    state.error = null;
+    state.loading = true;
+    render();
+    try {
+      await identifyService.selectCandidate(state.identificationId, null);
+    } catch (err) {
+      // Non-fatal — the manual search fallback still works even if this fails.
+    } finally {
+      state.loading = false;
+      state.step = STEP.MANUAL_SEARCH;
+      render();
+    }
+  }
+
+  // ---- Manual fallback search -------------------------------------------
+
+  function renderManualSearchStep() {
+    return `
+      <div class="ob-card ob-stack">
+        <form class="ob-cluster" data-form="manual-search">
+          <input class="ob-input" style="flex:1" placeholder="Search by name" value="${escapeHtml(state.manualQuery)}" data-field="manual-query" />
+          <button type="submit" class="ob-btn ob-btn--primary">Search</button>
+        </form>
+        <div class="ob-stack" data-role="manual-results">
+          ${state.manualResults.length === 0
+            ? '<p class="ob-text-muted ob-text-sm">Search for the species you saw.</p>'
+            : state.manualResults.map((s) => `
+              <button type="button" class="ob-btn ob-btn--ghost ob-btn--block" data-common-name="${escapeHtml(s.common_name || '')}" data-scientific-name="${escapeHtml(s.scientific_name || '')}">
+                ${escapeHtml(s.common_name || s.scientific_name)} <span class="ob-text-muted">(${escapeHtml(s.scientific_name || '')})</span>
+              </button>
+            `).join('')}
+        </div>
+        <button type="button" class="ob-btn ob-btn--subtle" data-action="back-to-candidates">Back to photos</button>
+      </div>
+    `;
+  }
+
+  function wireManualSearchStep() {
+    const form = container.querySelector('[data-form="manual-search"]');
+    if (form) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        state.manualQuery = form.querySelector('[data-field="manual-query"]').value;
+        state.error = null;
+        state.loading = true;
+        render();
+        try {
+          state.manualResults = await speciesService.search(state.manualQuery);
+        } catch (err) {
+          state.error = 'Search failed. Try again in a moment.';
+          state.manualResults = [];
+        } finally {
+          state.loading = false;
+          render();
+        }
+      });
+    }
+
+    container.querySelectorAll('[data-common-name]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.confirmedSpecies = {
+          commonName: btn.dataset.commonName || btn.dataset.scientificName,
+          scientificName: btn.dataset.scientificName,
+        };
+        state.step = STEP.FIELD_NOTES;
+        render();
+      });
+    });
+
+    const backBtn = container.querySelector('[data-action="back-to-candidates"]');
+    if (backBtn) backBtn.addEventListener('click', () => { state.step = STEP.CANDIDATES; render(); });
+  }
+
+  // ---- Step 3: field notes ----------------------------------------------
+
+  function renderFieldNotesStep() {
+    const fn = state.fieldNotes;
+    return `
+      <form class="ob-card ob-stack" data-form="field-notes">
+        <div class="ob-alert ob-alert--success">Confirmed: ${escapeHtml(state.confirmedSpecies.commonName)}</div>
+
+        <div class="ob-grid" style="--ob-grid-min: 220px;">
+          <div class="ob-field">
+            <label class="ob-label" for="observed-at">Date &amp; time</label>
+            <input id="observed-at" type="datetime-local" class="ob-input" value="${escapeHtml(fn.observedAt)}" required />
+          </div>
+          <div class="ob-field">
+            <label class="ob-label" for="location-name">Location</label>
+            <input id="location-name" class="ob-input" placeholder="e.g. Discovery Park, Seattle" value="${escapeHtml(fn.locationName)}" />
+          </div>
+          <div class="ob-field">
+            <label class="ob-label" for="sex">Male / female</label>
+            <select id="sex" class="ob-select">
+              <option value="">Not sure</option>
+              <option value="male" ${fn.sex === 'male' ? 'selected' : ''}>Male</option>
+              <option value="female" ${fn.sex === 'female' ? 'selected' : ''}>Female</option>
+              <option value="unknown" ${fn.sex === 'unknown' ? 'selected' : ''}>Unknown</option>
+            </select>
+          </div>
+          <div class="ob-field">
+            <label class="ob-label" for="life-stage">Life stage</label>
+            <select id="life-stage" class="ob-select">
+              <option value="">Not sure</option>
+              <option value="adult" ${fn.lifeStage === 'adult' ? 'selected' : ''}>Adult</option>
+              <option value="juvenile" ${fn.lifeStage === 'juvenile' ? 'selected' : ''}>Juvenile</option>
+              <option value="fledgling" ${fn.lifeStage === 'fledgling' ? 'selected' : ''}>Fledgling</option>
+              <option value="unknown" ${fn.lifeStage === 'unknown' ? 'selected' : ''}>Unknown</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="ob-field">
+          <label class="ob-label" for="photo">Photo (optional)</label>
+          <input id="photo" type="file" accept="image/*" class="ob-input" />
+          ${fn.photoDataUrl ? `<img src="${fn.photoDataUrl}" alt="Uploaded preview" style="max-width:220px;border-radius:var(--ob-radius-md);" />` : ''}
+          <p class="ob-hint">Stored as-is for now — real photo storage lands with the object-storage work.</p>
+        </div>
+
+        <div class="ob-field">
+          <label class="ob-label" for="notes">Notes</label>
+          <textarea id="notes" class="ob-textarea" placeholder="What was it doing? Anything else memorable?">${escapeHtml(fn.notes)}</textarea>
+        </div>
+
+        <button type="submit" class="ob-btn ob-btn--primary ob-btn--block">Log this observation</button>
+      </form>
+    `;
+  }
+
+  function wireFieldNotesStep() {
+    const form = container.querySelector('[data-form="field-notes"]');
+    if (!form) return;
+
+    const photoInput = form.querySelector('#photo');
+    photoInput.addEventListener('change', () => {
+      const file = photoInput.files && photoInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        state.fieldNotes.photoDataUrl = reader.result;
+        render();
+      };
+      reader.readAsDataURL(file);
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      state.fieldNotes = {
+        ...state.fieldNotes,
+        observedAt: form.querySelector('#observed-at').value,
+        locationName: form.querySelector('#location-name').value,
+        sex: form.querySelector('#sex').value,
+        lifeStage: form.querySelector('#life-stage').value,
+        notes: form.querySelector('#notes').value,
+      };
+
+      state.error = null;
+      state.loading = true;
+      render();
+      try {
+        state.result = await observationService.createFromWizard(userId, {
+          species: state.confirmedSpecies,
+          identificationId: state.identificationId,
+          fieldNotes: {
+            observedAt: state.fieldNotes.observedAt
+              ? new Date(state.fieldNotes.observedAt).toISOString()
+              : new Date().toISOString(),
+            locationName: state.fieldNotes.locationName,
+            photoUrl: state.fieldNotes.photoDataUrl,
+            sex: state.fieldNotes.sex,
+            lifeStage: state.fieldNotes.lifeStage,
+            notes: state.fieldNotes.notes,
+          },
+        });
+        state.step = STEP.DONE;
+      } catch (err) {
+        state.error = err.message || 'Could not save this observation. Please try again.';
+      } finally {
+        state.loading = false;
+        render();
+      }
+    });
+  }
+
+  // ---- Step 4: done ------------------------------------------------------
+
+  function renderDoneStep() {
+    const { observation, isNewSpecies } = state.result;
+    return `
+      <div class="ob-card ob-stack ob-text-center">
+        <h2>Observation logged!</h2>
+        <p class="ob-card__body">${escapeHtml(observation.species.common_name)} — ${escapeHtml(observation.location_name || 'location not set')}</p>
+        ${isNewSpecies
+          ? '<span class="ob-tag ob-tag--success">New life list species! (life list page coming soon)</span>'
+          : '<span class="ob-tag ob-tag--info">Already on your life list</span>'}
+        <button type="button" class="ob-btn ob-btn--primary" data-action="log-another">Log another sighting</button>
+      </div>
+    `;
+  }
+
+  function wireDoneStep() {
+    const btn = container.querySelector('[data-action="log-another"]');
+    if (btn) {
+      btn.addEventListener('click', () => {
+        Object.assign(state, {
+          step: STEP.DESCRIBE,
+          descriptionText: '',
+          hints: { size: '', color: '', habitat: '' },
+          identificationId: null,
+          candidates: [],
+          selectedCode: null,
+          feedback: null,
+          manualQuery: '',
+          manualResults: [],
+          confirmedSpecies: null,
+          fieldNotes: { observedAt: '', locationName: '', sex: '', lifeStage: '', notes: '', photoDataUrl: null },
+          result: null,
+          error: null,
+        });
+        render();
+      });
+    }
+  }
+
+  function wireStep() {
+    switch (state.step) {
+      case STEP.DESCRIBE:
+        return wireDescribeStep();
+      case STEP.CANDIDATES:
+        return wireCandidatesStep();
+      case STEP.MANUAL_SEARCH:
+        return wireManualSearchStep();
+      case STEP.FIELD_NOTES:
+        return wireFieldNotesStep();
+      case STEP.DONE:
+        return wireDoneStep();
+      default:
+        return undefined;
+    }
+  }
+}

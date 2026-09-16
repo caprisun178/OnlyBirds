@@ -149,7 +149,7 @@ create table life_list_entries (
 | Feature | New tables | Changed tables |
 |---|---|---|
 | [Life List page](life-list.md) | `region_checklists` | — |
-| [Add Observation](add-observation.md) | `identifications` | `observations` (+ `region`, `geom`, `status`) |
+| [Add Observation](add-observation.md) | `identifications` | `observations` (+ `location_name`, `sex`, `life_stage`, `status`; `region`/`geom` still to come) |
 | [User profiles](user-profiles.md) | — | `users` (+ `username`, `avatar_url`, `default_region`) |
 | [Stickers](stickers.md) | `stickers`, `user_stickers`, `groups` | — |
 | [Pinned birds](pinned-birds.md) | `pinned_birds`, `notifications` | — |
