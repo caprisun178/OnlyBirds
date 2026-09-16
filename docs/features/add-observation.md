@@ -1,9 +1,10 @@
 # Add Observation
 
-> **Status:** Partial — `POST /observations` and the describe & guess flow
-> (`POST /identify/describe`, `POST /identify/{id}/select`) both work end to
-> end against the in-memory store. What's left: wiring this to PostgreSQL
-> (roadmap step 3), the photo-upload path, and the region/geom columns below.
+> **Status:** Partial — `POST /observations`, the describe & guess flow
+> (`POST /identify/describe`, `POST /identify/{id}/select`), and the
+> field-notes photo upload (`POST /uploads/photo`) all work end to end
+> against the in-memory store. What's left: wiring this to PostgreSQL
+> (roadmap step 3) and the region/geom columns below.
 
 ## 1. What you're building
 
@@ -98,6 +99,20 @@ optional photo, and free-text notes. Submitting this calls
 `POST /observations`, which the frontend also uses to check the user's
 existing life list first, so it can tell them whether this is a new species.
 
+Choosing a photo uploads it immediately (`POST /uploads/photo`, to a Supabase
+Storage bucket) rather than waiting for the final submit — the wizard shows a
+local preview right away and swaps in the real photo URL once the upload
+finishes. If storage isn't configured or the upload fails, the field notes
+form stays fully usable: the user sees a warning and can still submit without
+a photo, since it's optional.
+
+!!! note "Object storage needs a Supabase project"
+    `POST /uploads/photo` returns `503` until `SUPABASE_URL` and
+    `SUPABASE_SERVICE_ROLE_KEY` are set (see `backend/.env.example`) and a
+    **public** bucket named `SUPABASE_STORAGE_BUCKET` (default
+    `observation-photos`) exists in that project. Nothing else in the wizard
+    depends on it — the field notes form works with or without it.
+
 ### Observation lifecycle (`observations.status`)
 
 | Value | Meaning |
@@ -117,7 +132,7 @@ anything currently pauses mid-wizard.
 |---|---|---|
 | Free-text description + structured hints | the user | `identifications.input` (jsonb) |
 | Ranked candidate species | our `app/dao/identify.py` — matches a canned reference set (`app/data/birds.py`), **not** an external CV/LLM API yet | `identifications.candidates` (jsonb) |
-| The uploaded photo file | the user's device | kept as a data URL in `observations.photo_url` for now — swap for object storage (S3 / Supabase Storage) later |
+| The uploaded photo file | the user's device | Supabase Storage (bucket `SUPABASE_STORAGE_BUCKET`); the public URL goes in `observations.photo_url` |
 | Chosen species + correct/incorrect answer | the user's pick, graded against `target_species_code` when the text named a species outright | `identifications.chosen_species_code`, `identifications.outcome` |
 | Place, sex, life stage, notes | the user (field-notes step) | `observations.location_name`, `observations.sex`, `observations.life_stage`, `observations.notes` |
 | GPS point (not collected yet — no map picker) | the user's device / a map tap | `observations.lat` / `lng` and `observations.geom` |
@@ -186,6 +201,7 @@ still tracked as "left to build" above.
 | `POST` | `/identify/describe` | body: `{text, hints?}` → `{identification_id, candidates: [{species_code, common_name, scientific_name, confidence, photo_url}]}` |
 | `POST` | `/identify/{id}/select` | body: `{species_code}` (`null` = "none of these") → `{chosen_species, outcome, is_match}` |
 | `POST` | `/identify/photo` | not built — photo-based identification is still descoped |
+| `POST` | `/uploads/photo` | multipart `file` → `{photo_url}`; `503` if Supabase Storage isn't configured, `400` for an unsupported type or a file over 8 MB |
 | `POST` | `/observations` | create the observation once a species is confirmed; accepts `location_name`, `sex`, `life_stage`, `identification_id`, `status` alongside the existing fields |
 
 ### Example — `POST /identify/describe`
@@ -211,17 +227,21 @@ still tracked as "left to build" above.
 | `dao/` | `app/dao/identify.py` | match free text (+ hints) against `birds.py`; named match vs. generic ranking |
 | `dao/` | `app/dao/identification_repo.py` | in-memory `identifications` store (same shape as `observation_repo.py`) |
 | `dao/` | `app/dao/observation_repo.py` | persists `location_name`, `sex`, `life_stage`, `identification_id`, `status` |
+| `dao/` | `app/dao/storage.py` | raw Supabase Storage HTTP calls — upload bytes, return the public URL |
 | `services/` | `app/services/identify.py` | describe → candidates; select → grade against a known target, if any |
+| `services/` | `app/services/uploads.py` | validates content type / size before handing bytes to `storage.py` |
 | `routers/` | `app/routers/identify.py` | `POST /identify/describe`, `POST /identify/{id}/select` |
-| `Dao/` | `frontend/src/Dao/identify.js`, `Dao/species.js` | raw calls |
+| `routers/` | `app/routers/uploads.py` | `POST /uploads/photo` |
+| `Dao/` | `frontend/src/Dao/identify.js`, `Dao/species.js`, `Dao/uploads.js` | raw calls |
 | `Services/` | `frontend/src/Services/identify.js` | validates the description before calling the API |
+| `Services/` | `frontend/src/Services/uploads.js` | validates type/size client-side before uploading |
 | `Services/` | `frontend/src/Services/observations.js` | `createFromWizard()` — builds the payload, checks the life list first so `isNewSpecies` is accurate |
-| `Presenters/` | `frontend/src/Presenters/AddObservation.js` | the whole wizard: describe → candidates → (manual search fallback) → field notes → done |
+| `Presenters/` | `frontend/src/Presenters/AddObservation.js` | the whole wizard: describe → candidates → (manual search fallback) → field notes (uploads the photo as soon as it's picked) → done |
 | `Components/` | `frontend/src/Components/CandidateList.js` | presentational candidate grid |
 | `testData/` | `frontend/src/testData/testProfile.js` | stand-in "current user" until `user-profiles.md` ships |
 
-Still to build: `region`/`geom` on `observations`, the photo-upload path, and
-the sticker/pin engine calls after a successful log.
+Still to build: `region`/`geom` on `observations` and the sticker/pin engine
+calls after a successful log.
 
 ## 6. Build order
 
@@ -239,12 +259,20 @@ For the next feature that follows this shape:
    suggestions, rejecting all candidates, the full wizard → life list flow.
 6. `backend/migrations/0002_add_observation_identification.sql` — SQL parity
    for when PostgreSQL is wired up (not applied anywhere yet).
-7. Frontend: `Dao/identify.js` + `Dao/species.js` → `Services/identify.js` +
-   `Services/species.js` + extended `Services/observations.js` →
-   `Presenters/AddObservation.js` → `Components/CandidateList.js`.
+7. `app/dao/storage.py` (raw Supabase Storage calls) + `app/services/uploads.py`
+   (type/size validation) + `app/routers/uploads.py` — `POST /uploads/photo`.
+   Tests in `backend/tests/test_uploads.py` cover validation and the
+   not-configured (`503`) path without needing real Supabase credentials, plus
+   the success path with `storage.upload_object` monkeypatched.
+8. Frontend: `Dao/identify.js` + `Dao/species.js` + `Dao/uploads.js` →
+   `Services/identify.js` + `Services/species.js` + `Services/uploads.js` +
+   extended `Services/observations.js` → `Presenters/AddObservation.js` →
+   `Components/CandidateList.js`.
 
-Not yet done: `region`/`geom` derivation, the sticker/pin engine calls, real
-photo storage (the field-notes photo is kept as a data URL for now).
+Not yet done: `region`/`geom` derivation and the sticker/pin engine calls.
+`POST /uploads/photo` is fully wired but returns `503` until a Supabase
+project's `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` are set locally — see
+the note under "Field notes" above.
 
 ## Related pages
 

@@ -14,6 +14,7 @@
 import { identifyService } from '../Services/identify.js';
 import { speciesService } from '../Services/species.js';
 import { observationService } from '../Services/observations.js';
+import { uploadsService } from '../Services/uploads.js';
 import { getCurrentUser } from '../testData/testProfile.js';
 import { renderCandidateList, escapeHtml } from '../Components/CandidateList.js';
 
@@ -52,8 +53,11 @@ export function mount(container, props = {}) {
       sex: '',
       lifeStage: '',
       notes: '',
-      photoDataUrl: null,
+      photoDataUrl: null, // local preview only, never sent to the API
+      photoUrl: null, // set once the upload to object storage succeeds
     },
+    photoUploadState: 'idle', // 'idle' | 'uploading' | 'done' | 'error'
+    photoUploadError: null,
 
     result: null, // { observation, isNewSpecies }
   };
@@ -360,7 +364,9 @@ export function mount(container, props = {}) {
           <label class="ob-label" for="photo">Photo (optional)</label>
           <input id="photo" type="file" accept="image/*" class="ob-input" />
           ${fn.photoDataUrl ? `<img src="${fn.photoDataUrl}" alt="Uploaded preview" style="max-width:220px;border-radius:var(--ob-radius-md);" />` : ''}
-          <p class="ob-hint">Stored as-is for now — real photo storage lands with the object-storage work.</p>
+          ${state.photoUploadState === 'uploading' ? '<p class="ob-hint">Uploading photo…</p>' : ''}
+          ${state.photoUploadState === 'error' ? `<div class="ob-alert ob-alert--warning">${escapeHtml(state.photoUploadError)}</div>` : ''}
+          <p class="ob-hint">JPEG, PNG, WebP, or GIF, up to 8 MB.</p>
         </div>
 
         <div class="ob-field">
@@ -368,9 +374,23 @@ export function mount(container, props = {}) {
           <textarea id="notes" class="ob-textarea" placeholder="What was it doing? Anything else memorable?">${escapeHtml(fn.notes)}</textarea>
         </div>
 
-        <button type="submit" class="ob-btn ob-btn--primary ob-btn--block">Log this observation</button>
+        <button type="submit" class="ob-btn ob-btn--primary ob-btn--block" ${state.photoUploadState === 'uploading' ? 'disabled' : ''}>
+          ${state.photoUploadState === 'uploading' ? 'Uploading photo…' : 'Log this observation'}
+        </button>
       </form>
     `;
+  }
+
+  // Reads the form's current values into state.fieldNotes. Called before any
+  // render triggered mid-edit (e.g. a photo upload finishing) so that
+  // rebuilding the form's HTML from state doesn't blank out fields the user
+  // already typed into.
+  function captureFieldNotesInputs(form) {
+    state.fieldNotes.observedAt = form.querySelector('#observed-at').value;
+    state.fieldNotes.locationName = form.querySelector('#location-name').value;
+    state.fieldNotes.sex = form.querySelector('#sex').value;
+    state.fieldNotes.lifeStage = form.querySelector('#life-stage').value;
+    state.fieldNotes.notes = form.querySelector('#notes').value;
   }
 
   function wireFieldNotesStep() {
@@ -378,27 +398,36 @@ export function mount(container, props = {}) {
     if (!form) return;
 
     const photoInput = form.querySelector('#photo');
-    photoInput.addEventListener('change', () => {
+    photoInput.addEventListener('change', async () => {
       const file = photoInput.files && photoInput.files[0];
       if (!file) return;
+
+      captureFieldNotesInputs(form);
+
       const reader = new FileReader();
       reader.onload = () => {
         state.fieldNotes.photoDataUrl = reader.result;
         render();
       };
       reader.readAsDataURL(file);
+
+      state.photoUploadState = 'uploading';
+      state.photoUploadError = null;
+      state.fieldNotes.photoUrl = null;
+      render();
+      try {
+        state.fieldNotes.photoUrl = await uploadsService.uploadPhoto(file);
+        state.photoUploadState = 'done';
+      } catch (err) {
+        state.photoUploadState = 'error';
+        state.photoUploadError = `${err.message} You can still log this sighting without a photo.`;
+      }
+      render();
     });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      state.fieldNotes = {
-        ...state.fieldNotes,
-        observedAt: form.querySelector('#observed-at').value,
-        locationName: form.querySelector('#location-name').value,
-        sex: form.querySelector('#sex').value,
-        lifeStage: form.querySelector('#life-stage').value,
-        notes: form.querySelector('#notes').value,
-      };
+      captureFieldNotesInputs(form);
 
       state.error = null;
       state.loading = true;
@@ -412,7 +441,7 @@ export function mount(container, props = {}) {
               ? new Date(state.fieldNotes.observedAt).toISOString()
               : new Date().toISOString(),
             locationName: state.fieldNotes.locationName,
-            photoUrl: state.fieldNotes.photoDataUrl,
+            photoUrl: state.fieldNotes.photoUrl,
             sex: state.fieldNotes.sex,
             lifeStage: state.fieldNotes.lifeStage,
             notes: state.fieldNotes.notes,
@@ -459,7 +488,12 @@ export function mount(container, props = {}) {
           manualQuery: '',
           manualResults: [],
           confirmedSpecies: null,
-          fieldNotes: { observedAt: '', locationName: '', sex: '', lifeStage: '', notes: '', photoDataUrl: null },
+          fieldNotes: {
+            observedAt: '', locationName: '', sex: '', lifeStage: '', notes: '',
+            photoDataUrl: null, photoUrl: null,
+          },
+          photoUploadState: 'idle',
+          photoUploadError: null,
           result: null,
           error: null,
         });
