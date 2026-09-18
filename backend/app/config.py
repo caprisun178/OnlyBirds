@@ -17,7 +17,10 @@ class Settings(BaseSettings):
     http_timeout_seconds: float = 15.0
 
     # CORS — comma-separated in the environment, list in code.
-    cors_origins: str = "http://localhost:3000,http://localhost:5173,http://localhost:8081"
+    cors_origins: str = (
+        "http://localhost:3000,http://localhost:5173,http://localhost:5500,"
+        "http://localhost:8081,http://127.0.0.1:5500"
+    )
 
     # Roadmap step 3; unused by the base server.
     database_url: str | None = None
