@@ -34,6 +34,10 @@ export function mount(container, props = {}) {
   // The map is a live widget, not markup rebuilt from `state` — it lives
   // outside state and is only ever touched by the field-notes wiring below.
   let mapController = null;
+  // Bumped on every pin move; a reverse-geocode response only gets applied
+  // if it's still the most recent one requested, so a slower response from
+  // an earlier click can't overwrite a faster one from a later click.
+  let positionRequestId = 0;
 
   const state = {
     step: STEP.DESCRIBE,
@@ -493,6 +497,8 @@ export function mount(container, props = {}) {
   }
 
   async function handleMapPositionChange(form, lat, lng, knownDisplayName) {
+    const requestId = ++positionRequestId;
+
     state.fieldNotes.lat = lat;
     state.fieldNotes.lng = lng;
     const pinStatusEl = form.querySelector('[data-role="pin-status"]');
@@ -508,6 +514,10 @@ export function mount(container, props = {}) {
     }
     try {
       const place = await geocodingService.reverse(lat, lng);
+      // A later click may have started (and even finished) its own
+      // reverse-geocode while this one was in flight — if so, this response
+      // is stale and must not overwrite the newer one.
+      if (requestId !== positionRequestId) return;
       if (place && !locationNameInput.value.trim()) {
         locationNameInput.value = place.display_name;
         state.fieldNotes.locationName = place.display_name;
