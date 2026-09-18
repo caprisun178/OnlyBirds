@@ -107,12 +107,36 @@ describe the bird (free text + optional size/color/habitat)
 
 ### Field notes
 
-Once a species is confirmed, the wizard asks for: date/time, a free-text
-location (no map picker yet, so this is a name, not coordinates), sex
+Once a species is confirmed, the wizard asks for: date/time, a location
+(address search + an interactive map — see below), sex
 (male/female/unknown), life stage (adult/juvenile/fledgling/unknown), an
 optional photo, and free-text notes. Submitting this calls
 `POST /observations`, which the frontend also uses to check the user's
 existing life list first, so it can tell them whether this is a new species.
+
+**Location** works like iNaturalist's: type an address or place name and hit
+Search (`GET /geocode/search`, proxying OpenStreetMap's Nominatim) to
+navigate the map there, then click anywhere on the map to drop a pin for
+exactly where the sighting happened — that pin's coordinates become
+`observations.lat`/`lng`. Dropping a pin without an address search first (a
+plain map click) reverse-geocodes it (`GET /geocode/reverse`) to fill in a
+readable label automatically; either way, the label stays in a plain text
+field the user can edit or overwrite. If geolocation permission is granted,
+the map opens centered on the user's current location instead of a
+country-wide default view.
+
+!!! note "The map is a real Leaflet instance, not re-rendered markup"
+    Every other piece of this screen is a template string rebuilt on every
+    state change (`container.innerHTML = ...`). A live map can't work that
+    way — recreating it on every keystroke elsewhere in the form would reset
+    its pan/zoom/pin every time. `Components/LocationPicker.js` owns its own
+    Leaflet instance outside of `state`, and the field-notes photo-upload
+    status updates (the one thing on this step that used to trigger frequent
+    re-renders) now patch just their own DOM subtree instead of doing a full
+    re-render, specifically so the map isn't torn down while a photo
+    uploads. The map *does* get recreated after an actual `POST /observations`
+    submit failure (a full re-render, but rare) — `fieldNotes.lat`/`lng` are
+    kept in `state` so the pin reappears in the same place either way.
 
 Choosing a photo uploads it immediately (`POST /uploads/photo`, to a Supabase
 Storage bucket) rather than waiting for the final submit — the wizard shows a
@@ -150,16 +174,20 @@ anything currently pauses mid-wizard.
 | Candidate photos + attribution | Wikimedia Commons (`app/dao/commons.py`), cached per species in-process (`app/dao/bird_photos.py`); falls back to a placeholder image | not persisted — re-fetched (or served from cache) on every `/identify/describe` call |
 | The uploaded photo file | the user's device | Supabase Storage (bucket `SUPABASE_STORAGE_BUCKET`); the public URL goes in `observations.photo_url` |
 | Chosen species + correct/incorrect answer | the user's pick, graded against `target_species_code` when the text named a species outright | `identifications.chosen_species_code`, `identifications.outcome` |
-| Place, sex, life stage, notes | the user (field-notes step) | `observations.location_name`, `observations.sex`, `observations.life_stage`, `observations.notes` |
-| GPS point (not collected yet — no map picker) | the user's device / a map tap | `observations.lat` / `lng` and `observations.geom` |
+| Sex, life stage, notes | the user (field-notes step) | `observations.sex`, `observations.life_stage`, `observations.notes` |
+| Address search results | OpenStreetMap Nominatim (`app/dao/nominatim.py`, `GET /geocode/search`) | not persisted — only the pin the user drops from a result is saved |
+| GPS point (address search navigates the map; the user then drops the exact pin) | the user, via the map | `observations.lat` / `lng` (not `geom` yet — see below) |
+| Readable place label (auto-filled from the pin via reverse-geocode, or typed) | the user / OpenStreetMap Nominatim (`GET /geocode/reverse`) | `observations.location_name` |
 | Region code for that point (e.g. `US-WA-033`) | derive it: eBird `GET /ref/region/...` reverse lookup, or a local point-in-polygon check | `observations.region` |
 | Time | the user | `observations.observed_at` |
 | "Is this a lifer?" | our own data | computed — a lookup in `life_list_entries` |
 
 The identification logic itself is ours. External calls on this screen: the
-Wikimedia Commons photo lookup above, Supabase Storage for the field-notes
-photo, and (not wired up yet) an optional region-code lookup for the
-captured point.
+Wikimedia Commons photo lookup above, OpenStreetMap Nominatim for address
+search/reverse-geocode, OpenStreetMap tile servers (loaded directly by the
+browser via Leaflet — not proxied), Supabase Storage for the field-notes
+photo, and (not wired up yet) deriving an eBird region code for the dropped
+pin.
 
 ## 3. Database changes (SQL)
 
@@ -172,14 +200,14 @@ in-memory repos. See [Database & migrations](database.md#how-to-apply-a-migratio
 -- 0002_add_observation_identification.sql
 
 -- 1. richer observation record
-alter table observations add column if not exists location_name text;         -- free-text place name (map picker is a later iteration)
+alter table observations add column if not exists location_name text;         -- readable label — typed, or auto-filled from the dropped pin via reverse-geocode
 alter table observations add column if not exists sex          text
     check (sex in ('male', 'female', 'unknown'));
 alter table observations add column if not exists life_stage   text
     check (life_stage in ('adult', 'juvenile', 'fledgling', 'unknown'));
 alter table observations add column if not exists status       text not null default 'logged'
     check (status in ('draft', 'identifying', 'confirmed', 'logged'));
-alter table observations alter column lat drop not null;   -- optional until a map picker exists
+alter table observations alter column lat drop not null;   -- null only for observations logged before the map picker existed
 alter table observations alter column lng drop not null;
 
 -- 2. how the species was identified, and whether the guess was right
@@ -204,7 +232,7 @@ still tracked as "left to build" above.
 
 | Column (new) | Meaning |
 |---|---|
-| `observations.location_name` | Free-text place name entered in field notes. Stand-in for `lat`/`lng` until a map picker exists. |
+| `observations.location_name` | Readable place label — typed, or auto-filled from the dropped map pin via reverse-geocode. Independent of `lat`/`lng`; the user can edit it freely. |
 | `observations.sex` / `observations.life_stage` | Optional field-notes detail; `unknown` is a valid, explicit choice, distinct from "not answered" (`null`). |
 | `observations.status` | Where the observation is in the wizard. Only `logged` rows count toward the life list. |
 | `identifications.input` | Whatever the user gave us — free text and hints — as JSON. |
@@ -220,7 +248,9 @@ still tracked as "left to build" above.
 | `POST` | `/identify/{id}/select` | body: `{species_code}` (`null` = "none of these") → `{chosen_species, outcome, is_match}` |
 | `POST` | `/identify/photo` | not built — photo-based identification is still descoped |
 | `POST` | `/uploads/photo` | multipart `file` → `{photo_url}`; `503` if Supabase Storage isn't configured, `400` for an unsupported type or a file over 8 MB |
-| `POST` | `/observations` | create the observation once a species is confirmed; accepts `location_name`, `sex`, `life_stage`, `identification_id`, `status` alongside the existing fields |
+| `GET` | `/geocode/search?q=` | free text → `[{display_name, lat, lng}]`, proxying Nominatim; navigates the field-notes map |
+| `GET` | `/geocode/reverse?lat=&lng=` | a point → `{display_name, lat, lng}` or `null`; auto-fills the location label after a plain map click |
+| `POST` | `/observations` | create the observation once a species is confirmed; accepts `location_name`, `lat`, `lng`, `sex`, `life_stage`, `identification_id`, `status` alongside the existing fields |
 
 ### Example — `POST /identify/describe`
 
@@ -254,16 +284,21 @@ case.
 | `dao/` | `app/dao/identification_repo.py` | in-memory `identifications` store (same shape as `observation_repo.py`) |
 | `dao/` | `app/dao/observation_repo.py` | persists `location_name`, `sex`, `life_stage`, `identification_id`, `status` |
 | `dao/` | `app/dao/storage.py` | raw Supabase Storage HTTP calls — upload bytes, return the public URL |
+| `dao/` | `app/dao/nominatim.py` | raw OpenStreetMap Nominatim calls — address search, reverse-geocode |
 | `services/` | `app/services/identify.py` | describe → candidates; select → grade against a known target, if any |
 | `services/` | `app/services/uploads.py` | validates content type / size before handing bytes to `storage.py` |
+| `services/` | `app/services/geocoding.py` | normalizes Nominatim's raw JSON into `PlaceResult` |
 | `routers/` | `app/routers/identify.py` | `POST /identify/describe`, `POST /identify/{id}/select` |
 | `routers/` | `app/routers/uploads.py` | `POST /uploads/photo` |
-| `Dao/` | `frontend/src/Dao/identify.js`, `Dao/species.js`, `Dao/uploads.js` | raw calls |
+| `routers/` | `app/routers/geocoding.py` | `GET /geocode/search`, `GET /geocode/reverse` |
+| `Dao/` | `frontend/src/Dao/identify.js`, `Dao/species.js`, `Dao/uploads.js`, `Dao/geocoding.js` | raw calls |
 | `Services/` | `frontend/src/Services/identify.js` | validates the description before calling the API |
 | `Services/` | `frontend/src/Services/uploads.js` | validates type/size client-side before uploading |
+| `Services/` | `frontend/src/Services/geocoding.js` | skips the search API call for a too-short query; no debounce needed since search is button/Enter-triggered, not per-keystroke |
 | `Services/` | `frontend/src/Services/observations.js` | `createFromWizard()` — builds the payload, checks the life list first so `isNewSpecies` is accurate |
-| `Presenters/` | `frontend/src/Presenters/AddObservation.js` | the whole wizard: describe → candidates → (manual search fallback) → field notes (uploads the photo as soon as it's picked) → done |
+| `Presenters/` | `frontend/src/Presenters/AddObservation.js` | the whole wizard: describe → candidates → (manual search fallback) → field notes (map, address search, photo upload) → done |
 | `Components/` | `frontend/src/Components/CandidateList.js` | presentational candidate grid; shows `photo_attribution` as a caption when present |
+| `Components/` | `frontend/src/Components/LocationPicker.js` | owns a live Leaflet map + marker; loads Leaflet from a CDN at runtime; reports position changes via a callback rather than importing Dao/Services itself |
 | `testData/` | `frontend/src/testData/testProfile.js` | stand-in "current user" until `user-profiles.md` ships |
 
 Still to build: `region`/`geom` on `observations` and the sticker/pin engine
@@ -295,15 +330,25 @@ For the next feature that follows this shape:
    `backend/tests/test_bird_photos.py` cover the cache/fallback logic with
    `commons.search_photo` monkeypatched; `conftest.py`'s autouse
    `no_live_photo_lookups` fixture keeps the rest of the suite offline.
-9. Frontend: `Dao/identify.js` + `Dao/species.js` + `Dao/uploads.js` →
-   `Services/identify.js` + `Services/species.js` + `Services/uploads.js` +
-   extended `Services/observations.js` → `Presenters/AddObservation.js` →
-   `Components/CandidateList.js` (renders `photo_attribution` as a caption).
+9. `app/dao/nominatim.py` + `app/services/geocoding.py` + `app/routers/geocoding.py`
+   — `GET /geocode/search`, `GET /geocode/reverse`. Tests in
+   `backend/tests/test_geocoding.py` mock `nominatim.search`/`nominatim.reverse`
+   directly (no autouse fixture needed — geocoding is only called from these
+   two endpoints, not on some other hot path like the Commons photo lookup).
+10. `Components/LocationPicker.js` (Leaflet map + marker, CDN-loaded) +
+    `Dao/geocoding.js` + `Services/geocoding.js`, wired into
+    `Presenters/AddObservation.js`'s field-notes step: address search box,
+    persistent map, reverse-geocode on a plain pin drop.
+11. Frontend, the rest: `Dao/identify.js` + `Dao/species.js` + `Dao/uploads.js`
+    → `Services/identify.js` + `Services/species.js` + `Services/uploads.js` +
+    extended `Services/observations.js` → `Presenters/AddObservation.js` →
+    `Components/CandidateList.js` (renders `photo_attribution` as a caption).
 
-Not yet done: `region`/`geom` derivation and the sticker/pin engine calls.
-`POST /uploads/photo` is fully wired but returns `503` until a Supabase
-project's `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` are set locally — see
-the note under "Field notes" above.
+Not yet done: `region`/`geom` derivation (`geom` needs the `lat`/`lng` this
+step now collects — it's just not computed yet) and the sticker/pin engine
+calls. `POST /uploads/photo` is fully wired but returns `503` until a
+Supabase project's `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` are set
+locally — see the note under "Field notes" above.
 
 ## Related pages
 

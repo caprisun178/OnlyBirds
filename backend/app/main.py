@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import __version__
 from app.config import get_settings
 from app.routers import (
+    geocoding,
     health,
     identify,
     life_list,
@@ -43,6 +44,7 @@ def create_app() -> FastAPI:
     app.include_router(observations.router)
     app.include_router(identify.router)
     app.include_router(uploads.router)
+    app.include_router(geocoding.router)
     app.include_router(life_list.router)
 
     @app.get("/", tags=["health"])

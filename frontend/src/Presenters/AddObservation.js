@@ -15,8 +15,10 @@ import { identifyService } from '../Services/identify.js';
 import { speciesService } from '../Services/species.js';
 import { observationService } from '../Services/observations.js';
 import { uploadsService } from '../Services/uploads.js';
+import { geocodingService } from '../Services/geocoding.js';
 import { getCurrentUser } from '../testData/testProfile.js';
 import { renderCandidateList, escapeHtml } from '../Components/CandidateList.js';
+import { mountLocationPicker } from '../Components/LocationPicker.js';
 
 const STEP = {
   DESCRIBE: 'describe',
@@ -28,6 +30,10 @@ const STEP = {
 
 export function mount(container, props = {}) {
   const userId = props.userId || getCurrentUser().id;
+
+  // The map is a live widget, not markup rebuilt from `state` — it lives
+  // outside state and is only ever touched by the field-notes wiring below.
+  let mapController = null;
 
   const state = {
     step: STEP.DESCRIBE,
@@ -50,6 +56,8 @@ export function mount(container, props = {}) {
     fieldNotes: {
       observedAt: '',
       locationName: '',
+      lat: null,
+      lng: null,
       sex: '',
       lifeStage: '',
       notes: '',
@@ -330,15 +338,25 @@ export function mount(container, props = {}) {
       <form class="ob-card ob-stack" data-form="field-notes">
         <div class="ob-alert ob-alert--success">Confirmed: ${escapeHtml(state.confirmedSpecies.commonName)}</div>
 
+        <div class="ob-field">
+          <label class="ob-label" for="observed-at">Date &amp; time</label>
+          <input id="observed-at" type="datetime-local" class="ob-input" value="${escapeHtml(fn.observedAt)}" required />
+        </div>
+
+        <div class="ob-field">
+          <label class="ob-label" for="address-search">Location</label>
+          <div class="ob-cluster">
+            <input id="address-search" class="ob-input" style="flex:1" placeholder="Search for an address or place" />
+            <button type="button" class="ob-btn ob-btn--ghost" data-action="search-address">Search</button>
+          </div>
+          <div data-role="address-results" class="ob-stack" style="--ob-stack-gap: var(--ob-space-1);"></div>
+          <div data-role="location-map" style="height: 320px; border-radius: var(--ob-radius-md); overflow: hidden;"></div>
+          <p class="ob-hint" data-role="pin-status">${renderPinStatusText(fn)}</p>
+          <input id="location-name" class="ob-input" placeholder='Label for this sighting, e.g. "Discovery Park, Seattle"' value="${escapeHtml(fn.locationName)}" />
+          <p class="ob-hint">Map and address search data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.</p>
+        </div>
+
         <div class="ob-grid" style="--ob-grid-min: 220px;">
-          <div class="ob-field">
-            <label class="ob-label" for="observed-at">Date &amp; time</label>
-            <input id="observed-at" type="datetime-local" class="ob-input" value="${escapeHtml(fn.observedAt)}" required />
-          </div>
-          <div class="ob-field">
-            <label class="ob-label" for="location-name">Location</label>
-            <input id="location-name" class="ob-input" placeholder="e.g. Discovery Park, Seattle" value="${escapeHtml(fn.locationName)}" />
-          </div>
           <div class="ob-field">
             <label class="ob-label" for="sex">Male / female</label>
             <select id="sex" class="ob-select">
@@ -363,9 +381,7 @@ export function mount(container, props = {}) {
         <div class="ob-field">
           <label class="ob-label" for="photo">Photo (optional)</label>
           <input id="photo" type="file" accept="image/*" class="ob-input" />
-          ${fn.photoDataUrl ? `<img src="${fn.photoDataUrl}" alt="Uploaded preview" style="max-width:220px;border-radius:var(--ob-radius-md);" />` : ''}
-          ${state.photoUploadState === 'uploading' ? '<p class="ob-hint">Uploading photo…</p>' : ''}
-          ${state.photoUploadState === 'error' ? `<div class="ob-alert ob-alert--warning">${escapeHtml(state.photoUploadError)}</div>` : ''}
+          <div data-role="photo-status">${renderPhotoStatusHtml()}</div>
           <p class="ob-hint">JPEG, PNG, WebP, or GIF, up to 8 MB.</p>
         </div>
 
@@ -374,17 +390,33 @@ export function mount(container, props = {}) {
           <textarea id="notes" class="ob-textarea" placeholder="What was it doing? Anything else memorable?">${escapeHtml(fn.notes)}</textarea>
         </div>
 
-        <button type="submit" class="ob-btn ob-btn--primary ob-btn--block" ${state.photoUploadState === 'uploading' ? 'disabled' : ''}>
+        <button type="submit" class="ob-btn ob-btn--primary ob-btn--block" data-role="submit-btn" ${state.photoUploadState === 'uploading' ? 'disabled' : ''}>
           ${state.photoUploadState === 'uploading' ? 'Uploading photo…' : 'Log this observation'}
         </button>
       </form>
     `;
   }
 
+  function renderPinStatusText(fn) {
+    return fn.lat != null && fn.lng != null
+      ? `Pin dropped at ${fn.lat.toFixed(5)}, ${fn.lng.toFixed(5)} — click the map again to move it.`
+      : 'Search for a place above, or click the map to drop a pin for exactly where you saw it.';
+  }
+
+  function renderPhotoStatusHtml() {
+    const fn = state.fieldNotes;
+    return `
+      ${fn.photoDataUrl ? `<img src="${fn.photoDataUrl}" alt="Uploaded preview" style="max-width:220px;border-radius:var(--ob-radius-md);" />` : ''}
+      ${state.photoUploadState === 'uploading' ? '<p class="ob-hint">Uploading photo…</p>' : ''}
+      ${state.photoUploadState === 'error' ? `<div class="ob-alert ob-alert--warning">${escapeHtml(state.photoUploadError)}</div>` : ''}
+    `;
+  }
+
   // Reads the form's current values into state.fieldNotes. Called before any
-  // render triggered mid-edit (e.g. a photo upload finishing) so that
-  // rebuilding the form's HTML from state doesn't blank out fields the user
-  // already typed into.
+  // full re-render triggered mid-edit (e.g. submitting) so that rebuilding
+  // the form's HTML from state doesn't blank out fields the user already
+  // typed into. lat/lng aren't form inputs — the map keeps those in state
+  // directly via handleMapPositionChange, below.
   function captureFieldNotesInputs(form) {
     state.fieldNotes.observedAt = form.querySelector('#observed-at').value;
     state.fieldNotes.locationName = form.querySelector('#location-name').value;
@@ -397,24 +429,115 @@ export function mount(container, props = {}) {
     const form = container.querySelector('[data-form="field-notes"]');
     if (!form) return;
 
+    wireLocationPicker(form);
+    wirePhotoInput(form);
+    wireFieldNotesSubmit(form);
+  }
+
+  // ---- Location: address search + click-to-drop-pin map -----------------
+
+  async function wireLocationPicker(form) {
+    const mapEl = form.querySelector('[data-role="location-map"]');
+    const fn = state.fieldNotes;
+
+    mapController?.destroy();
+    mapController = null;
+    try {
+      mapController = await mountLocationPicker(mapEl, {
+        initialLatLng: fn.lat != null && fn.lng != null ? [fn.lat, fn.lng] : undefined,
+        onPositionChange: (lat, lng) => handleMapPositionChange(form, lat, lng),
+      });
+    } catch (err) {
+      mapEl.innerHTML = `<div class="ob-alert ob-alert--warning">${escapeHtml(err.message || 'Could not load the map.')}</div>`;
+    }
+
+    const searchInput = form.querySelector('#address-search');
+    const resultsEl = form.querySelector('[data-role="address-results"]');
+
+    async function runAddressSearch() {
+      const query = searchInput.value.trim();
+      if (!query) return;
+      resultsEl.innerHTML = '<p class="ob-text-muted ob-text-sm">Searching…</p>';
+      let results;
+      try {
+        results = await geocodingService.search(query);
+      } catch (err) {
+        resultsEl.innerHTML = '<p class="ob-text-muted ob-text-sm">Search failed. Try again in a moment.</p>';
+        return;
+      }
+      if (results.length === 0) {
+        resultsEl.innerHTML = '<p class="ob-text-muted ob-text-sm">No matches — try a different search, or just click the map.</p>';
+        return;
+      }
+      resultsEl.innerHTML = results.map((r, i) => `
+        <button type="button" class="ob-btn ob-btn--ghost ob-btn--block ob-text-sm" style="justify-content:flex-start;" data-result-index="${i}">${escapeHtml(r.display_name)}</button>
+      `).join('');
+      resultsEl.querySelectorAll('[data-result-index]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const picked = results[Number(btn.dataset.resultIndex)];
+          mapController?.setView(picked.lat, picked.lng);
+          handleMapPositionChange(form, picked.lat, picked.lng, picked.display_name);
+          resultsEl.innerHTML = '';
+          searchInput.value = '';
+        });
+      });
+    }
+
+    form.querySelector('[data-action="search-address"]').addEventListener('click', runAddressSearch);
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        runAddressSearch();
+      }
+    });
+  }
+
+  async function handleMapPositionChange(form, lat, lng, knownDisplayName) {
+    state.fieldNotes.lat = lat;
+    state.fieldNotes.lng = lng;
+    const pinStatusEl = form.querySelector('[data-role="pin-status"]');
+    if (pinStatusEl) pinStatusEl.textContent = renderPinStatusText(state.fieldNotes);
+
+    const locationNameInput = form.querySelector('#location-name');
+    if (!locationNameInput || locationNameInput.value.trim()) return; // don't clobber what they typed
+
+    if (knownDisplayName) {
+      locationNameInput.value = knownDisplayName;
+      state.fieldNotes.locationName = knownDisplayName;
+      return;
+    }
+    try {
+      const place = await geocodingService.reverse(lat, lng);
+      if (place && !locationNameInput.value.trim()) {
+        locationNameInput.value = place.display_name;
+        state.fieldNotes.locationName = place.display_name;
+      }
+    } catch (err) {
+      // Non-fatal — the pin is still saved even without a readable label.
+    }
+  }
+
+  // ---- Photo upload (targeted DOM updates so the map above never gets
+  // torn down by a full re-render while the user is still on this step) ---
+
+  function wirePhotoInput(form) {
     const photoInput = form.querySelector('#photo');
     photoInput.addEventListener('change', async () => {
       const file = photoInput.files && photoInput.files[0];
       if (!file) return;
 
-      captureFieldNotesInputs(form);
-
       const reader = new FileReader();
       reader.onload = () => {
         state.fieldNotes.photoDataUrl = reader.result;
-        render();
+        updatePhotoStatusDom(form);
       };
       reader.readAsDataURL(file);
 
       state.photoUploadState = 'uploading';
       state.photoUploadError = null;
       state.fieldNotes.photoUrl = null;
-      render();
+      updatePhotoStatusDom(form);
+      updateSubmitButtonDom(form);
       try {
         state.fieldNotes.photoUrl = await uploadsService.uploadPhoto(file);
         state.photoUploadState = 'done';
@@ -422,12 +545,30 @@ export function mount(container, props = {}) {
         state.photoUploadState = 'error';
         state.photoUploadError = `${err.message} You can still log this sighting without a photo.`;
       }
-      render();
+      updatePhotoStatusDom(form);
+      updateSubmitButtonDom(form);
     });
+  }
 
+  function updatePhotoStatusDom(form) {
+    const el = form.querySelector('[data-role="photo-status"]');
+    if (el) el.innerHTML = renderPhotoStatusHtml();
+  }
+
+  function updateSubmitButtonDom(form) {
+    const btn = form.querySelector('[data-role="submit-btn"]');
+    if (!btn) return;
+    const uploading = state.photoUploadState === 'uploading';
+    btn.disabled = uploading;
+    btn.textContent = uploading ? 'Uploading photo…' : 'Log this observation';
+  }
+
+  function wireFieldNotesSubmit(form) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       captureFieldNotesInputs(form);
+      mapController?.destroy();
+      mapController = null;
 
       state.error = null;
       state.loading = true;
@@ -441,6 +582,8 @@ export function mount(container, props = {}) {
               ? new Date(state.fieldNotes.observedAt).toISOString()
               : new Date().toISOString(),
             locationName: state.fieldNotes.locationName,
+            lat: state.fieldNotes.lat,
+            lng: state.fieldNotes.lng,
             photoUrl: state.fieldNotes.photoUrl,
             sex: state.fieldNotes.sex,
             lifeStage: state.fieldNotes.lifeStage,
@@ -452,7 +595,7 @@ export function mount(container, props = {}) {
         state.error = err.message || 'Could not save this observation. Please try again.';
       } finally {
         state.loading = false;
-        render();
+        render(); // if we're still on field notes (submit failed), the map remounts at the saved lat/lng
       }
     });
   }
@@ -477,6 +620,8 @@ export function mount(container, props = {}) {
     const btn = container.querySelector('[data-action="log-another"]');
     if (btn) {
       btn.addEventListener('click', () => {
+        mapController?.destroy();
+        mapController = null;
         Object.assign(state, {
           step: STEP.DESCRIBE,
           descriptionText: '',
@@ -489,7 +634,7 @@ export function mount(container, props = {}) {
           manualResults: [],
           confirmedSpecies: null,
           fieldNotes: {
-            observedAt: '', locationName: '', sex: '', lifeStage: '', notes: '',
+            observedAt: '', locationName: '', lat: null, lng: null, sex: '', lifeStage: '', notes: '',
             photoDataUrl: null, photoUrl: null,
           },
           photoUploadState: 'idle',

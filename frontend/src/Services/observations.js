@@ -21,7 +21,7 @@ export const observationService = {
 
   // Confirmed-species + field-notes step of the Add Observation wizard.
   // `species` is `{ commonName, scientificName }`; `fieldNotes` is
-  // `{ observedAt, locationName, photoUrl, sex, lifeStage, notes }`.
+  // `{ observedAt, locationName, lat, lng, photoUrl, sex, lifeStage, notes }`.
   async createFromWizard(userId, { species, identificationId, fieldNotes }) {
     const priorLifeList = await lifeListDAO.getAll(userId);
     const alreadySeen = priorLifeList.some(
@@ -37,6 +37,8 @@ export const observationService = {
       identification_id: identificationId || null,
       observed_at: fieldNotes.observedAt,
       location_name: fieldNotes.locationName || null,
+      lat: fieldNotes.lat ?? null,
+      lng: fieldNotes.lng ?? null,
       photo_url: fieldNotes.photoUrl || null,
       sex: fieldNotes.sex || null,
       life_stage: fieldNotes.lifeStage || null,
