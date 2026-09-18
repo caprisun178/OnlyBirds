@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
 from app.config import get_settings
-from app.routers import health, life_list, observations, sightings, species
+from app.routers import health, life_list, observations, sightings, species, stickers
 
 
 def create_app() -> FastAPI:
@@ -34,6 +34,7 @@ def create_app() -> FastAPI:
     app.include_router(sightings.router)
     app.include_router(observations.router)
     app.include_router(life_list.router)
+    app.include_router(stickers.router)
 
     @app.get("/", tags=["health"])
     async def root() -> dict:

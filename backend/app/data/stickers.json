@@ -1,0 +1,72 @@
+[
+  {
+    "code": "first_bird",
+    "name": "First Bird",
+    "description": "Log your first bird.",
+    "image_url": "/static/stickers/first_bird.svg",
+    "rule_type": "first_ever",
+    "criteria": {},
+    "rarity": "common",
+    "sort_order": 1
+  },
+  {
+    "code": "first_owl",
+    "name": "Night Owl",
+    "description": "Find your first owl.",
+    "image_url": "/static/stickers/first_owl.svg",
+    "rule_type": "first_in_group",
+    "criteria": {"group": "owls"},
+    "rarity": "common",
+    "sort_order": 2
+  },
+  {
+    "code": "first_eagle",
+    "name": "Eagle Eye",
+    "description": "Find your first eagle.",
+    "image_url": "/static/stickers/first_eagle.svg",
+    "rule_type": "first_in_group",
+    "criteria": {"group": "eagles"},
+    "rarity": "uncommon",
+    "sort_order": 1
+  },
+  {
+    "code": "first_raptor",
+    "name": "Bird of Prey",
+    "description": "Find your first raptor.",
+    "image_url": "/static/stickers/first_raptor.svg",
+    "rule_type": "first_in_group",
+    "criteria": {"group": "raptors"},
+    "rarity": "common",
+    "sort_order": 3
+  },
+  {
+    "code": "all_eagles",
+    "name": "Eagle Collector",
+    "description": "Find every eagle in the starter set.",
+    "image_url": "/static/stickers/all_eagles.svg",
+    "rule_type": "group_complete",
+    "criteria": {"group": "eagles"},
+    "rarity": "rare",
+    "sort_order": 1
+  },
+  {
+    "code": "species_25",
+    "name": "25 Club",
+    "description": "Build a life list of 25 species.",
+    "image_url": "/static/stickers/species_25.svg",
+    "rule_type": "count_milestone",
+    "criteria": {"threshold": 25},
+    "rarity": "uncommon",
+    "sort_order": 2
+  },
+  {
+    "code": "species_100",
+    "name": "Century",
+    "description": "Build a life list of 100 species.",
+    "image_url": "/static/stickers/species_100.svg",
+    "rule_type": "count_milestone",
+    "criteria": {"threshold": 100},
+    "rarity": "rare",
+    "sort_order": 2
+  }
+]

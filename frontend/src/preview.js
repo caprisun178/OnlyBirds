@@ -10,11 +10,6 @@
 //   import { mount } from './Presenters/LifeList.js';
 //   mount(document.getElementById('app'), { userId: 'u1' });
 
-const app = document.getElementById('app');
-app.innerHTML = `
-  <h1>Only Birds — dev preview</h1>
-  <p class="ob-text-muted">
-    Nothing is mounted yet. Edit <code>frontend/src/preview.js</code> to
-    import and mount the Presenter you're building.
-  </p>
-`;
+import { mount } from './Presenters/StickerShelf.js';
+
+mount(document.getElementById('app'), { userId: 'u1' });

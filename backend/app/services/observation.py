@@ -7,7 +7,15 @@ from app.models.observation import Observation, ObservationCreate
 
 
 async def log_observation(payload: ObservationCreate) -> Observation:
-    return await observation_repo.add(payload)
+    from app.services.life_list import get_life_list
+    from app.services.stickers import evaluate_stickers
+
+    before_count = len(await get_life_list(payload.user_id))
+    observation = await observation_repo.add(payload)
+    entries = await get_life_list(payload.user_id)
+    if len(entries) > before_count:
+        await evaluate_stickers(payload.user_id, observation.id, entries)
+    return observation
 
 
 async def get_observation(observation_id: str) -> Observation | None:
