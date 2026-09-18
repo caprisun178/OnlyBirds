@@ -13,8 +13,10 @@ Two paths, both driven off the canned reference set in `app/data/birds.py`:
 
 from __future__ import annotations
 
+import asyncio
 import re
 
+from app.dao import bird_photos
 from app.data.birds import all_birds, get_bird
 
 _WORD_RE = re.compile(r"[a-z]+")
@@ -93,11 +95,25 @@ def _candidates_for_generic(text: str, hints: dict | None) -> list[dict]:
     return out
 
 
-def describe(text: str, hints: dict | None = None) -> tuple[list[dict], str | None]:
+async def _with_real_photos(candidates: list[dict]) -> list[dict]:
+    """Swaps each candidate's placeholder `photo_url` for a real one from
+    Wikimedia Commons, if available (see `app/dao/bird_photos.py`), and
+    attaches its attribution. Looked up concurrently since a describe call
+    needs up to six of these."""
+    photos = await asyncio.gather(*(bird_photos.get_photo(c) for c in candidates))
+    return [
+        {**c, "photo_url": photo["photo_url"], "photo_attribution": photo["attribution"]}
+        for c, photo in zip(candidates, photos)
+    ]
+
+
+async def describe(text: str, hints: dict | None = None) -> tuple[list[dict], str | None]:
     """Returns (candidates, target_species_code). `target_species_code` is set
     only when the text named a species outright, so the confirm step can grade
     the user's pick against it."""
     matched = _find_named_species(text)
     if matched:
-        return _candidates_for_named(matched), matched["code"]
-    return _candidates_for_generic(text, hints), None
+        candidates, target_code = _candidates_for_named(matched), matched["code"]
+    else:
+        candidates, target_code = _candidates_for_generic(text, hints), None
+    return await _with_real_photos(candidates), target_code

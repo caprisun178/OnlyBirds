@@ -6,11 +6,14 @@ there is no real photo-classification model behind this yet. Instead
 species grouped by how easily they're confused for one another by sight —
 enough to drive the "6 similar photos, pick the one you saw" flow end to end.
 
-`photo_url` points at a generated placeholder (name + group colour) rather
-than a real photo. Swap this out for cached Macaulay Library media
-(`species_content.media`, see `bird-info.md`) once that lands — nothing else
-in the identify flow needs to change, since callers only ever see the
-`Candidate` shape.
+`photo_url` here is a generated placeholder (name + group colour), used only
+as a **fallback**. `app/dao/bird_photos.py` looks up a real photo from
+Wikimedia Commons by scientific name and only falls back to this value if
+that lookup fails — see that module and `docs/features/add-observation.md`
+for why Commons rather than Macaulay Library. Swap the fallback out (or drop
+it) once real Macaulay media (`species_content.media`, see `bird-info.md`)
+lands — nothing else in the identify flow needs to change, since callers
+only ever see the `Candidate` shape.
 """
 
 from __future__ import annotations

@@ -84,11 +84,26 @@ describe the bird (free text + optional size/color/habitat)
     `/identify/describe` yet either. Candidates come from matching the
     description against a small hand-picked reference set
     (`app/data/birds.py`, grouped by which species look alike — "blue birds,"
-    "brown streaky sparrows," and so on) with generated placeholder photos.
-    Swapping in a real matching service later only touches
-    `app/dao/identify.py` — the `Candidate` shape callers see doesn't change.
-    The photo path stores the image and logs the observation now; automatic
-    photo identification is wired in later behind `POST /identify/photo`.
+    "brown streaky sparrows," and so on). Swapping in a real matching service
+    later only touches `app/dao/identify.py` — the `Candidate` shape callers
+    see doesn't change. The photo path stores the image and logs the
+    observation now; automatic photo identification is wired in later behind
+    `POST /identify/photo`.
+
+!!! note "Candidate photos come from Wikimedia Commons, not eBird or Macaulay"
+    eBird's API has no photo endpoint — that's Macaulay Library, a separate
+    Cornell system. Macaulay's public catalog search (what a lot of hobby
+    projects use in lieu of a real Cornell developer account) now sits behind
+    an anti-bot challenge that a server-side call can't pass. So
+    `app/dao/commons.py` looks up a real photo per species from Wikimedia
+    Commons by scientific name instead — public, keyless, and stable — and
+    `app/dao/bird_photos.py` caches the result in-memory and carries the
+    required Creative Commons attribution string through to the frontend
+    (`Candidate.photo_attribution`, shown as a caption under the photo).
+    Falls back to a generated placeholder image if Commons has nothing for a
+    species or the request fails. Swap this out for cached Macaulay media
+    (`species_content.media`, see `bird-info.md`) once real Cornell access
+    exists — nothing downstream of `bird_photos.get_photo()` needs to change.
 
 ### Field notes
 
@@ -132,6 +147,7 @@ anything currently pauses mid-wizard.
 |---|---|---|
 | Free-text description + structured hints | the user | `identifications.input` (jsonb) |
 | Ranked candidate species | our `app/dao/identify.py` — matches a canned reference set (`app/data/birds.py`), **not** an external CV/LLM API yet | `identifications.candidates` (jsonb) |
+| Candidate photos + attribution | Wikimedia Commons (`app/dao/commons.py`), cached per species in-process (`app/dao/bird_photos.py`); falls back to a placeholder image | not persisted — re-fetched (or served from cache) on every `/identify/describe` call |
 | The uploaded photo file | the user's device | Supabase Storage (bucket `SUPABASE_STORAGE_BUCKET`); the public URL goes in `observations.photo_url` |
 | Chosen species + correct/incorrect answer | the user's pick, graded against `target_species_code` when the text named a species outright | `identifications.chosen_species_code`, `identifications.outcome` |
 | Place, sex, life stage, notes | the user (field-notes step) | `observations.location_name`, `observations.sex`, `observations.life_stage`, `observations.notes` |
@@ -140,8 +156,10 @@ anything currently pauses mid-wizard.
 | Time | the user | `observations.observed_at` |
 | "Is this a lifer?" | our own data | computed — a lookup in `life_list_entries` |
 
-The identification service is ours. The only external call on this screen is the
-optional region-code lookup for the captured point (not wired up yet).
+The identification logic itself is ours. External calls on this screen: the
+Wikimedia Commons photo lookup above, Supabase Storage for the field-notes
+photo, and (not wired up yet) an optional region-code lookup for the
+captured point.
 
 ## 3. Database changes (SQL)
 
@@ -214,17 +232,25 @@ still tracked as "left to build" above.
 // response
 { "identification_id": "a1b2c3...",
   "candidates": [
-    { "species_code": "sonspa", "common_name": "Song Sparrow", "scientific_name": "Melospiza melodia", "confidence": 0.52, "photo_url": "https://..." },
-    { "species_code": "savspa", "common_name": "Savannah Sparrow", "scientific_name": "Passerculus sandwichensis", "confidence": 0.44, "photo_url": "https://..." }
+    { "species_code": "sonspa", "common_name": "Song Sparrow", "scientific_name": "Melospiza melodia", "confidence": 0.52,
+      "photo_url": "https://upload.wikimedia.org/...", "photo_attribution": "Jane Doe / Wikimedia Commons (CC BY-SA 3.0)" },
+    { "species_code": "savspa", "common_name": "Savannah Sparrow", "scientific_name": "Passerculus sandwichensis", "confidence": 0.44,
+      "photo_url": "https://upload.wikimedia.org/...", "photo_attribution": "John Smith / Wikimedia Commons (CC BY 2.0)" }
   ] }
 ```
+
+`photo_attribution` is `null` when Commons had nothing and a candidate fell
+back to its placeholder image — there's no Commons content to credit in that
+case.
 
 ## 5. How the code is layered
 
 | Layer | File | Responsibility |
 |---|---|---|
-| `data/` | `app/data/birds.py` | canned reference species, grouped by visual-confusion; placeholder photos |
-| `dao/` | `app/dao/identify.py` | match free text (+ hints) against `birds.py`; named match vs. generic ranking |
+| `data/` | `app/data/birds.py` | canned reference species, grouped by visual-confusion; fallback placeholder photos |
+| `dao/` | `app/dao/identify.py` | match free text (+ hints) against `birds.py`; named match vs. generic ranking; attaches real photos concurrently |
+| `dao/` | `app/dao/commons.py` | raw Wikimedia Commons search — one photo + attribution per scientific name |
+| `dao/` | `app/dao/bird_photos.py` | in-memory cache in front of `commons.py`; falls back to `birds.py`'s placeholder |
 | `dao/` | `app/dao/identification_repo.py` | in-memory `identifications` store (same shape as `observation_repo.py`) |
 | `dao/` | `app/dao/observation_repo.py` | persists `location_name`, `sex`, `life_stage`, `identification_id`, `status` |
 | `dao/` | `app/dao/storage.py` | raw Supabase Storage HTTP calls — upload bytes, return the public URL |
@@ -237,7 +263,7 @@ still tracked as "left to build" above.
 | `Services/` | `frontend/src/Services/uploads.js` | validates type/size client-side before uploading |
 | `Services/` | `frontend/src/Services/observations.js` | `createFromWizard()` — builds the payload, checks the life list first so `isNewSpecies` is accurate |
 | `Presenters/` | `frontend/src/Presenters/AddObservation.js` | the whole wizard: describe → candidates → (manual search fallback) → field notes (uploads the photo as soon as it's picked) → done |
-| `Components/` | `frontend/src/Components/CandidateList.js` | presentational candidate grid |
+| `Components/` | `frontend/src/Components/CandidateList.js` | presentational candidate grid; shows `photo_attribution` as a caption when present |
 | `testData/` | `frontend/src/testData/testProfile.js` | stand-in "current user" until `user-profiles.md` ships |
 
 Still to build: `region`/`geom` on `observations` and the sticker/pin engine
@@ -247,8 +273,8 @@ calls after a successful log.
 
 For the next feature that follows this shape:
 
-1. `app/data/birds.py` — canned species grouped by visual confusion, with
-   generated placeholder photos.
+1. `app/data/birds.py` — canned species grouped by visual confusion, with a
+   generated placeholder photo per species as the fallback.
 2. `app/dao/identify.py` — text/hints matching; `app/dao/identification_repo.py`
    — in-memory store.
 3. `app/services/identify.py` + `app/routers/identify.py` —
@@ -264,10 +290,15 @@ For the next feature that follows this shape:
    Tests in `backend/tests/test_uploads.py` cover validation and the
    not-configured (`503`) path without needing real Supabase credentials, plus
    the success path with `storage.upload_object` monkeypatched.
-8. Frontend: `Dao/identify.js` + `Dao/species.js` + `Dao/uploads.js` →
+8. `app/dao/commons.py` (Wikimedia Commons search) + `app/dao/bird_photos.py`
+   (cache + fallback), wired into `identify.py`'s candidate builder. Tests in
+   `backend/tests/test_bird_photos.py` cover the cache/fallback logic with
+   `commons.search_photo` monkeypatched; `conftest.py`'s autouse
+   `no_live_photo_lookups` fixture keeps the rest of the suite offline.
+9. Frontend: `Dao/identify.js` + `Dao/species.js` + `Dao/uploads.js` →
    `Services/identify.js` + `Services/species.js` + `Services/uploads.js` +
    extended `Services/observations.js` → `Presenters/AddObservation.js` →
-   `Components/CandidateList.js`.
+   `Components/CandidateList.js` (renders `photo_attribution` as a caption).
 
 Not yet done: `region`/`geom` derivation and the sticker/pin engine calls.
 `POST /uploads/photo` is fully wired but returns `503` until a Supabase

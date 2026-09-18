@@ -21,6 +21,7 @@ export function renderCandidateList(candidates, selectedCode) {
           <img src="${escapeHtml(c.photo_url)}" alt="${escapeHtml(c.common_name)}" />
           <h3 class="ob-card__title">${escapeHtml(c.common_name)}</h3>
           <p class="ob-card__body ob-text-sm"><em>${escapeHtml(c.scientific_name)}</em></p>
+          ${c.photo_attribution ? `<p class="ob-text-muted ob-text-sm">Photo: ${escapeHtml(c.photo_attribution)}</p>` : ''}
           ${c.species_code === selectedCode ? '<span class="ob-tag ob-tag--success">Selected</span>' : ''}
         </button>
       `).join('')}

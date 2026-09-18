@@ -32,6 +32,7 @@ class Candidate(BaseModel):
     scientific_name: str
     confidence: float
     photo_url: str
+    photo_attribution: str | None = None  # None for the built-in placeholder
 
 
 class IdentifyResponse(BaseModel):
