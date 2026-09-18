@@ -62,7 +62,13 @@ async def get_taxonomy(species_codes: list[str] | None = None) -> list[dict]:
     scope it; omit for the full taxonomy). Needed by Life List (populating
     `species` from a region checklist) and Bird info (species search/profile).
     """
-    raise NotImplementedError
+    params = {"fmt": "json"}
+    if species_codes:
+        params["species"] = ",".join(species_codes)
+    async with _client() as client:
+        resp = await client.get("/ref/taxonomy/ebird", params=params)
+        resp.raise_for_status()
+        return resp.json()
 
 
 async def get_region_children(parent_code: str, region_type: str) -> list[dict]:
@@ -72,7 +78,10 @@ async def get_region_children(parent_code: str, region_type: str) -> list[dict]:
     `country` | `subnational1` | `subnational2`. Needed by Life List's region
     picker (also reused by User profiles' `default_region` picker).
     """
-    raise NotImplementedError
+    async with _client() as client:
+        resp = await client.get(f"/ref/region/list/{region_type}/{parent_code}")
+        resp.raise_for_status()
+        return resp.json()
 
 
 async def get_region_spplist(region_code: str) -> list[str]:
@@ -81,7 +90,10 @@ async def get_region_spplist(region_code: str) -> list[str]:
     `GET /product/spplist/{region_code}`. Needed by Life List to build the
     region's full checklist (cached in `region_checklists`).
     """
-    raise NotImplementedError
+    async with _client() as client:
+        resp = await client.get(f"/product/spplist/{region_code}")
+        resp.raise_for_status()
+        return resp.json()
 
 
 async def recent_obs_in_region(region_code: str, days_back: int = 7) -> list[dict]:

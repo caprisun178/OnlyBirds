@@ -18,3 +18,29 @@ class LifeListEntry(BaseModel):
     species: SpeciesRef = Field(default_factory=SpeciesRef)
     first_observed_at: datetime
     observation_id: str | None = None
+
+
+class RegionOption(BaseModel):
+    """One entry in the region picker — a child of some parent region."""
+
+    code: str
+    name: str
+
+
+class ChecklistSpecies(BaseModel):
+    """One row in a region's completion view — a species, marked seen or not
+    for whichever user asked (or not-personalized if no user_id was given)."""
+
+    code: str
+    common_name: str
+    scientific_name: str
+    seen: bool
+    first_observed_at: datetime | None = None
+    photo_url: str | None = None
+
+
+class RegionChecklistResponse(BaseModel):
+    region_code: str
+    total: int
+    seen: int
+    species: list[ChecklistSpecies]
