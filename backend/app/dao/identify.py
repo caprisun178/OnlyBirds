@@ -21,9 +21,35 @@ from app.data.birds import all_birds, get_bird
 
 _WORD_RE = re.compile(r"[a-z]+")
 
+# Free text says "big," "marsh," "yard" — the data says "large," "wetland,"
+# "backyard." Map common synonyms onto the vocabulary birds.py actually uses
+# so a generic description matches on more than an exact word.
+_SIZE_SYNONYMS = {
+    "small": {"small", "little", "tiny", "petite"},
+    "medium": {"medium", "mid", "midsize", "midsized"},
+    "large": {"large", "big", "huge", "giant"},
+}
+_HABITAT_SYNONYMS = {
+    "wetland": {"wetland", "marsh", "pond", "lake", "swamp", "river", "shore", "shoreline", "water"},
+    "woodland": {"woodland", "forest", "woods", "trees"},
+    "backyard": {"backyard", "yard", "garden", "feeder"},
+    "grassland": {"grassland", "field", "prairie", "meadow", "open"},
+    "urban": {"urban", "city", "downtown", "park", "street"},
+}
+_COLOR_ALIASES = {"grey": "gray"}
+
 
 def _words(text: str) -> set[str]:
-    return set(_WORD_RE.findall(text.lower()))
+    found = _WORD_RE.findall(text.lower())
+    return {_COLOR_ALIASES.get(w, w) for w in found}
+
+
+def _matches_size(bird_size: str, tokens: set[str]) -> bool:
+    return bool(tokens & _SIZE_SYNONYMS.get(bird_size, {bird_size}))
+
+
+def _matching_habitats(bird_habitats: set[str], tokens: set[str]) -> int:
+    return sum(1 for h in bird_habitats if tokens & _HABITAT_SYNONYMS.get(h, {h}))
 
 
 def _find_named_species(text: str) -> dict | None:
@@ -62,19 +88,19 @@ def _candidates_for_named(matched: dict) -> list[dict]:
 
 def _score_generic(bird: dict, tokens: set[str], hints: dict | None) -> float:
     score = 0.0
-    name_words = _words(bird["common_name"])
+    name_words = _words(bird["common_name"]) | bird.get("keywords", set())
     score += 2.0 * len(tokens & name_words)
     score += 1.5 * len(tokens & bird["colors"])
-    score += 1.0 * len(tokens & bird["habitat"])
-    if bird["size"] in tokens:
+    score += 1.0 * _matching_habitats(bird["habitat"], tokens)
+    if _matches_size(bird["size"], tokens):
         score += 1.0
 
     if hints:
-        if hints.get("color") and hints["color"].lower() in bird["colors"]:
+        if hints.get("color") and _COLOR_ALIASES.get(hints["color"].lower(), hints["color"].lower()) in bird["colors"]:
             score += 1.5
-        if hints.get("size") and hints["size"].lower() == bird["size"]:
+        if hints.get("size") and _matches_size(bird["size"], _words(hints["size"])):
             score += 1.0
-        if hints.get("habitat") and hints["habitat"].lower() in bird["habitat"]:
+        if hints.get("habitat") and _matching_habitats(bird["habitat"], _words(hints["habitat"])):
             score += 1.0
     return score
 

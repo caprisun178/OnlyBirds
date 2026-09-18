@@ -74,6 +74,14 @@ def test_generic_description_returns_suggestions_with_no_known_target(client):
     assert select["chosen_species"]["species_code"] == picked_code
 
 
+def test_generic_description_covers_non_songbird_categories(client):
+    # Regression: the reference set used to be songbirds only, so a category
+    # like owls had zero entries and could never be suggested.
+    resp = client.post("/identify/describe", json={"text": "brown owl"})
+    names = [c["common_name"] for c in resp.json()["candidates"]]
+    assert sum("Owl" in name for name in names) >= 3
+
+
 def test_select_rejecting_all_candidates_records_no_chosen_species(client):
     described = client.post(
         "/identify/describe", json={"text": "definitely a Blue Jay"}

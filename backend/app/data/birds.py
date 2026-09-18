@@ -6,6 +6,14 @@ there is no real photo-classification model behind this yet. Instead
 species grouped by how easily they're confused for one another by sight —
 enough to drive the "6 similar photos, pick the one you saw" flow end to end.
 
+Covers songbirds (by colour: blue, red/orange, brown/streaky, black, yellow,
+gray/small) plus owls, raptors, waterfowl, woodpeckers, herons/waders, and
+doves/pigeons — the shapes/categories a casual description is most likely to
+name. Add a new group by giving 5-6 species that same `group` string; a
+species whose common name doesn't already contain the word its family goes
+by (e.g. "Mallard" vs. "duck") should get an entry in `_KEYWORD_OVERRIDES`
+below so a generic description still finds it.
+
 `photo_url` here is a generated placeholder (name + group colour), used only
 as a **fallback**. `app/dao/bird_photos.py` looks up a real photo from
 Wikimedia Commons by scientific name and only falls back to this value if
@@ -29,6 +37,12 @@ _GROUP_COLORS = {
     "black": "2b2b2b",
     "yellow": "e8c229",
     "gray_small": "7a8a99",
+    "owls": "6b5335",
+    "raptors": "8a5a2e",
+    "waterfowl": "2e7d5b",
+    "woodpeckers": "c0392b",
+    "herons_waders": "4a7a8c",
+    "doves_pigeons": "9a9a9a",
 }
 
 
@@ -82,7 +96,62 @@ _RAW = [
     ("carchi", "Carolina Chickadee", "Poecile carolinensis", "gray_small", "small", {"gray", "black", "white"}, {"woodland"}),
     ("mouchi", "Mountain Chickadee", "Poecile gambeli", "gray_small", "small", {"gray", "black", "white"}, {"woodland"}),
     ("bushti", "Bushtit", "Psaltriparus minimus", "gray_small", "small", {"gray"}, {"woodland", "backyard"}),
+    # -- owls ----------------------------------------------------------------
+    ("greathorn", "Great Horned Owl", "Bubo virginianus", "owls", "large", {"brown", "gray"}, {"woodland", "grassland"}),
+    ("barredowl", "Barred Owl", "Strix varia", "owls", "large", {"brown", "gray", "white"}, {"woodland", "wetland"}),
+    ("easscreec", "Eastern Screech-Owl", "Megascops asio", "owls", "small", {"brown", "gray"}, {"woodland", "backyard"}),
+    ("barnowl1", "Barn Owl", "Tyto alba", "owls", "medium", {"white", "brown", "gray"}, {"grassland", "urban"}),
+    ("shoeaowl", "Short-eared Owl", "Asio flammeus", "owls", "medium", {"brown"}, {"grassland", "wetland"}),
+    ("snowyowl", "Snowy Owl", "Bubo scandiacus", "owls", "large", {"white"}, {"grassland"}),
+    # -- raptors (hawks / eagles) ---------------------------------------------
+    ("redtail1", "Red-tailed Hawk", "Buteo jamaicensis", "raptors", "large", {"brown", "white"}, {"grassland", "woodland"}),
+    ("coophawk", "Cooper's Hawk", "Accipiter cooperii", "raptors", "medium", {"gray", "brown"}, {"woodland", "backyard"}),
+    ("sharpshin", "Sharp-shinned Hawk", "Accipiter striatus", "raptors", "small", {"gray", "brown"}, {"woodland"}),
+    ("baldeagl", "Bald Eagle", "Haliaeetus leucocephalus", "raptors", "large", {"brown", "white"}, {"wetland", "woodland"}),
+    ("osprey1", "Osprey", "Pandion haliaetus", "raptors", "large", {"brown", "white"}, {"wetland"}),
+    ("amekest", "American Kestrel", "Falco sparverius", "raptors", "small", {"orange", "gray", "blue"}, {"grassland", "urban"}),
+    # -- waterfowl -------------------------------------------------------------
+    ("mallard1", "Mallard", "Anas platyrhynchos", "waterfowl", "medium", {"green", "brown", "white"}, {"wetland", "urban"}),
+    ("wooduck1", "Wood Duck", "Aix sponsa", "waterfowl", "medium", {"green", "white", "brown"}, {"wetland", "woodland"}),
+    ("ribduck1", "Ring-necked Duck", "Aythya collaris", "waterfowl", "medium", {"black", "white", "gray"}, {"wetland"}),
+    ("norshov", "Northern Shoveler", "Spatula clypeata", "waterfowl", "medium", {"green", "brown", "white"}, {"wetland"}),
+    ("canada1", "Canada Goose", "Branta canadensis", "waterfowl", "large", {"brown", "black", "white"}, {"wetland", "grassland", "urban"}),
+    ("trumswan", "Trumpeter Swan", "Cygnus buccinator", "waterfowl", "large", {"white"}, {"wetland"}),
+    # -- woodpeckers ---------------------------------------------------------
+    ("dowwoo", "Downy Woodpecker", "Dryobates pubescens", "woodpeckers", "small", {"black", "white", "red"}, {"woodland", "backyard"}),
+    ("haiwoo", "Hairy Woodpecker", "Dryobates villosus", "woodpeckers", "medium", {"black", "white", "red"}, {"woodland"}),
+    ("rebwoo", "Red-bellied Woodpecker", "Melanerpes carolinus", "woodpeckers", "medium", {"red", "gray", "white"}, {"woodland", "backyard"}),
+    ("norfli", "Northern Flicker", "Colaptes auratus", "woodpeckers", "medium", {"brown", "black", "red"}, {"woodland", "backyard", "grassland"}),
+    ("pilwoo", "Pileated Woodpecker", "Dryocopus pileatus", "woodpeckers", "large", {"black", "white", "red"}, {"woodland"}),
+    ("rehwoo", "Red-headed Woodpecker", "Melanerpes erythrocephalus", "woodpeckers", "medium", {"red", "black", "white"}, {"woodland"}),
+    # -- herons / waders -------------------------------------------------------
+    ("gbheron", "Great Blue Heron", "Ardea herodias", "herons_waders", "large", {"blue", "gray", "white"}, {"wetland"}),
+    ("greategr", "Great Egret", "Ardea alba", "herons_waders", "large", {"white"}, {"wetland"}),
+    ("snoegret", "Snowy Egret", "Egretta thula", "herons_waders", "medium", {"white"}, {"wetland"}),
+    ("greeheron", "Green Heron", "Butorides virescens", "herons_waders", "small", {"green", "brown"}, {"wetland"}),
+    ("bcnheron", "Black-crowned Night-Heron", "Nycticorax nycticorax", "herons_waders", "medium", {"black", "white", "gray"}, {"wetland"}),
+    ("sandcran", "Sandhill Crane", "Antigone canadensis", "herons_waders", "large", {"gray", "brown"}, {"grassland", "wetland"}),
+    # -- doves / pigeons -------------------------------------------------------
+    ("moudov1", "Mourning Dove", "Zenaida macroura", "doves_pigeons", "medium", {"brown", "gray"}, {"backyard", "grassland", "urban"}),
+    ("rocpige", "Rock Pigeon", "Columba livia", "doves_pigeons", "medium", {"gray", "black", "white"}, {"urban"}),
+    ("eucdove", "Eurasian Collared-Dove", "Streptopelia decaocto", "doves_pigeons", "medium", {"gray", "brown"}, {"urban", "backyard"}),
+    ("whwdove", "White-winged Dove", "Zenaida asiatica", "doves_pigeons", "medium", {"brown", "gray", "white"}, {"backyard", "urban"}),
+    ("bandtail", "Band-tailed Pigeon", "Patagioenas fasciata", "doves_pigeons", "medium", {"gray"}, {"woodland"}),
+    ("incadove", "Inca Dove", "Columbina inca", "doves_pigeons", "small", {"gray", "brown"}, {"urban", "backyard"}),
 ]
+
+# Extra search terms for a species whose common name doesn't already contain
+# the word a generic description would likely use for its family (e.g.
+# "duck" for a Mallard, which is only ever called by its own name).
+_KEYWORD_OVERRIDES: dict[str, set[str]] = {
+    "mallard1": {"duck", "waterfowl"},
+    "norshov": {"duck"},
+    "ribduck1": {"duck"},
+    "wooduck1": {"duck"},
+    "canada1": {"goose", "waterfowl"},
+    "sandcran": {"crane"},
+    "rocpige": {"pigeon"},
+}
 
 BIRDS: dict[str, dict] = {}
 for _code, _name, _sci, _group, _size, _colors, _habitat in _RAW:
@@ -94,6 +163,7 @@ for _code, _name, _sci, _group, _size, _colors, _habitat in _RAW:
         "size": _size,
         "colors": _colors,
         "habitat": _habitat,
+        "keywords": _KEYWORD_OVERRIDES.get(_code, set()),
         "photo_url": _placeholder_photo(_name, _group),
     }
 
