@@ -16,7 +16,7 @@ from __future__ import annotations
 import asyncio
 import re
 
-from app.dao import bird_photos
+from app.dao import bird_audio, bird_photos
 from app.data.birds import all_birds, get_bird
 
 _WORD_RE = re.compile(r"[a-z]+")
@@ -121,25 +121,44 @@ def _candidates_for_generic(text: str, hints: dict | None) -> list[dict]:
     return out
 
 
-async def _with_real_photos(candidates: list[dict]) -> list[dict]:
+async def _with_media(candidates: list[dict], sense: str) -> list[dict]:
     """Swaps each candidate's placeholder `photo_url` for a real one from
     Wikimedia Commons, if available (see `app/dao/bird_photos.py`), and
-    attaches its attribution. Looked up concurrently since a describe call
-    needs up to six of these."""
+    attaches its attribution. When `sense == "sound"` (the user picked "I
+    heard it"), also attaches a call/song recording where one exists
+    (`app/dao/bird_audio.py`) — there's no placeholder for audio, so
+    `audio_url` stays `None` for a species with no recording. Looked up
+    concurrently since a describe call needs up to six of each."""
     photos = await asyncio.gather(*(bird_photos.get_photo(c) for c in candidates))
-    return [
+    out = [
         {**c, "photo_url": photo["photo_url"], "photo_attribution": photo["attribution"]}
         for c, photo in zip(candidates, photos)
     ]
 
+    if sense != "sound":
+        for row in out:
+            row["audio_url"] = None
+            row["audio_attribution"] = None
+        return out
 
-async def describe(text: str, hints: dict | None = None) -> tuple[list[dict], str | None]:
+    audios = await asyncio.gather(*(bird_audio.get_audio(c) for c in candidates))
+    for row, audio in zip(out, audios):
+        row["audio_url"] = audio["audio_url"] if audio else None
+        row["audio_attribution"] = audio["attribution"] if audio else None
+    return out
+
+
+async def describe(
+    text: str, hints: dict | None = None, sense: str = "sight"
+) -> tuple[list[dict], str | None]:
     """Returns (candidates, target_species_code). `target_species_code` is set
     only when the text named a species outright, so the confirm step can grade
-    the user's pick against it."""
+    the user's pick against it. `sense` ("sight" | "sound") only changes which
+    media the candidates carry — the matching/scoring logic is the same
+    either way; see `docs/features/add-observation.md`."""
     matched = _find_named_species(text)
     if matched:
         candidates, target_code = _candidates_for_named(matched), matched["code"]
     else:
         candidates, target_code = _candidates_for_generic(text, hints), None
-    return await _with_real_photos(candidates), target_code
+    return await _with_media(candidates, sense), target_code

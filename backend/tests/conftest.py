@@ -6,16 +6,19 @@ from app.main import app
 
 
 @pytest.fixture(autouse=True)
-def no_live_photo_lookups(monkeypatch):
+def no_live_media_lookups(monkeypatch):
     """Keep the suite offline (see docs/ebird-api.md's "no test hits the live
-    API" rule) and each test's candidate photos deterministic. Individual
-    tests can still monkeypatch `commons.search_photo` themselves to exercise
-    the lookup path — see test_bird_photos.py."""
-    async def _no_photo(*args, **kwargs):
+    API" rule) and each test's candidate photos/audio deterministic.
+    Individual tests can still monkeypatch `commons.search_photo` /
+    `commons.search_audio` themselves to exercise the lookup path — see
+    test_bird_photos.py and test_bird_audio.py."""
+    async def _no_media(*args, **kwargs):
         return None
 
-    monkeypatch.setattr("app.dao.commons.search_photo", _no_photo)
+    monkeypatch.setattr("app.dao.commons.search_photo", _no_media)
+    monkeypatch.setattr("app.dao.commons.search_audio", _no_media)
     monkeypatch.setattr("app.dao.bird_photos._cache", {})
+    monkeypatch.setattr("app.dao.bird_audio._cache", {})
 
 
 @pytest.fixture()

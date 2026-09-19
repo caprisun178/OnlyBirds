@@ -12,6 +12,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 Outcome = Literal["correct", "incorrect", "unconfirmed"]
+Sense = Literal["sight", "sound"]
 
 
 class IdentifyHints(BaseModel):
@@ -24,6 +25,7 @@ class IdentifyHints(BaseModel):
 class IdentifyRequest(BaseModel):
     text: str = Field(min_length=1)
     hints: IdentifyHints | None = None
+    sense: Sense = "sight"  # "saw it" vs "heard it" — decides which media the candidates carry
 
 
 class Candidate(BaseModel):
@@ -33,11 +35,14 @@ class Candidate(BaseModel):
     confidence: float
     photo_url: str
     photo_attribution: str | None = None  # None for the built-in placeholder
+    audio_url: str | None = None  # only fetched when the request's sense is "sound"
+    audio_attribution: str | None = None  # None whenever audio_url is None
 
 
 class IdentifyResponse(BaseModel):
     identification_id: str
     method: Literal["describe"] = "describe"
+    sense: Sense = "sight"
     candidates: list[Candidate]
 
 
@@ -59,6 +64,7 @@ class Identification(BaseModel):
 
     id: str
     method: Literal["describe"] = "describe"
+    sense: Sense = "sight"
     input: dict = Field(default_factory=dict)
     candidates: list[Candidate] = Field(default_factory=list)
     target_species_code: str | None = None  # only known when the text named a species outright

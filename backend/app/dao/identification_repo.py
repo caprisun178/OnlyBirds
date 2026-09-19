@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 from typing import Protocol
 
-from app.models.identification import Candidate, Identification, Outcome
+from app.models.identification import Candidate, Identification, Outcome, Sense
 
 
 class IdentificationRepo(Protocol):
@@ -20,6 +20,7 @@ class IdentificationRepo(Protocol):
         input_data: dict,
         candidates: list[Candidate],
         target_species_code: str | None,
+        sense: Sense = "sight",
     ) -> Identification: ...
 
     async def get(self, identification_id: str) -> Identification | None: ...
@@ -42,10 +43,12 @@ class InMemoryIdentificationRepo:
         input_data: dict,
         candidates: list[Candidate],
         target_species_code: str | None,
+        sense: Sense = "sight",
     ) -> Identification:
         record = Identification(
             id=uuid.uuid4().hex,
             method=method,
+            sense=sense,
             input=input_data,
             candidates=candidates,
             target_species_code=target_species_code,

@@ -14,7 +14,9 @@ export const identifyService = {
     return null;
   },
 
-  async describe(text, hints) {
+  // `sense` is 'sight' (default, "I saw it") or 'sound' ("I heard it") —
+  // decides whether candidates carry a call/song recording alongside the photo.
+  async describe(text, hints, sense = 'sight') {
     const error = identifyService.validateDescription(text);
     if (error) throw new Error(error);
     const cleanHints = hints
@@ -22,7 +24,11 @@ export const identifyService = {
           Object.entries(hints).filter(([, value]) => value != null && value !== ''),
         )
       : undefined;
-    return identifyDAO.describe(text.trim(), cleanHints && Object.keys(cleanHints).length ? cleanHints : undefined);
+    return identifyDAO.describe(
+      text.trim(),
+      cleanHints && Object.keys(cleanHints).length ? cleanHints : undefined,
+      sense,
+    );
   },
 
   // `speciesCode: null` means "none of these match what I saw".

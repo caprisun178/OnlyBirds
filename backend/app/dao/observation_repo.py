@@ -39,6 +39,7 @@ class InMemoryObservationRepo:
             notes=payload.notes,
             sex=payload.sex,
             life_stage=payload.life_stage,
+            detection_type=payload.detection_type,
             identification_id=payload.identification_id,
             status=payload.status,
         )

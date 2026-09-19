@@ -16,6 +16,7 @@ from app.models.species import SpeciesRef
 Sex = Literal["male", "female", "unknown"]
 LifeStage = Literal["adult", "juvenile", "fledgling", "unknown"]
 ObservationStatus = Literal["draft", "identifying", "confirmed", "logged"]
+DetectionType = Literal["sight", "sound"]
 
 
 class Source(str, Enum):
@@ -37,6 +38,7 @@ class ObservationBase(BaseModel):
     notes: str | None = None
     sex: Sex | None = None
     life_stage: LifeStage | None = None
+    detection_type: DetectionType | None = None  # "sight" or "sound" — how the bird was identified, per the wizard's saw-it/heard-it choice
 
 
 class ObservationCreate(ObservationBase):

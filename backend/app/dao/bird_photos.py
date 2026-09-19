@@ -14,15 +14,6 @@ from app.dao import commons
 _cache: dict[str, dict] = {}
 
 
-def _format_attribution(result: dict) -> str:
-    # Creative Commons licenses require attribution — this is what the
-    # candidate card credits under the photo, not just a nice-to-have.
-    credit = f"{result['artist']} / Wikimedia Commons" if result.get("artist") else "Wikimedia Commons"
-    if result.get("license"):
-        credit += f" ({result['license']})"
-    return credit
-
-
 async def get_photo(bird: dict) -> dict:
     """`bird` is one of the dicts from `app/data/birds.py`. Looks up (and
     caches) a real Commons photo by scientific name; falls back to `bird`'s
@@ -38,8 +29,8 @@ async def get_photo(bird: dict) -> dict:
     result = await commons.search_photo(scientific_name)
     if result:
         info = {
-            "photo_url": result["photo_url"],
-            "attribution": _format_attribution(result),
+            "photo_url": result["media_url"],
+            "attribution": commons.format_attribution(result),
         }
     else:
         info = {"photo_url": bird["photo_url"], "attribution": None}

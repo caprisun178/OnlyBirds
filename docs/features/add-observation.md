@@ -58,12 +58,16 @@ describe the bird (free text + optional size/color/habitat)
 
 ### Describe & guess
 
+- First choice: **"I saw it" or "I heard it"** (`sense: "sight" | "sound"`,
+  defaults to `"sight"`). This only changes what media the candidates carry —
+  a photo either way, plus a call/song recording in "heard it" mode — not the
+  matching logic itself; see the note below.
 - Input is free text ("a small brown streaky bird near the reeds", or just
-  "a Blue Jay"), optionally plus structured hints (size, dominant color,
-  habitat).
+  "a Blue Jay" — or, in sound mode, "a loud harsh call from the treetops"),
+  optionally plus structured hints (size, dominant color, habitat).
 - `POST /identify/describe` returns six candidate species, each with a
-  confidence score and a photo, plus an `identification_id` to reference on
-  the next call.
+  confidence score and a photo (plus a recording, in sound mode), and an
+  `identification_id` to reference on the next call.
 - **If the text names a species outright**, that species is one of the six
   and the app already knows the "right answer." The user's pick is graded:
   - **Correct** — they picked the named species. The wizard moves straight to
@@ -90,20 +94,31 @@ describe the bird (free text + optional size/color/habitat)
     observation now; automatic photo identification is wired in later behind
     `POST /identify/photo`.
 
-!!! note "Candidate photos come from Wikimedia Commons, not eBird or Macaulay"
-    eBird's API has no photo endpoint — that's Macaulay Library, a separate
+!!! note "Candidate photos and audio come from Wikimedia Commons, not eBird or Macaulay"
+    eBird's API has no media endpoint — that's Macaulay Library, a separate
     Cornell system. Macaulay's public catalog search (what a lot of hobby
     projects use in lieu of a real Cornell developer account) now sits behind
     an anti-bot challenge that a server-side call can't pass. So
-    `app/dao/commons.py` looks up a real photo per species from Wikimedia
-    Commons by scientific name instead — public, keyless, and stable — and
-    `app/dao/bird_photos.py` caches the result in-memory and carries the
-    required Creative Commons attribution string through to the frontend
-    (`Candidate.photo_attribution`, shown as a caption under the photo).
-    Falls back to a generated placeholder image if Commons has nothing for a
-    species or the request fails. Swap this out for cached Macaulay media
-    (`species_content.media`, see `bird-info.md`) once real Cornell access
-    exists — nothing downstream of `bird_photos.get_photo()` needs to change.
+    `app/dao/commons.py` looks up real media per species from Wikimedia
+    Commons by scientific name instead — public, keyless, and stable, and it
+    turns out to mirror a lot of Xeno-canto's call/song archive for exactly
+    this reason. `app/dao/bird_photos.py` and `app/dao/bird_audio.py` each
+    cache their result in-memory and carry the required Creative Commons
+    attribution through to the frontend (`Candidate.photo_attribution` /
+    `audio_attribution`, shown as a caption under the media). A photo falls
+    back to a generated placeholder if Commons has nothing; **audio has no
+    placeholder** — a fabricated bird call would actively mislead someone
+    trying to identify one by ear, so `audio_url` is just `null` for a
+    species with no recording, and the candidate card says so. Swap either
+    out for cached Macaulay media (`species_content.media`, see
+    `bird-info.md`) once real Cornell access exists — nothing downstream of
+    `bird_photos.get_photo()` / `bird_audio.get_audio()` needs to change.
+
+!!! note "Audio is only fetched in sound mode"
+    Fetching a recording per candidate is another network round trip same as
+    photos, so `app/dao/identify.py#_with_media` only calls
+    `bird_audio.get_audio()` when `sense == "sound"` — sight-mode candidates
+    always have `audio_url: null` without ever touching Commons for audio.
 
 ### Field notes
 
@@ -169,12 +184,15 @@ anything currently pauses mid-wizard.
 
 | Data | Comes from | Stored where |
 |---|---|---|
+| "I saw it" / "I heard it" (`sense`) | the user | `identifications.sense` |
 | Free-text description + structured hints | the user | `identifications.input` (jsonb) |
 | Ranked candidate species | our `app/dao/identify.py` — matches a canned reference set (`app/data/birds.py`), **not** an external CV/LLM API yet | `identifications.candidates` (jsonb) |
 | Candidate photos + attribution | Wikimedia Commons (`app/dao/commons.py`), cached per species in-process (`app/dao/bird_photos.py`); falls back to a placeholder image | not persisted — re-fetched (or served from cache) on every `/identify/describe` call |
+| Candidate call/song recordings + attribution (sound mode only) | Wikimedia Commons, cached per species (`app/dao/bird_audio.py`); **no** placeholder fallback | not persisted — same as photos |
 | The uploaded photo file | the user's device | Supabase Storage (bucket `SUPABASE_STORAGE_BUCKET`); the public URL goes in `observations.photo_url` |
 | Chosen species + correct/incorrect answer | the user's pick, graded against `target_species_code` when the text named a species outright | `identifications.chosen_species_code`, `identifications.outcome` |
 | Sex, life stage, notes | the user (field-notes step) | `observations.sex`, `observations.life_stage`, `observations.notes` |
+| Sight vs. sound (carried over from the describe step) | the user's earlier `sense` choice | `observations.detection_type` |
 | Address search results | OpenStreetMap Nominatim (`app/dao/nominatim.py`, `GET /geocode/search`) | not persisted — only the pin the user drops from a result is saved |
 | GPS point (address search navigates the map; the user then drops the exact pin) | the user, via the map | `observations.lat` / `lng` (not `geom` yet — see below) |
 | Readable place label (auto-filled from the pin via reverse-geocode, or typed) | the user / OpenStreetMap Nominatim (`GET /geocode/reverse`) | `observations.location_name` |
@@ -200,12 +218,14 @@ in-memory repos. See [Database & migrations](database.md#how-to-apply-a-migratio
 -- 0002_add_observation_identification.sql
 
 -- 1. richer observation record
-alter table observations add column if not exists location_name text;         -- readable label — typed, or auto-filled from the dropped pin via reverse-geocode
-alter table observations add column if not exists sex          text
+alter table observations add column if not exists location_name   text;         -- readable label — typed, or auto-filled from the dropped pin via reverse-geocode
+alter table observations add column if not exists sex             text
     check (sex in ('male', 'female', 'unknown'));
-alter table observations add column if not exists life_stage   text
+alter table observations add column if not exists life_stage      text
     check (life_stage in ('adult', 'juvenile', 'fledgling', 'unknown'));
-alter table observations add column if not exists status       text not null default 'logged'
+alter table observations add column if not exists detection_type  text
+    check (detection_type in ('sight', 'sound'));
+alter table observations add column if not exists status          text not null default 'logged'
     check (status in ('draft', 'identifying', 'confirmed', 'logged'));
 alter table observations alter column lat drop not null;   -- null only for observations logged before the map picker existed
 alter table observations alter column lng drop not null;
@@ -215,8 +235,9 @@ create table if not exists identifications (
     id                   uuid primary key default gen_random_uuid(),
     observation_id       uuid references observations(id) on delete cascade,
     method               text not null check (method in ('photo', 'describe')),
+    sense                text not null default 'sight' check (sense in ('sight', 'sound')),
     input                jsonb not null default '{}',   -- {text, hints}
-    candidates           jsonb not null default '[]',   -- [{species_code, common_name, confidence, photo_url}]
+    candidates           jsonb not null default '[]',   -- [{species_code, common_name, confidence, photo_url, audio_url}]
     target_species_code  text,                          -- known only when the text named a species outright
     chosen_species_code  text,                          -- the candidate the user picked
     outcome              text not null default 'unconfirmed'
@@ -234,7 +255,9 @@ still tracked as "left to build" above.
 |---|---|
 | `observations.location_name` | Readable place label — typed, or auto-filled from the dropped map pin via reverse-geocode. Independent of `lat`/`lng`; the user can edit it freely. |
 | `observations.sex` / `observations.life_stage` | Optional field-notes detail; `unknown` is a valid, explicit choice, distinct from "not answered" (`null`). |
+| `observations.detection_type` | `'sight'` or `'sound'` — carried over from the describe step's choice. `null` for anything logged before this existed. |
 | `observations.status` | Where the observation is in the wizard. Only `logged` rows count toward the life list. |
+| `identifications.sense` | `'sight'` or `'sound'` — decided which media (`candidates[].photo_url` only, or also `audio_url`) got attached to the candidates. |
 | `identifications.input` | Whatever the user gave us — free text and hints — as JSON. |
 | `identifications.candidates` | The six candidates we showed them, as JSON, so we can review guesses later. |
 | `identifications.target_species_code` | Set only when the description named a species outright — this is what the user's pick gets graded against. `null` for a generic description. |
@@ -244,34 +267,39 @@ still tracked as "left to build" above.
 
 | Method | Path | Notes |
 |---|---|---|
-| `POST` | `/identify/describe` | body: `{text, hints?}` → `{identification_id, candidates: [{species_code, common_name, scientific_name, confidence, photo_url}]}` |
+| `POST` | `/identify/describe` | body: `{text, hints?, sense?}` (`sense`: `"sight"` \| `"sound"`, default `"sight"`) → `{identification_id, sense, candidates: [{species_code, common_name, scientific_name, confidence, photo_url, photo_attribution, audio_url, audio_attribution}]}` |
 | `POST` | `/identify/{id}/select` | body: `{species_code}` (`null` = "none of these") → `{chosen_species, outcome, is_match}` |
 | `POST` | `/identify/photo` | not built — photo-based identification is still descoped |
 | `POST` | `/uploads/photo` | multipart `file` → `{photo_url}`; `503` if Supabase Storage isn't configured, `400` for an unsupported type or a file over 8 MB |
 | `GET` | `/geocode/search?q=` | free text → `[{display_name, lat, lng}]`, proxying Nominatim; navigates the field-notes map |
 | `GET` | `/geocode/reverse?lat=&lng=` | a point → `{display_name, lat, lng}` or `null`; auto-fills the location label after a plain map click |
-| `POST` | `/observations` | create the observation once a species is confirmed; accepts `location_name`, `lat`, `lng`, `sex`, `life_stage`, `identification_id`, `status` alongside the existing fields |
+| `POST` | `/observations` | create the observation once a species is confirmed; accepts `location_name`, `lat`, `lng`, `sex`, `life_stage`, `detection_type`, `identification_id`, `status` alongside the existing fields |
 
-### Example — `POST /identify/describe`
+### Example — `POST /identify/describe` (sound mode)
 
 ```json
 // request
-{ "text": "small brown streaky bird, thin beak, in the reeds",
+{ "text": "a loud harsh call from a tree near the water", "sense": "sound",
   "hints": { "size": "small", "color": "brown", "habitat": "wetland" } }
 
 // response
-{ "identification_id": "a1b2c3...",
+{ "identification_id": "a1b2c3...", "sense": "sound",
   "candidates": [
     { "species_code": "sonspa", "common_name": "Song Sparrow", "scientific_name": "Melospiza melodia", "confidence": 0.52,
-      "photo_url": "https://upload.wikimedia.org/...", "photo_attribution": "Jane Doe / Wikimedia Commons (CC BY-SA 3.0)" },
+      "photo_url": "https://upload.wikimedia.org/...", "photo_attribution": "Jane Doe / Wikimedia Commons (CC BY-SA 3.0)",
+      "audio_url": "https://upload.wikimedia.org/.../Melospiza_melodia_-_Song_Sparrow.mp3", "audio_attribution": "John Smith / Wikimedia Commons (CC BY 2.0)" },
     { "species_code": "savspa", "common_name": "Savannah Sparrow", "scientific_name": "Passerculus sandwichensis", "confidence": 0.44,
-      "photo_url": "https://upload.wikimedia.org/...", "photo_attribution": "John Smith / Wikimedia Commons (CC BY 2.0)" }
+      "photo_url": "https://upload.wikimedia.org/...", "photo_attribution": "John Smith / Wikimedia Commons (CC BY 2.0)",
+      "audio_url": null, "audio_attribution": null }
   ] }
 ```
 
 `photo_attribution` is `null` when Commons had nothing and a candidate fell
-back to its placeholder image — there's no Commons content to credit in that
-case.
+back to its placeholder image. In sight mode (the default), `audio_url` /
+`audio_attribution` are always `null` for every candidate — the audio lookup
+never runs at all. In sound mode, `audio_url` is `null` specifically when
+Commons has no recording for that species (Savannah Sparrow above) — there's
+no placeholder fallback for audio the way there is for photos.
 
 ## 5. How the code is layered
 
@@ -279,8 +307,9 @@ case.
 |---|---|---|
 | `data/` | `app/data/birds.py` | canned reference species, grouped by visual-confusion; fallback placeholder photos |
 | `dao/` | `app/dao/identify.py` | match free text (+ hints) against `birds.py`; named match vs. generic ranking; attaches real photos concurrently |
-| `dao/` | `app/dao/commons.py` | raw Wikimedia Commons search — one photo + attribution per scientific name |
-| `dao/` | `app/dao/bird_photos.py` | in-memory cache in front of `commons.py`; falls back to `birds.py`'s placeholder |
+| `dao/` | `app/dao/commons.py` | raw Wikimedia Commons search — one photo or audio file + attribution per scientific name; shared hidden-screen-reader-text stripping and attribution formatting |
+| `dao/` | `app/dao/bird_photos.py` | in-memory cache in front of `commons.py`'s photo search; falls back to `birds.py`'s placeholder |
+| `dao/` | `app/dao/bird_audio.py` | in-memory cache in front of `commons.py`'s audio search; no fallback — caches misses as `None` too |
 | `dao/` | `app/dao/identification_repo.py` | in-memory `identifications` store (same shape as `observation_repo.py`) |
 | `dao/` | `app/dao/observation_repo.py` | persists `location_name`, `sex`, `life_stage`, `identification_id`, `status` |
 | `dao/` | `app/dao/storage.py` | raw Supabase Storage HTTP calls — upload bytes, return the public URL |
@@ -297,12 +326,25 @@ case.
 | `Services/` | `frontend/src/Services/geocoding.js` | skips the search API call for a too-short query; no debounce needed since search is button/Enter-triggered, not per-keystroke |
 | `Services/` | `frontend/src/Services/observations.js` | `createFromWizard()` — builds the payload, checks the life list first so `isNewSpecies` is accurate |
 | `Presenters/` | `frontend/src/Presenters/AddObservation.js` | the whole wizard: describe → candidates → (manual search fallback) → field notes (map, address search, photo upload) → done |
-| `Components/` | `frontend/src/Components/CandidateList.js` | presentational candidate grid; shows `photo_attribution` as a caption when present |
+| `Components/` | `frontend/src/Components/CandidateList.js` | presentational candidate grid; shows `photo_attribution` as a caption, and (sound mode) an `<audio controls>` player per candidate — see the accessibility note below |
 | `Components/` | `frontend/src/Components/LocationPicker.js` | owns a live Leaflet map + marker; loads Leaflet from a CDN at runtime; reports position changes via a callback rather than importing Dao/Services itself |
 | `testData/` | `frontend/src/testData/testProfile.js` | stand-in "current user" until `user-profiles.md` ships |
 
 Still to build: `region`/`geom` on `observations` and the sticker/pin engine
 calls after a successful log.
+
+!!! note "Candidate cards are `div[role=button]`, not real `<button>`s"
+    HTML doesn't allow interactive content — an `<audio controls>` player
+    counts — to nest inside a real `<button>`; a browser silently breaks the
+    button open if you try, which breaks the whole card's click handling.
+    So in sound mode a candidate card needs its own audio player *and* to
+    stay clickable as a whole, which a real button can no longer do.
+    `CandidateList.js` renders each card as a `div` with `role="button"` /
+    `tabindex="0"` instead, and `AddObservation.js` wires both a `click` and
+    a `keydown` (Enter/Space) listener by hand to keep it keyboard-accessible
+    — a real button gets that for free, a div doesn't. Interacting with the
+    audio player itself calls `stopPropagation()` so pressing play doesn't
+    also select the card.
 
 ## 6. Build order
 
@@ -329,7 +371,7 @@ For the next feature that follows this shape:
    (cache + fallback), wired into `identify.py`'s candidate builder. Tests in
    `backend/tests/test_bird_photos.py` cover the cache/fallback logic with
    `commons.search_photo` monkeypatched; `conftest.py`'s autouse
-   `no_live_photo_lookups` fixture keeps the rest of the suite offline.
+   `no_live_media_lookups` fixture keeps the rest of the suite offline.
 9. `app/dao/nominatim.py` + `app/services/geocoding.py` + `app/routers/geocoding.py`
    — `GET /geocode/search`, `GET /geocode/reverse`. Tests in
    `backend/tests/test_geocoding.py` mock `nominatim.search`/`nominatim.reverse`
@@ -343,12 +385,36 @@ For the next feature that follows this shape:
     → `Services/identify.js` + `Services/species.js` + `Services/uploads.js` +
     extended `Services/observations.js` → `Presenters/AddObservation.js` →
     `Components/CandidateList.js` (renders `photo_attribution` as a caption).
+12. Sight vs. sound: `app/dao/commons.py` generalized to search `filetype:audio`
+    too (shared `_search()` helper, shared `format_attribution()`); new
+    `app/dao/bird_audio.py` (cache, no fallback); `IdentifyRequest.sense` /
+    `Candidate.audio_url` / `audio_attribution` added to the models;
+    `identify.py#_with_media` only fetches audio when `sense == "sound"`.
+    Extended `Observation`/`ObservationCreate` with `detection_type`. Tests:
+    `test_bird_audio.py` (cache + no-fallback behavior), `test_commons.py`
+    (pure `_strip_html`/`format_attribution` logic — including a regression
+    for a real duplicated-attribution bug hit while testing against live
+    data, see below), and new cases in `test_identify.py` (sight mode never
+    calls the audio lookup at all; sound mode does, for every candidate).
+    Frontend: the sight/sound toggle in the describe step, `CandidateList.js`
+    rendering an `<audio controls>` player per candidate, and the
+    div-instead-of-button restructuring described above.
 
 Not yet done: `region`/`geom` derivation (`geom` needs the `lat`/`lng` this
 step now collects — it's just not computed yet) and the sticker/pin engine
 calls. `POST /uploads/photo` is fully wired but returns `503` until a
 Supabase project's `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` are set
 locally — see the note under "Field notes" above.
+
+!!! note "A real Commons data-quality bug, found by testing against live data"
+    Wikimedia Commons' "Unknown author" template embeds a hidden
+    screen-reader duplicate of itself — the raw `Artist` field for at least
+    one real recording used here came back as `'Unknown author<span
+    style="display: none;">Unknown author</span>'`. Stripping HTML tags alone
+    left "Unknown authorUnknown author" in the credit line. `commons.py`'s
+    `_strip_html` now drops any `display:none` span *before* stripping tags.
+    Worth knowing if another Commons field ever reads doubled — check for a
+    hidden span before assuming it's a bug in our own formatting.
 
 ## Related pages
 

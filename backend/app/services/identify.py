@@ -14,7 +14,7 @@ from app.models.identification import (
 
 async def describe_bird(payload: IdentifyRequest) -> IdentifyResponse:
     hints = payload.hints.model_dump(exclude_none=True) if payload.hints else None
-    raw_candidates, target_code = await identify_dao.describe(payload.text, hints)
+    raw_candidates, target_code = await identify_dao.describe(payload.text, hints, payload.sense)
 
     candidates = [
         Candidate(
@@ -24,17 +24,20 @@ async def describe_bird(payload: IdentifyRequest) -> IdentifyResponse:
             confidence=c["confidence"],
             photo_url=c["photo_url"],
             photo_attribution=c["photo_attribution"],
+            audio_url=c["audio_url"],
+            audio_attribution=c["audio_attribution"],
         )
         for c in raw_candidates
     ]
 
     record = await identification_repo.add(
         method="describe",
+        sense=payload.sense,
         input_data={"text": payload.text, "hints": hints or {}},
         candidates=candidates,
         target_species_code=target_code,
     )
-    return IdentifyResponse(identification_id=record.id, candidates=candidates)
+    return IdentifyResponse(identification_id=record.id, sense=payload.sense, candidates=candidates)
 
 
 async def select_candidate(

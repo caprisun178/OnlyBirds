@@ -14,7 +14,7 @@ def test_uses_commons_result_when_found(monkeypatch):
     async def fake_search(query):
         assert query == "Cyanocitta cristata"
         return {
-            "photo_url": "https://upload.wikimedia.org/real-blue-jay.jpg",
+            "media_url": "https://upload.wikimedia.org/real-blue-jay.jpg",
             "artist": "Jane Birder",
             "license": "CC BY-SA 3.0",
         }
@@ -44,7 +44,7 @@ def test_caches_after_first_lookup(monkeypatch):
 
     async def fake_search(query):
         calls.append(query)
-        return {"photo_url": "https://upload.wikimedia.org/real-blue-jay.jpg"}
+        return {"media_url": "https://upload.wikimedia.org/real-blue-jay.jpg"}
 
     monkeypatch.setattr(commons, "search_photo", fake_search)
     monkeypatch.setattr(bird_photos, "_cache", {})

@@ -20,9 +20,10 @@ export const observationService = {
   },
 
   // Confirmed-species + field-notes step of the Add Observation wizard.
-  // `species` is `{ commonName, scientificName }`; `fieldNotes` is
+  // `species` is `{ commonName, scientificName }`; `sense` is 'sight' | 'sound'
+  // (from the describe step's "saw it" / "heard it" choice); `fieldNotes` is
   // `{ observedAt, locationName, lat, lng, photoUrl, sex, lifeStage, notes }`.
-  async createFromWizard(userId, { species, identificationId, fieldNotes }) {
+  async createFromWizard(userId, { species, identificationId, sense, fieldNotes }) {
     const priorLifeList = await lifeListDAO.getAll(userId);
     const alreadySeen = priorLifeList.some(
       (e) => e.species?.scientific_name === species.scientificName,
@@ -42,6 +43,7 @@ export const observationService = {
       photo_url: fieldNotes.photoUrl || null,
       sex: fieldNotes.sex || null,
       life_stage: fieldNotes.lifeStage || null,
+      detection_type: sense || null,
       notes: fieldNotes.notes || null,
       source: 'manual',
       status: 'logged',

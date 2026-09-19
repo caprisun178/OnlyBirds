@@ -46,6 +46,7 @@ export function mount(container, props = {}) {
 
     descriptionText: '',
     hints: { size: '', color: '', habitat: '' },
+    sense: 'sight', // 'sight' ("I saw it") | 'sound' ("I heard it") — decides whether candidates get an audio player
 
     identificationId: null,
     candidates: [],
@@ -131,9 +132,20 @@ export function mount(container, props = {}) {
     return `
       <form class="ob-card ob-stack" data-form="describe">
         <div class="ob-field">
-          <label class="ob-label" for="description">What did you see?</label>
-          <textarea id="description" class="ob-textarea" placeholder="e.g. a small brown streaky bird with a thin beak near the reeds, or straight up 'a blue jay'">${escapeHtml(state.descriptionText)}</textarea>
-          <p class="ob-hint">Be as specific as you can — an exact name works too. We'll show you photos to confirm either way.</p>
+          <label class="ob-label">Did you see it or hear it?</label>
+          <div class="ob-cluster" role="radiogroup" aria-label="Did you see it or hear it?">
+            <button type="button" class="ob-btn ob-btn--sm ${state.sense === 'sight' ? 'ob-btn--primary' : 'ob-btn--ghost'}" data-sense="sight" role="radio" aria-checked="${state.sense === 'sight'}">👀 I saw it</button>
+            <button type="button" class="ob-btn ob-btn--sm ${state.sense === 'sound' ? 'ob-btn--primary' : 'ob-btn--ghost'}" data-sense="sound" role="radio" aria-checked="${state.sense === 'sound'}">🔊 I heard it</button>
+          </div>
+        </div>
+        <div class="ob-field">
+          <label class="ob-label" for="description">${state.sense === 'sound' ? 'What did you hear?' : 'What did you see?'}</label>
+          <textarea id="description" class="ob-textarea" placeholder="${state.sense === 'sound'
+            ? "e.g. a loud harsh call from a tree near the water, or straight up 'a blue jay'"
+            : "e.g. a small brown streaky bird with a thin beak near the reeds, or straight up 'a blue jay'"}">${escapeHtml(state.descriptionText)}</textarea>
+          <p class="ob-hint">${state.sense === 'sound'
+            ? "Be as specific as you can — an exact name works too. We'll show you recordings to confirm either way."
+            : "Be as specific as you can — an exact name works too. We'll show you photos to confirm either way."}</p>
         </div>
         <div class="ob-grid" style="--ob-grid-min: 160px;">
           <div class="ob-field">
@@ -162,6 +174,15 @@ export function mount(container, props = {}) {
   function wireDescribeStep() {
     const form = container.querySelector('[data-form="describe"]');
     if (!form) return;
+
+    form.querySelectorAll('[data-sense]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.sense = btn.dataset.sense;
+        state.descriptionText = form.querySelector('#description').value; // preserve what they'd typed
+        render();
+      });
+    });
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       state.descriptionText = form.querySelector('#description').value;
@@ -175,7 +196,7 @@ export function mount(container, props = {}) {
       state.loading = true;
       render();
       try {
-        const response = await identifyService.describe(state.descriptionText, state.hints);
+        const response = await identifyService.describe(state.descriptionText, state.hints, state.sense);
         state.identificationId = response.identification_id;
         state.candidates = response.candidates;
         state.selectedCode = null;
@@ -196,10 +217,10 @@ export function mount(container, props = {}) {
     return `
       <div class="ob-stack">
         <div class="ob-card ob-card--flat">
-          <p class="ob-card__body">Which one did you see?</p>
+          <p class="ob-card__body">${state.sense === 'sound' ? 'Which one did you hear?' : 'Which one did you see?'}</p>
         </div>
         ${state.feedback ? `<div class="ob-alert ob-alert--${state.feedback.tone}">${escapeHtml(state.feedback.message)}</div>` : ''}
-        ${renderCandidateList(state.candidates, state.selectedCode)}
+        ${renderCandidateList(state.candidates, state.selectedCode, state.sense)}
         <div class="ob-cluster">
           <button type="button" class="ob-btn ob-btn--ghost" data-action="back-to-describe">Start over</button>
           <button type="button" class="ob-btn ob-btn--subtle" data-action="none-match">None of these match</button>
@@ -211,8 +232,22 @@ export function mount(container, props = {}) {
   function wireCandidatesStep() {
     const grid = container.querySelector('[data-role="candidate-grid"]');
     if (grid) {
-      grid.querySelectorAll('[data-species-code]').forEach((btn) => {
-        btn.addEventListener('click', () => handleCandidatePick(btn.dataset.speciesCode));
+      // Cards are div[role="button"], not real <button>s — an <audio controls>
+      // player can't legally nest inside a real button (see CandidateList.js) —
+      // so clicks and Enter/Space both need wiring by hand here.
+      grid.querySelectorAll('[data-species-code]').forEach((card) => {
+        card.addEventListener('click', () => handleCandidatePick(card.dataset.speciesCode));
+        card.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleCandidatePick(card.dataset.speciesCode);
+          }
+        });
+      });
+      // Interacting with a candidate's audio player shouldn't also select the card.
+      grid.querySelectorAll('audio').forEach((audioEl) => {
+        audioEl.addEventListener('click', (e) => e.stopPropagation());
+        audioEl.addEventListener('keydown', (e) => e.stopPropagation());
       });
     }
     const backBtn = container.querySelector('[data-action="back-to-describe"]');
@@ -229,6 +264,7 @@ export function mount(container, props = {}) {
     render();
     try {
       const result = await identifyService.selectCandidate(state.identificationId, speciesCode);
+      const lookAgainHint = state.sense === 'sound' ? 'take another listen' : 'take another look at the photos';
       if (result.outcome === 'correct') {
         state.confirmedSpecies = {
           commonName: result.chosen_species.common_name,
@@ -240,7 +276,7 @@ export function mount(container, props = {}) {
         state.confirmedSpecies = null;
         state.feedback = {
           tone: 'warning',
-          message: `That's actually a ${result.chosen_species.common_name} — take another look at the photos, or search for something else.`,
+          message: `That's actually a ${result.chosen_species.common_name} — ${lookAgainHint}, or search for something else.`,
         };
       } else {
         // unconfirmed: no known target, so trust the pick.
@@ -340,7 +376,10 @@ export function mount(container, props = {}) {
     const fn = state.fieldNotes;
     return `
       <form class="ob-card ob-stack" data-form="field-notes">
-        <div class="ob-alert ob-alert--success">Confirmed: ${escapeHtml(state.confirmedSpecies.commonName)}</div>
+        <div class="ob-alert ob-alert--success">
+          Confirmed: ${escapeHtml(state.confirmedSpecies.commonName)}
+          <span class="ob-tag" style="margin-left: var(--ob-space-2);">${state.sense === 'sound' ? '🔊 Heard' : '👀 Seen'}</span>
+        </div>
 
         <div class="ob-field">
           <label class="ob-label" for="observed-at">Date &amp; time</label>
@@ -587,6 +626,7 @@ export function mount(container, props = {}) {
         state.result = await observationService.createFromWizard(userId, {
           species: state.confirmedSpecies,
           identificationId: state.identificationId,
+          sense: state.sense,
           fieldNotes: {
             observedAt: state.fieldNotes.observedAt
               ? new Date(state.fieldNotes.observedAt).toISOString()
@@ -617,7 +657,9 @@ export function mount(container, props = {}) {
     return `
       <div class="ob-card ob-stack ob-text-center">
         <h2>Observation logged!</h2>
-        <p class="ob-card__body">${escapeHtml(observation.species.common_name)} — ${escapeHtml(observation.location_name || 'location not set')}</p>
+        <p class="ob-card__body">
+          ${observation.detection_type === 'sound' ? '🔊' : '👀'} ${escapeHtml(observation.species.common_name)} — ${escapeHtml(observation.location_name || 'location not set')}
+        </p>
         ${isNewSpecies
           ? '<span class="ob-tag ob-tag--success">New life list species! (life list page coming soon)</span>'
           : '<span class="ob-tag ob-tag--info">Already on your life list</span>'}
@@ -636,6 +678,7 @@ export function mount(container, props = {}) {
           step: STEP.DESCRIBE,
           descriptionText: '',
           hints: { size: '', color: '', habitat: '' },
+          sense: 'sight',
           identificationId: null,
           candidates: [],
           selectedCode: null,

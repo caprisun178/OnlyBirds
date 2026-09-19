@@ -101,6 +101,53 @@ def test_select_on_unknown_identification_is_404(client):
     assert resp.status_code == 404
 
 
+def test_default_sense_is_sight_and_never_fetches_audio(client, monkeypatch):
+    from app.dao import commons
+
+    calls = []
+
+    async def fake_search_audio(query):
+        calls.append(query)
+        return None
+
+    monkeypatch.setattr(commons, "search_audio", fake_search_audio)
+
+    resp = client.post("/identify/describe", json={"text": "I saw a Blue Jay"})
+    body = resp.json()
+    assert body["sense"] == "sight"
+    assert all(c["audio_url"] is None and c["audio_attribution"] is None for c in body["candidates"])
+    assert calls == []  # sight mode never calls the audio lookup at all
+
+
+def test_sound_sense_fetches_audio_for_every_candidate(client, monkeypatch):
+    from app.dao import commons
+
+    async def fake_search_audio(query):
+        return {"media_url": f"https://example.com/{query.replace(' ', '_')}.mp3", "artist": "Test Recorder"}
+
+    monkeypatch.setattr(commons, "search_audio", fake_search_audio)
+
+    resp = client.post("/identify/describe", json={"text": "I heard a Blue Jay", "sense": "sound"})
+    body = resp.json()
+    assert body["sense"] == "sound"
+    assert len(body["candidates"]) == 6
+    assert all(c["audio_url"] and c["audio_url"].endswith(".mp3") for c in body["candidates"])
+    assert all("Test Recorder" in c["audio_attribution"] for c in body["candidates"])
+
+
+def test_sound_sense_candidate_with_no_recording_has_null_audio(client, monkeypatch):
+    from app.dao import commons
+
+    async def fake_search_audio(query):
+        return None
+
+    monkeypatch.setattr(commons, "search_audio", fake_search_audio)
+
+    resp = client.post("/identify/describe", json={"text": "I heard a Blue Jay", "sense": "sound"})
+    body = resp.json()
+    assert all(c["audio_url"] is None for c in body["candidates"])
+
+
 def test_full_wizard_confirms_species_and_logs_field_notes(client):
     described = client.post(
         "/identify/describe", json={"text": "I saw a Blue Jay"}
@@ -123,6 +170,7 @@ def test_full_wizard_confirms_species_and_logs_field_notes(client):
             "location_name": "Discovery Park, Seattle",
             "sex": "male",
             "life_stage": "adult",
+            "detection_type": "sound",
             "notes": "Loud call, perched in a cedar.",
             "source": "manual",
             "status": "logged",
@@ -134,6 +182,7 @@ def test_full_wizard_confirms_species_and_logs_field_notes(client):
     assert body["location_name"] == "Discovery Park, Seattle"
     assert body["sex"] == "male"
     assert body["life_stage"] == "adult"
+    assert body["detection_type"] == "sound"
     assert body["status"] == "logged"
 
     life_list = client.get("/users/u1/life-list").json()
