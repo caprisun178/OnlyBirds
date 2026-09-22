@@ -30,6 +30,7 @@ const STEP = {
 
 export function mount(container, props = {}) {
   const userId = props.userId || getCurrentUser().id;
+  const { onNavigate } = props; // optional — omitted when this screen is previewed standalone
 
   // The map is a live widget, not markup rebuilt from `state` — it lives
   // outside state and is only ever touched by the field-notes wiring below.
@@ -80,12 +81,20 @@ export function mount(container, props = {}) {
   function render() {
     container.innerHTML = `
       <div class="ob-stack">
+        ${onNavigate ? '<button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="back-to-home" style="align-self:flex-start;">← Back to home</button>' : ''}
         <h1>Add an observation</h1>
         ${renderStepper()}
         ${state.error ? `<div class="ob-alert ob-alert--danger">${escapeHtml(state.error)}</div>` : ''}
         ${renderStep()}
       </div>
     `;
+    if (onNavigate) {
+      container.querySelector('[data-action="back-to-home"]').addEventListener('click', () => {
+        mapController?.destroy();
+        mapController = null;
+        onNavigate('home');
+      });
+    }
     wireStep();
   }
 
