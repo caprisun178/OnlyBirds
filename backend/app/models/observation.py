@@ -7,10 +7,16 @@ species at a place and time, optionally with a photo and notes.
 
 from datetime import datetime
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
 from app.models.species import SpeciesRef
+
+Sex = Literal["male", "female", "unknown"]
+LifeStage = Literal["adult", "juvenile", "fledgling", "unknown"]
+ObservationStatus = Literal["draft", "identifying", "confirmed", "logged"]
+DetectionType = Literal["sight", "sound"]
 
 
 class Source(str, Enum):
@@ -20,12 +26,19 @@ class Source(str, Enum):
 
 
 class ObservationBase(BaseModel):
-    lat: float
-    lng: float
+    # A map picker isn't built yet (see add-observation.md), so a sighting can
+    # be logged with just a free-text place name; lat/lng stay optional until
+    # then.
+    lat: float | None = None
+    lng: float | None = None
+    location_name: str | None = None
     observed_at: datetime
     source: Source
     photo_url: str | None = None
     notes: str | None = None
+    sex: Sex | None = None
+    life_stage: LifeStage | None = None
+    detection_type: DetectionType | None = None  # "sight" or "sound" — how the bird was identified, per the wizard's saw-it/heard-it choice
 
 
 class ObservationCreate(ObservationBase):
@@ -36,6 +49,8 @@ class ObservationCreate(ObservationBase):
     species: SpeciesRef | None = None
     source: Source = Source.manual
     source_observation_id: str | None = None
+    identification_id: str | None = None
+    status: ObservationStatus = "logged"
 
 
 class Observation(ObservationBase):
@@ -46,3 +61,5 @@ class Observation(ObservationBase):
     species_id: str | None = None
     species: SpeciesRef = Field(default_factory=SpeciesRef)
     source_observation_id: str | None = None
+    identification_id: str | None = None
+    status: ObservationStatus = "logged"
