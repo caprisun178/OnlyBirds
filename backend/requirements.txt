@@ -5,6 +5,8 @@ pydantic>=2.9
 pydantic-settings>=2.6
 python-dotenv>=1.0
 python-multipart>=0.0.12   # FastAPI file uploads (POST /uploads/photo)
+psycopg[binary]>=3.2       # Postgres (Neon) — observations/life-list persistence
+psycopg-pool>=3.2
 
 # dev / test
 pytest>=8.3

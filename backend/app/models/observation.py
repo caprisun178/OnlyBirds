@@ -49,7 +49,6 @@ class ObservationCreate(ObservationBase):
     species: SpeciesRef | None = None
     source: Source = Source.manual
     source_observation_id: str | None = None
-    identification_id: str | None = None
     status: ObservationStatus = "logged"
 
 
@@ -61,5 +60,4 @@ class Observation(ObservationBase):
     species_id: str | None = None
     species: SpeciesRef = Field(default_factory=SpeciesRef)
     source_observation_id: str | None = None
-    identification_id: str | None = None
     status: ObservationStatus = "logged"

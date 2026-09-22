@@ -634,7 +634,6 @@ export function mount(container, props = {}) {
       try {
         state.result = await observationService.createFromWizard(userId, {
           species: state.confirmedSpecies,
-          identificationId: state.identificationId,
           sense: state.sense,
           fieldNotes: {
             observedAt: state.fieldNotes.observedAt

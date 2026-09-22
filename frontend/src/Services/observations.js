@@ -23,7 +23,9 @@ export const observationService = {
   // `species` is `{ commonName, scientificName }`; `sense` is 'sight' | 'sound'
   // (from the describe step's "saw it" / "heard it" choice); `fieldNotes` is
   // `{ observedAt, locationName, lat, lng, photoUrl, sex, lifeStage, notes }`.
-  async createFromWizard(userId, { species, identificationId, sense, fieldNotes }) {
+  // `identificationId` only matters mid-wizard (grading the candidate pick,
+  // via identifyService) — the logged observation itself doesn't keep it.
+  async createFromWizard(userId, { species, sense, fieldNotes }) {
     const priorLifeList = await lifeListDAO.getAll(userId);
     const alreadySeen = priorLifeList.some(
       (e) => e.species?.scientific_name === species.scientificName,
@@ -35,7 +37,6 @@ export const observationService = {
         common_name: species.commonName,
         scientific_name: species.scientificName,
       },
-      identification_id: identificationId || null,
       observed_at: fieldNotes.observedAt,
       location_name: fieldNotes.locationName || null,
       lat: fieldNotes.lat ?? null,

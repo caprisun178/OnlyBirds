@@ -2,9 +2,10 @@
 
 > **Status:** Partial — `POST /observations`, the describe & guess flow
 > (`POST /identify/describe`, `POST /identify/{id}/select`), and the
-> field-notes photo upload (`POST /uploads/photo`) all work end to end
-> against the in-memory store. What's left: wiring this to PostgreSQL
-> (roadmap step 3) and the region/geom columns below.
+> field-notes photo upload (`POST /uploads/photo`) all work end to end.
+> `observations` persists to Postgres (Neon) once `DATABASE_URL` is set, and
+> falls back to an in-memory store when it isn't (local dev without a
+> database, tests). What's left: the region/geom columns below.
 
 ## 1. What you're building
 
@@ -79,8 +80,11 @@ describe the bird (free text + optional size/color/habitat)
   answer to grade against. The six candidates are just ranked suggestions —
   the pick is recorded as `unconfirmed` and trusted at face value, and the
   wizard moves on to field notes.
-- Either way, `identifications.outcome` records what happened, which is there
-  for later accuracy metrics / model tuning even though nothing reads it yet.
+- Either way, the outcome is kept (in memory, for the wizard session —
+  `app/dao/identification_repo.py`) as `correct` / `incorrect` /
+  `unconfirmed`, though nothing reads it back today. It doesn't outlive the
+  session: once a species is confirmed, only the resulting `Observation`
+  matters, not how it got identified.
 
 !!! note "Computer vision is descoped for MVP"
     Per the root `README.md`, iNaturalist's species-classification model has no
@@ -184,13 +188,13 @@ anything currently pauses mid-wizard.
 
 | Data | Comes from | Stored where |
 |---|---|---|
-| "I saw it" / "I heard it" (`sense`) | the user | `identifications.sense` |
-| Free-text description + structured hints | the user | `identifications.input` (jsonb) |
-| Ranked candidate species | our `app/dao/identify.py` — matches a canned reference set (`app/data/birds.py`), **not** an external CV/LLM API yet | `identifications.candidates` (jsonb) |
+| "I saw it" / "I heard it" (`sense`) | the user | in memory, for the wizard session (`identification_repo.py`) |
+| Free-text description + structured hints | the user | in memory, for the wizard session |
+| Ranked candidate species | our `app/dao/identify.py` — matches a canned reference set (`app/data/birds.py`), **not** an external CV/LLM API yet | in memory, for the wizard session |
 | Candidate photos + attribution | Wikimedia Commons (`app/dao/commons.py`), cached per species in-process (`app/dao/bird_photos.py`); falls back to a placeholder image | not persisted — re-fetched (or served from cache) on every `/identify/describe` call |
 | Candidate call/song recordings + attribution (sound mode only) | Wikimedia Commons, cached per species (`app/dao/bird_audio.py`); **no** placeholder fallback | not persisted — same as photos |
 | The uploaded photo file | the user's device | Supabase Storage (bucket `SUPABASE_STORAGE_BUCKET`); the public URL goes in `observations.photo_url` |
-| Chosen species + correct/incorrect answer | the user's pick, graded against `target_species_code` when the text named a species outright | `identifications.chosen_species_code`, `identifications.outcome` |
+| Chosen species + correct/incorrect answer | the user's pick, graded against `target_species_code` when the text named a species outright | in memory only — doesn't outlive the wizard session; only the resulting `Observation` gets persisted |
 | Sex, life stage, notes | the user (field-notes step) | `observations.sex`, `observations.life_stage`, `observations.notes` |
 | Sight vs. sound (carried over from the describe step) | the user's earlier `sense` choice | `observations.detection_type` |
 | Address search results | OpenStreetMap Nominatim (`app/dao/nominatim.py`, `GET /geocode/search`) | not persisted — only the pin the user drops from a result is saved |
@@ -198,7 +202,7 @@ anything currently pauses mid-wizard.
 | Readable place label (auto-filled from the pin via reverse-geocode, or typed) | the user / OpenStreetMap Nominatim (`GET /geocode/reverse`) | `observations.location_name` |
 | Region code for that point (e.g. `US-WA-033`) | derive it: eBird `GET /ref/region/...` reverse lookup, or a local point-in-polygon check | `observations.region` |
 | Time | the user | `observations.observed_at` |
-| "Is this a lifer?" | our own data | computed — a lookup in `life_list_entries` |
+| "Is this a lifer?" | our own data | computed live from `observations` — no separate life-list table (`app/services/life_list.py`) |
 
 The identification logic itself is ours. External calls on this screen: the
 Wikimedia Commons photo lookup above, OpenStreetMap Nominatim for address
@@ -209,15 +213,13 @@ pin.
 
 ## 3. Database changes (SQL)
 
-Adds columns to `observations` and one new table. This is committed as
-`backend/migrations/0002_add_observation_identification.sql`, ready to apply
-once step 3 (PostgreSQL) lands — the app layer doesn't use it yet, only the
-in-memory repos. See [Database & migrations](database.md#how-to-apply-a-migration).
+Adds columns to `observations` — no new table. This is committed as
+`backend/migrations/0002_add_observation_identification.sql` and applied.
+See [Database & migrations](database.md#how-to-apply-a-migration).
 
 ```sql
 -- 0002_add_observation_identification.sql
 
--- 1. richer observation record
 alter table observations add column if not exists location_name   text;         -- readable label — typed, or auto-filled from the dropped pin via reverse-geocode
 alter table observations add column if not exists sex             text
     check (sex in ('male', 'female', 'unknown'));
@@ -229,23 +231,13 @@ alter table observations add column if not exists status          text not null 
     check (status in ('draft', 'identifying', 'confirmed', 'logged'));
 alter table observations alter column lat drop not null;   -- null only for observations logged before the map picker existed
 alter table observations alter column lng drop not null;
-
--- 2. how the species was identified, and whether the guess was right
-create table if not exists identifications (
-    id                   uuid primary key default gen_random_uuid(),
-    observation_id       uuid references observations(id) on delete cascade,
-    method               text not null check (method in ('photo', 'describe')),
-    sense                text not null default 'sight' check (sense in ('sight', 'sound')),
-    input                jsonb not null default '{}',   -- {text, hints}
-    candidates           jsonb not null default '[]',   -- [{species_code, common_name, confidence, photo_url, audio_url}]
-    target_species_code  text,                          -- known only when the text named a species outright
-    chosen_species_code  text,                          -- the candidate the user picked
-    outcome              text not null default 'unconfirmed'
-                           check (outcome in ('correct', 'incorrect', 'unconfirmed')),
-    created_at           timestamptz not null default now()
-);
-create index if not exists identifications_observation_idx on identifications (observation_id);
 ```
+
+No `identifications` table: how a bird was identified (candidates shown,
+which one was picked, whether the guess was right) only matters for the
+wizard session that produced it, not afterwards — it stays in memory
+(`app/dao/identification_repo.py`) rather than a table that would just
+accumulate rows nothing reads.
 
 `region` and `geom` (for [Explore map](explore-map.md) / [Stickers](stickers.md))
 aren't in this migration yet — they need the map-picker work first and are
@@ -257,11 +249,6 @@ still tracked as "left to build" above.
 | `observations.sex` / `observations.life_stage` | Optional field-notes detail; `unknown` is a valid, explicit choice, distinct from "not answered" (`null`). |
 | `observations.detection_type` | `'sight'` or `'sound'` — carried over from the describe step's choice. `null` for anything logged before this existed. |
 | `observations.status` | Where the observation is in the wizard. Only `logged` rows count toward the life list. |
-| `identifications.sense` | `'sight'` or `'sound'` — decided which media (`candidates[].photo_url` only, or also `audio_url`) got attached to the candidates. |
-| `identifications.input` | Whatever the user gave us — free text and hints — as JSON. |
-| `identifications.candidates` | The six candidates we showed them, as JSON, so we can review guesses later. |
-| `identifications.target_species_code` | Set only when the description named a species outright — this is what the user's pick gets graded against. `null` for a generic description. |
-| `identifications.outcome` | `correct` / `incorrect` when there was a target to grade against, `unconfirmed` when there wasn't (or the user rejected all six). |
 
 ## 4. API endpoints
 
@@ -273,7 +260,7 @@ still tracked as "left to build" above.
 | `POST` | `/uploads/photo` | multipart `file` → `{photo_url}`; `503` if Supabase Storage isn't configured, `400` for an unsupported type or a file over 8 MB |
 | `GET` | `/geocode/search?q=` | free text → `[{display_name, lat, lng}]`, proxying Nominatim; navigates the field-notes map |
 | `GET` | `/geocode/reverse?lat=&lng=` | a point → `{display_name, lat, lng}` or `null`; auto-fills the location label after a plain map click |
-| `POST` | `/observations` | create the observation once a species is confirmed; accepts `location_name`, `lat`, `lng`, `sex`, `life_stage`, `detection_type`, `identification_id`, `status` alongside the existing fields |
+| `POST` | `/observations` | create the observation once a species is confirmed; accepts `location_name`, `lat`, `lng`, `sex`, `life_stage`, `detection_type`, `status` alongside the existing fields |
 
 ### Example — `POST /identify/describe` (sound mode)
 
@@ -310,8 +297,8 @@ no placeholder fallback for audio the way there is for photos.
 | `dao/` | `app/dao/commons.py` | raw Wikimedia Commons search — one photo or audio file + attribution per scientific name; shared hidden-screen-reader-text stripping and attribution formatting |
 | `dao/` | `app/dao/bird_photos.py` | in-memory cache in front of `commons.py`'s photo search; falls back to `birds.py`'s placeholder |
 | `dao/` | `app/dao/bird_audio.py` | in-memory cache in front of `commons.py`'s audio search; no fallback — caches misses as `None` too |
-| `dao/` | `app/dao/identification_repo.py` | in-memory `identifications` store (same shape as `observation_repo.py`) |
-| `dao/` | `app/dao/observation_repo.py` | persists `location_name`, `sex`, `life_stage`, `identification_id`, `status` |
+| `dao/` | `app/dao/identification_repo.py` | in-memory only — candidates/outcome never outlive the wizard session, no SQL table |
+| `dao/` | `app/dao/observation_repo.py` | persists `location_name`, `sex`, `life_stage`, `status`; Postgres (Neon) when `DATABASE_URL` is set, in-memory otherwise (`app/dao/db.py`) |
 | `dao/` | `app/dao/storage.py` | raw Supabase Storage HTTP calls — upload bytes, return the public URL |
 | `dao/` | `app/dao/nominatim.py` | raw OpenStreetMap Nominatim calls — address search, reverse-geocode |
 | `services/` | `app/services/identify.py` | describe → candidates; select → grade against a known target, if any |
@@ -357,11 +344,12 @@ For the next feature that follows this shape:
 3. `app/services/identify.py` + `app/routers/identify.py` —
    `POST /identify/describe`, `POST /identify/{id}/select`.
 4. Extend `Observation`/`ObservationCreate` with `location_name`, `sex`,
-   `life_stage`, `identification_id`, `status`; make `lat`/`lng` optional.
+   `life_stage`, `status`; make `lat`/`lng` optional.
 5. Tests in `backend/tests/test_identify.py`: named-species grading, generic
    suggestions, rejecting all candidates, the full wizard → life list flow.
-6. `backend/migrations/0002_add_observation_identification.sql` — SQL parity
-   for when PostgreSQL is wired up (not applied anywhere yet).
+6. `backend/migrations/0002_add_observation_identification.sql` — applied;
+   `app/dao/observation_repo.py`'s `PostgresObservationRepo` is what actually
+   uses these columns once `DATABASE_URL` is set.
 7. `app/dao/storage.py` (raw Supabase Storage calls) + `app/services/uploads.py`
    (type/size validation) + `app/routers/uploads.py` — `POST /uploads/photo`.
    Tests in `backend/tests/test_uploads.py` cover validation and the

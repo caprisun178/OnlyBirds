@@ -165,7 +165,6 @@ def test_full_wizard_confirms_species_and_logs_field_notes(client):
                 "common_name": "Blue Jay",
                 "scientific_name": "Cyanocitta cristata",
             },
-            "identification_id": identification_id,
             "observed_at": "2026-05-01T08:00:00+00:00",
             "location_name": "Discovery Park, Seattle",
             "sex": "male",
@@ -178,7 +177,6 @@ def test_full_wizard_confirms_species_and_logs_field_notes(client):
     )
     assert created.status_code == 201
     body = created.json()
-    assert body["identification_id"] == identification_id
     assert body["location_name"] == "Discovery Park, Seattle"
     assert body["sex"] == "male"
     assert body["life_stage"] == "adult"
