@@ -1,8 +1,9 @@
 name: Deploy dev Pages
 
-# Publishes frontend/home to GitHub Pages on every push to dev/current, for a
-# hosted dev/staging preview of the landing page. Separate from production
-# (which isn't on Pages) — see docs/deployment.md.
+# Publishes all of frontend/ to GitHub Pages on every push to dev/current, for
+# a hosted dev/staging preview of the app (frontend/index.html redirects to
+# src/preview.html, which opens on Home — no separate landing page).
+# Separate from production (which isn't on Pages) — see docs/deployment.md.
 #
 # One-time setup: repo Settings > Pages > Build and deployment > Source:
 # "GitHub Actions". After that this workflow handles every deploy.
@@ -29,6 +30,6 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: frontend/home
+          path: frontend
       - id: deployment
         uses: actions/deploy-pages@v4

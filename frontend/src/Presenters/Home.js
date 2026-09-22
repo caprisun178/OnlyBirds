@@ -1,9 +1,9 @@
 // frontend/src/Presenters/Home.js
-// The signed-in home hub: a welcome, a main call to action, and cards that
-// lead to the other screens. No router yet, so navigation goes through
-// an optional onNavigate callback (it just logs for now).
-// Content and tone follow the public landing page (frontend/home/index.html);
-// styling only shared ob-* classes.
+// The app's landing screen — no separate marketing page, this is the first
+// thing shown. A welcome, a main call to action, and cards that lead to the
+// other screens. No router yet, so navigation goes through an optional
+// onNavigate callback (it just logs for now). Auth/login is separate
+// in-progress work, not wired in here.
 
 import { renderHomeCard } from '../Components/HomeCard.js';
 

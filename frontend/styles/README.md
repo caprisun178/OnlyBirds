@@ -117,9 +117,3 @@ future theme toggle just sets `document.documentElement.dataset.theme` to
 `"dark"` or `"light"`. Because markup only uses `--ob-color-*` tokens, it
 adapts for free — don't write per-theme rules in a page or block.
 
-## The landing page
-
-`frontend/home/` currently has a self-contained `styles.css` so it can deploy on
-its own. It follows the same visual language. When convenient, switch it to
-`<link href="../styles/base.css">` + a trimmed page `styles.css` so there's one
-source of truth.

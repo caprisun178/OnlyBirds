@@ -17,7 +17,9 @@ const SCREENS = {
 };
 ```
 
-Serve `frontend/` (not `frontend/src/` — paths below are root-relative):
+Serve `frontend/` (not `frontend/src/` — screens load their stylesheet as
+`../styles/base.css`, relative to their own path, which only resolves if
+`frontend/styles/` is reachable from wherever you served):
 
 ```bash
 cd frontend

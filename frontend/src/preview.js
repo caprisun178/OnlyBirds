@@ -1,10 +1,12 @@
 // Dev entry point — no build step, loaded directly by the browser as an ES
 // module. There's still no real router (see docs/frontend-screens.md), but
-// Home's cards need *something* to navigate to, so this is a minimal
-// route switcher: it mounts Home by default and, for routes that lead to a
-// screen that actually exists, tears down the current Presenter and mounts
-// the next one in its place. Routes with no screen yet just log, same as
-// Home's own default behavior.
+// Home's cards need *something* to navigate to, so this is a minimal route
+// switcher: it mounts Home by default (no landing/marketing page — Home is
+// the app's front door) and, for routes that lead to a screen that actually
+// exists, tears down the current Presenter and mounts the next one in its
+// place. Routes with no screen yet just log, same as each screen's own
+// default behavior. Auth/login is separate in-progress work — not wired in
+// here yet.
 //
 // Building a screen that isn't wired in below? Preview it on its own the old
 // way — import its `mount` and call it directly instead of going through
