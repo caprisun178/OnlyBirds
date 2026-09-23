@@ -18,6 +18,7 @@ const PAGE_SIZE = 60;
 
 export function mount(container, props = {}) {
   const userId = props.userId || 'u1';
+  const { onNavigate } = props; // optional — omitted when this screen is previewed standalone
 
   const state = {
     loading: true,
@@ -74,11 +75,15 @@ export function mount(container, props = {}) {
   function render() {
     container.innerHTML = `
       <div class="ob-stack">
+        ${onNavigate ? '<button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="back-to-home" style="align-self:flex-start;">← Back to home</button>' : ''}
         <h1>Life List</h1>
         ${state.error ? `<div class="ob-alert ob-alert--danger">${escapeHtml(state.error)}</div>` : ''}
         ${state.loading ? renderLoading() : renderLoaded()}
       </div>
     `;
+    if (onNavigate) {
+      container.querySelector('[data-action="back-to-home"]').addEventListener('click', () => onNavigate('home'));
+    }
     wire();
   }
 

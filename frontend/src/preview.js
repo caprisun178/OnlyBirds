@@ -14,12 +14,14 @@
 
 import { mount as mountHome } from './Presenters/Home.js';
 import { mount as mountAddObservation } from './Presenters/AddObservation.js';
+import { mount as mountLifeList } from './Presenters/LifeList.js';
 
 const app = document.getElementById('app');
 
 const SCREENS = {
   home: (container) => mountHome(container, { onNavigate: navigate }),
   'add-observation': (container) => mountAddObservation(container, { onNavigate: navigate }),
+  'life-list': (container) => mountLifeList(container, { onNavigate: navigate }),
 };
 
 function navigate(route) {

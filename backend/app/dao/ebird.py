@@ -55,20 +55,37 @@ async def get_nearby_bird_sightings(
 # docs/ebird-api.md and the feature page named on each docstring.
 
 
+_TAXONOMY_BATCH_SIZE = 500  # eBird 400s a `species=` list somewhere between 500 and 1000 codes
+
+
 async def get_taxonomy(species_codes: list[str] | None = None) -> list[dict]:
     """Common/scientific names + family for eBird species codes.
 
     `GET /ref/taxonomy/ebird` (optional `species=<comma-separated codes>` to
     scope it; omit for the full taxonomy). Needed by Life List (populating
     `species` from a region checklist) and Bird info (species search/profile).
+
+    A whole-country region (e.g. the US has ~1,800 species) blows past
+    eBird's undocumented limit on how many codes fit in one `species=` list
+    — confirmed by testing to fail somewhere between 500 and 1000 — so this
+    batches into `_TAXONOMY_BATCH_SIZE`-sized calls and merges the results.
     """
-    params = {"fmt": "json"}
-    if species_codes:
-        params["species"] = ",".join(species_codes)
+    if not species_codes:
+        async with _client() as client:
+            resp = await client.get("/ref/taxonomy/ebird", params={"fmt": "json"})
+            resp.raise_for_status()
+            return resp.json()
+
+    results: list[dict] = []
     async with _client() as client:
-        resp = await client.get("/ref/taxonomy/ebird", params=params)
-        resp.raise_for_status()
-        return resp.json()
+        for i in range(0, len(species_codes), _TAXONOMY_BATCH_SIZE):
+            batch = species_codes[i : i + _TAXONOMY_BATCH_SIZE]
+            resp = await client.get(
+                "/ref/taxonomy/ebird", params={"fmt": "json", "species": ",".join(batch)}
+            )
+            resp.raise_for_status()
+            results.extend(resp.json())
+    return results
 
 
 async def get_region_children(parent_code: str, region_type: str) -> list[dict]:
