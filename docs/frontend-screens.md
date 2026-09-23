@@ -3,20 +3,38 @@
 ## Preview your screen
 
 No framework, no build step — a Presenter is a plain JS module the browser
-loads directly. There's no router or nav yet, so `frontend/src/preview.js` is
-the one dev-only mount point; you point it at whichever screen you're
-building.
+loads directly. There's still no real router, but `frontend/src/preview.js`
+is no longer a single-screen scratch file you edit and revert — it's a small
+permanent route switcher. It mounts `Home` by default, and its `SCREENS` map
+tells it which route (`data-route` on a `Home` card, or any `onNavigate(route)`
+call) leads to which Presenter's `mount`:
 
-Serve `frontend/` (not `frontend/src/` — paths below are root-relative):
+```js
+// frontend/src/preview.js
+const SCREENS = {
+  home: (container) => mountHome(container, { onNavigate: navigate }),
+  'add-observation': (container) => mountAddObservation(container, { onNavigate: navigate }),
+};
+```
+
+Serve `frontend/` (not `frontend/src/` — screens load their stylesheet as
+`../styles/base.css`, relative to their own path, which only resolves if
+`frontend/styles/` is reachable from wherever you served):
 
 ```bash
 cd frontend
 python -m http.server 4174
 ```
 
-Open <http://localhost:4174/src/preview.html>. Then edit
-`frontend/src/preview.js` to import and mount your Presenter instead of the
-placeholder:
+Open <http://localhost:4174/src/preview.html>. You'll land on Home; anything
+wired into `SCREENS` is click-through navigable from there.
+
+**Building a screen that isn't wired in yet?** Don't add it to `SCREENS` just
+to look at it — that couples every screen's happy path together before it's
+ready. Preview it standalone instead, the old way: temporarily replace the
+bottom of `preview.js` with a direct mount call, same as before, and revert
+that edit before committing (the `SCREENS` map itself, once your screen is
+actually reachable from `Home`, *is* the commit):
 
 ```js
 import { mount } from './Presenters/LifeList.js';
@@ -33,8 +51,10 @@ There's no live-reload; refresh the page after saving. The page talks to the
 backend at `http://localhost:8000` by default (already allowed in
 `CORS_ORIGINS`) — start it too, see [Environment Setup](index.md#3-back-end-setup).
 
-Don't commit your `preview.js` changes as part of a feature PR — revert it to
-the placeholder first.
+If you added a temporary standalone mount to try out a screen, revert that
+part of `preview.js` before committing — but if your PR is what makes a
+screen reachable from `Home`, its `SCREENS` entry is a real part of the
+change and belongs in the commit.
 
 ## The layers
 

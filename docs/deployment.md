@@ -9,7 +9,7 @@ to be **managed** — no servers to patch, no Docker to learn.
 | Auth | Supabase Auth | wired up with the [User profiles](features/user-profiles.md) feature |
 | Photo / avatar files | Supabase Storage | wired up with [Add Observation](features/add-observation.md) |
 | Backend API (FastAPI) | **Render** web service | auto-deploys from `main`; see `render.yaml` |
-| Web frontend | static host (Vercel / Netlify / GitHub Pages) | the landing page (`frontend/home/`) is plain HTML/CSS and can deploy now; app screens later |
+| Web frontend | static host (Vercel / Netlify / GitHub Pages) | plain JS/HTML (`frontend/`), no build step; opens on Home, no separate landing page |
 | Mobile | Expo EAS | *not yet* |
 
 !!! note "Render tracks `main` only"
@@ -105,15 +105,15 @@ Do these when you start the features that need them:
 
 ## 5. Frontend
 
-- **Landing page** — `frontend/home/` is static HTML/CSS. Point a static host
-  (Vercel / Netlify / GitHub Pages) at that folder; no build step. Deploy from
-  `main`.
-- **App screens** — plain JS/HTML (`frontend/src/`), no build step, built on
-  the shared design system (`frontend/styles/base.css`). Point the same kind
-  of static host at `frontend/src/` once there's a screen worth deploying;
-  hardcode the Render API URL in `Dao/apiClient.js` (no env-var injection
-  without a build step), and wire up `SUPABASE_URL` + `SUPABASE_ANON_KEY` (the
-  anon key is public) the same way once Auth lands.
+- **Web app** — plain JS/HTML (`frontend/`), no build step, built on the
+  shared design system (`frontend/styles/base.css`). Point a static host
+  (Vercel / Netlify / GitHub Pages) at `frontend/` itself, not `frontend/src/`
+  — `frontend/index.html` redirects to `src/preview.html`, which opens on
+  `Home` (no separate landing page). Deploy from `main`. The API URL isn't
+  injected at build time (there is no build step) — `Dao/apiClient.js` picks
+  it by runtime hostname instead: `localhost` gets the local backend,
+  anything else gets the Render URL hardcoded there. Wire up `SUPABASE_URL` +
+  `SUPABASE_ANON_KEY` (the anon key is public) the same way once Auth lands.
 - **Mobile** — Expo EAS Build, later, same API base URL.
 
 Add each deployed web origin to `CORS_ORIGINS` on the Render service.

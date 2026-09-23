@@ -79,27 +79,17 @@ Endpoint details (auth, base URL, failure behavior) live on the
 
 | Data | Comes from | Stored where |
 |---|---|---|
-| Region picker options (children of a region) | eBird `GET /ref/region/list/{type}/{parentCode}` | not stored — read live, small responses |
-| Species checklist for a region | eBird `GET /product/spplist/{regionCode}` (codes) + `GET /ref/taxonomy/ebird?species=...` (names), merged and filtered to real species | in-memory cache, one entry per region, 30-day staleness (`app/dao/region_repo.py`) |
-| Which species the user has actually seen, first-seen date | our own data | `life_list_entries` (derived from `observations`, already exists) |
-| The user's photo per seen species | our own data | `observations.photo_url`, looked up via the entry's `observation_id` |
+| Region picker options (children of a region) | eBird `GET /ref/region/list/{type}/{parentCode}` | **not stored** — read live, small responses |
+| Species checklist for a region (list of eBird species codes) | eBird `GET /product/spplist/{regionCode}` | **cache table `region_checklists`** — changes rarely |
+| Common / scientific names for those codes | eBird `GET /ref/taxonomy/ebird` | `species` table (upsert one row per code) |
+| Which species the user has actually seen | our own data | **not stored separately** — derived live from `observations` (`app/services/life_list.py`), one entry per species, dated to the earliest sighting |
+| The user's photo + first-seen date per species | our own data | that same earliest `observations` row's `photo_url` / `observed_at` |
 
-`app/services/life_list.py#get_region_checklist` does the seen/unseen merge
-**server-side** — matching a checklist species to a life-list entry by
-scientific name (same fallback key `get_life_list` already uses for
-cross-source dedupe) — and returns one already-zipped response. That's a
-deliberate change from the original plan below, which had the frontend zip
-two separate responses together; doing it server-side means the matching
-logic (and its scientific-name-based caveats) lives in one place instead of
-two.
-
-!!! note "eBird's species list includes non-species entries"
-    `GET /product/spplist` returns some `spuh`/slash/hybrid/domestic codes
-    alongside real species (e.g. "duck sp." when a checklist couldn't
-    identify the exact species) — those aren't identifiable species and
-    shouldn't count toward a life list. `region_repo.get_checklist` fetches
-    each code's `category` from the taxonomy call and keeps only
-    `category == "species"`.
+The completion view is assembled in `Services/lifeList.js` by taking the
+`region_checklists` list and marking each species seen / not-seen using
+`GET /users/{id}/life-list` (already derives its entries from `observations`
+on every call — no separate "seen" table to keep in sync). eBird is only
+ever touched to *fill* the checklist cache.
 
 ## 3. Database changes (SQL)
 
@@ -110,7 +100,7 @@ in-memory cache in `app/dao/region_repo.py` instead; swapping in this table
 is the roadmap-step-3 PostgreSQL work.
 
 ```sql
--- 0002_life_list_region_checklists.sql
+-- 0003_life_list_region_checklists.sql
 
 create table if not exists region_checklists (
     region_code    text primary key,        -- eBird regionCode, e.g. 'US-WA' or 'world'
@@ -125,9 +115,10 @@ create table if not exists region_checklists (
 | `species_codes` | A Postgres text array of eBird species codes. Join to a `species` table for names once that table exists (it doesn't yet — `region_repo.get_checklist` fetches names from eBird's taxonomy endpoint directly, filtered and cached alongside the codes, rather than upserting a separate table). |
 | `fetched_at` | When we last pulled this from eBird. The in-memory cache already refetches past 30 days; this column exists so the same policy carries over to Postgres. |
 
-!!! note "No change to `life_list_entries`"
-    The "seen" side of the view already exists in the baseline schema. This
-    feature only adds the "full checklist" side.
+!!! note "No new table for the \"seen\" side"
+    `GET /users/{id}/life-list` already derives every entry live from
+    `observations` — there's no separate table to keep in sync. This feature
+    only adds the "full checklist" side (`region_checklists`).
 
 ## 4. API endpoints
 
@@ -172,22 +163,16 @@ falls back to iNaturalist-only), and `502` if eBird itself errors.
 
 ## 6. Build order
 
-1. Fill in the three eBird DAO stubs: `get_taxonomy()`, `get_region_children()`,
-   `get_region_spplist()` in `app/dao/ebird.py` — these were already stubbed
-   with the exact endpoint/params documented, just not implemented.
-2. `app/dao/region_repo.py` — fetch + cache a region's checklist, filtered to
-   `category == "species"`, sorted by `taxonOrder`.
-3. Extend `app/models/life_list.py` with `RegionOption` and `ChecklistSpecies`
-   / `RegionChecklistResponse`.
-4. Extend `app/services/life_list.py` and `app/routers/life_list.py` with the
-   two new endpoints.
-5. Tests in `backend/tests/test_life_list_regions.py`: canned eBird payloads
-   (taxonomy + spplist), assert non-species filtering, taxonomic sort,
-   in-memory caching (second call doesn't refetch), the seen/unseen merge,
-   and the `EBirdConfigError` → 503 mapping — all offline, per this repo's
-   "no test hits the live API" rule.
-6. `backend/migrations/0002_life_list_region_checklists.sql` — SQL parity for
-   when PostgreSQL is wired up (not applied anywhere yet).
+1. Write `backend/migrations/0003_life_list_region_checklists.sql` (SQL above) and run it.
+2. Add `get_region_children()` / `get_region_spplist()` to `app/dao/ebird.py`.
+3. Add `app/dao/region_repo.py` — `get_checklist(region_code)` returns the cached
+   row, or fetches from eBird + taxonomy, upserts `species` rows, writes
+   `region_checklists`, and returns it.
+4. Extend `app/services/life_list.py` to combine the checklist with the user's
+   entries into completion rows.
+5. Add the two routes to `app/routers/life_list.py`.
+6. Add a test in `backend/tests/` with a canned eBird checklist payload (no
+   network).
 7. Frontend: `Dao/regions.js` → `Services/lifeList.js` → `Presenters/LifeList.js`
    → `Components/SpeciesCard.js` / `MissingBird.js` / `ProgressBar.js`.
 
