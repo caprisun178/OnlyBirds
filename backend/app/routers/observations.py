@@ -2,14 +2,15 @@
 
 Route shapes match what the frontend DAO expects
 (`frontend/src/Dao/observations.js`):
-    GET  /users/{user_id}/observations
-    POST /observations
-    GET  /observations/{observation_id}
+    GET   /users/{user_id}/observations
+    POST  /observations
+    GET   /observations/{observation_id}
+    PATCH /observations/{observation_id}
 """
 
 from fastapi import APIRouter, HTTPException, status
 
-from app.models.observation import Observation, ObservationCreate
+from app.models.observation import Observation, ObservationCreate, ObservationUpdate
 from app.services import observation as observation_service
 
 router = APIRouter(tags=["observations"])
@@ -32,6 +33,14 @@ async def create_observation(payload: ObservationCreate):
 @router.get("/observations/{observation_id}", response_model=Observation)
 async def get_observation(observation_id: str):
     obs = await observation_service.get_observation(observation_id)
+    if obs is None:
+        raise HTTPException(status_code=404, detail="Observation not found")
+    return obs
+
+
+@router.patch("/observations/{observation_id}", response_model=Observation)
+async def update_observation(observation_id: str, payload: ObservationUpdate):
+    obs = await observation_service.update_observation(observation_id, payload)
     if obs is None:
         raise HTTPException(status_code=404, detail="Observation not found")
     return obs

@@ -25,6 +25,29 @@ def test_log_list_and_fetch_observation(client):
     assert client.get("/observations/does-not-exist").status_code == 404
 
 
+def test_update_observation_only_touches_sent_fields(client):
+    created = client.post("/observations", json=OBS)
+    obs_id = created.json()["id"]
+
+    patched = client.patch(f"/observations/{obs_id}", json={"notes": "Loud call from the oak tree"})
+    assert patched.status_code == 200
+    body = patched.json()
+    assert body["notes"] == "Loud call from the oak tree"
+    # Untouched fields survive the edit unchanged.
+    assert body["location_name"] == OBS.get("location_name")
+    assert body["species"]["common_name"] == "Common Raven"
+    assert body["observed_at"].startswith("2026-05-01")
+
+    patched_again = client.patch(f"/observations/{obs_id}", json={"observed_at": "2026-05-02T09:00:00+00:00"})
+    assert patched_again.json()["observed_at"].startswith("2026-05-02")
+    assert patched_again.json()["notes"] == "Loud call from the oak tree"  # still there
+
+
+def test_update_observation_404_when_missing(client):
+    resp = client.patch("/observations/does-not-exist", json={"notes": "x"})
+    assert resp.status_code == 404
+
+
 def test_list_is_newest_first_and_scoped_by_user(client):
     client.post("/observations", json={**OBS, "observed_at": "2026-01-01T00:00:00+00:00"})
     client.post("/observations", json={**OBS, "observed_at": "2026-06-01T00:00:00+00:00"})

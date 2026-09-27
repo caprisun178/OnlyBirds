@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import uuid
 
-from app.dao import ebird, region_repo
+from app.dao import bird_photos, ebird, region_repo
 from app.models.life_list import ChecklistSpecies, LifeListEntry, RegionChecklistResponse, RegionOption
 from app.models.observation import Observation
 from app.services.observation import get_observation, list_observations
@@ -82,9 +82,19 @@ async def get_region_checklist(region_code: str, user_id: str | None) -> RegionC
     for sp in checklist:
         entry = seen_by_name.get(sp["scientific_name"].lower())
         photo_url = None
+        photo_attribution = None
         if entry and entry.observation_id:
             obs = await get_observation(entry.observation_id)
             photo_url = obs.photo_url if obs else None
+        if entry and not photo_url:
+            # The user logged this species but didn't attach their own
+            # photo — fall back to a real Commons photo (or, failing that,
+            # a generated placeholder — get_stock_photo() always returns
+            # one or the other) rather than showing a blank card for a bird
+            # they've actually seen.
+            stock = await bird_photos.get_stock_photo(sp["scientific_name"], sp["common_name"])
+            photo_url = stock["photo_url"]
+            photo_attribution = stock["attribution"]
         if entry:
             seen_count += 1
         rows.append(
@@ -95,6 +105,8 @@ async def get_region_checklist(region_code: str, user_id: str | None) -> RegionC
                 seen=entry is not None,
                 first_observed_at=entry.first_observed_at if entry else None,
                 photo_url=photo_url,
+                photo_attribution=photo_attribution,
+                family_common_name=sp.get("family_common_name") or "",
             )
         )
 

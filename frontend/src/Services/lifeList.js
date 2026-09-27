@@ -32,8 +32,23 @@ export const lifeListService = {
         if (b.seen) return 1;
         return a.common_name.localeCompare(b.common_name);
       });
+    } else {
+      // 'taxonomic' (default): species already come back in that order from
+      // the API. Bucket observed birds first (still in taxonomic order among
+      // themselves), then not-yet-seen birds — so the default "top 50" +
+      // "show more" progression surfaces the user's own life list before it
+      // works through the rest of the region's checklist.
+      const seenList = list.filter((sp) => sp.seen);
+      const unseenList = list.filter((sp) => !sp.seen);
+      return [...seenList, ...unseenList];
     }
-    // 'taxonomic' (default): already in that order as returned by the API.
     return list;
+  },
+
+  // Distinct eBird family names ("bird type") present in a checklist, sorted
+  // alphabetically — feeds the bird-type filter dropdown.
+  getFamilies(species) {
+    const names = new Set(species.map((sp) => sp.family_common_name).filter(Boolean));
+    return [...names].sort((a, b) => a.localeCompare(b));
   },
 };

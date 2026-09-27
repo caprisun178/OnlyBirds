@@ -14,6 +14,7 @@ Base URL in development: `http://localhost:8000`. Interactive docs (OpenAPI) at
 | `GET` | `/users/{user_id}/observations` | that user's observations, newest first |
 | `POST` | `/observations` | log an observation (`ObservationCreate`) → `201` |
 | `GET` | `/observations/{id}` | one observation, or `404` |
+| `PATCH` | `/observations/{id}` | edit an observation (`ObservationUpdate` — every field optional, only what's sent gets touched), or `404` |
 | `GET` | `/users/{user_id}/life-list` | life list derived from stored observations |
 
 ### `GET /sightings/nearby`
@@ -49,6 +50,10 @@ curl -X POST 'http://localhost:8000/observations' \
       }'
 
 curl 'http://localhost:8000/users/u1/life-list'
+
+curl -X PATCH 'http://localhost:8000/observations/<id>' \
+  -H 'Content-Type: application/json' \
+  -d '{"notes": "Loud calling from the fence"}'
 ```
 
 ## Running & testing

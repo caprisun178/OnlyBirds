@@ -114,12 +114,24 @@ async def get_region_spplist(region_code: str) -> list[str]:
 
 
 async def recent_obs_in_region(region_code: str, days_back: int = 7) -> list[dict]:
-    """Recent observations anywhere in a region (not point-radius).
+    """Recent observations anywhere in a region (not point-radius) — one row
+    per species, its most recent report in the last `days_back` days. Each
+    row includes `exoticCategory` (missing from the API reference doc, but
+    defined by Cornell Lab — eBird's publisher — in their help center:
+    "N" naturalized, "P" provisional, "X" escapee, absent for a regular
+    native/countable record — see
+    https://support.ebird.org/en/support/solutions/articles/48001218430-exotic-and-introduced-species-in-ebird
+    and docs/ebird-api.md#exoticcategory--not-in-the-api-reference-but-documented-by-cornell).
 
-    `GET /data/obs/{region_code}/recent` (`back=<days_back>`). Needed by
-    Explore map when the viewport is region-shaped rather than a point.
+    `GET /data/obs/{region_code}/recent` (`back=<days_back>`, capped at 30 by
+    eBird itself). Needed by Explore map when the viewport is region-shaped
+    rather than a point, and by Life List to drop escapee reports from a
+    region's checklist (`region_repo._drop_escapees`).
     """
-    raise NotImplementedError
+    async with _client() as client:
+        resp = await client.get(f"/data/obs/{region_code}/recent", params={"back": days_back})
+        resp.raise_for_status()
+        return resp.json()
 
 
 async def notable_obs(region_code: str, days_back: int = 7) -> list[dict]:

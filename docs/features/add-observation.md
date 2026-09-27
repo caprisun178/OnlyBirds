@@ -118,6 +118,25 @@ describe the bird (free text + optional size/color/habitat)
     `bird-info.md`) once real Cornell access exists — nothing downstream of
     `bird_photos.get_photo()` / `bird_audio.get_audio()` needs to change.
 
+!!! note "A Commons search can top-rank a museum specimen photo, not the live bird"
+    Found via Life List, not this flow, but the fix lives here since both
+    features share `app/dao/commons.py`: Commons' search relevance isn't
+    tuned for "a photo of the live animal" — American Robin's (`Turdus
+    migratorius`) top hit was a GLAM-batch-uploaded egg photo from a French
+    natural history museum (MHNT), filename just an accession number, ahead
+    of several ordinary robin photos further down the results. `_search()`
+    now fetches a few extra candidates for a *photo* search (not audio —
+    that doesn't have this problem) and skips any whose title, Commons
+    categories, or `ObjectName`/`ImageDescription` metadata mention an egg,
+    nest, skull, specimen, taxidermy mount, illustration, or similar — in
+    English *or* French, since GLAM uploads keep the contributing
+    institution's own language and this one didn't have an English
+    translation. Falls back to the top-ranked hit if every candidate is
+    flagged, rather than ever returning nothing over this. See
+    `docs/features/life-list.md` for the Life List side of this (where it
+    was actually reported), and `commons._UNWANTED_PHOTO_KEYWORDS` /
+    `test_commons.py` for the details.
+
 !!! note "Audio is only fetched in sound mode"
     Fetching a recording per candidate is another network round trip same as
     photos, so `app/dao/identify.py#_with_media` only calls

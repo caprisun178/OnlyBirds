@@ -7,13 +7,16 @@ loads directly. There's still no real router, but `frontend/src/preview.js`
 is no longer a single-screen scratch file you edit and revert — it's a small
 permanent route switcher. It mounts `Home` by default, and its `SCREENS` map
 tells it which route (`data-route` on a `Home` card, or any `onNavigate(route)`
-call) leads to which Presenter's `mount`:
+call) leads to which Presenter's `mount`. `onNavigate` takes an optional
+second argument — a plain object spread onto the target screen's props — for
+passing state across the navigation (e.g. Life List passing the species a
+"seen" card was clicked for to Observation Log):
 
 ```js
 // frontend/src/preview.js
 const SCREENS = {
-  home: (container) => mountHome(container, { onNavigate: navigate }),
-  'add-observation': (container) => mountAddObservation(container, { onNavigate: navigate }),
+  home: (container, params) => mountHome(container, { onNavigate: navigate, ...params }),
+  'add-observation': (container, params) => mountAddObservation(container, { onNavigate: navigate, ...params }),
 };
 ```
 

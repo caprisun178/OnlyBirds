@@ -37,6 +37,8 @@ class ChecklistSpecies(BaseModel):
     seen: bool
     first_observed_at: datetime | None = None
     photo_url: str | None = None
+    photo_attribution: str | None = None  # set only when photo_url is a Commons stock photo, not the user's own upload
+    family_common_name: str = ""
 
 
 class RegionChecklistResponse(BaseModel):

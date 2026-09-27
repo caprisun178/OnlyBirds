@@ -669,9 +669,15 @@ export function mount(container, props = {}) {
           ${observation.detection_type === 'sound' ? '🔊' : '👀'} ${escapeHtml(observation.species.common_name)} — ${escapeHtml(observation.location_name || 'location not set')}
         </p>
         ${isNewSpecies
-          ? '<span class="ob-tag ob-tag--success">New life list species! (life list page coming soon)</span>'
+          ? '<span class="ob-tag ob-tag--success">New life list species!</span>'
           : '<span class="ob-tag ob-tag--info">Already on your life list</span>'}
-        <button type="button" class="ob-btn ob-btn--primary" data-action="log-another">Log another sighting</button>
+        <div class="ob-cluster" style="justify-content:center;">
+          <button type="button" class="ob-btn ob-btn--primary" data-action="log-another">Log another sighting</button>
+          ${onNavigate ? `
+            <button type="button" class="ob-btn ob-btn--ghost" data-action="view-life-list">View life list</button>
+            <button type="button" class="ob-btn ob-btn--ghost" data-action="view-observations">View my observations</button>
+          ` : ''}
+        </div>
       </div>
     `;
   }
@@ -706,6 +712,13 @@ export function mount(container, props = {}) {
         render();
       });
     }
+
+    container.querySelector('[data-action="view-life-list"]')?.addEventListener('click', () => {
+      onNavigate('life-list');
+    });
+    container.querySelector('[data-action="view-observations"]')?.addEventListener('click', () => {
+      onNavigate('observation-log', { userId });
+    });
   }
 
   function wireStep() {

@@ -29,7 +29,7 @@ from psycopg.rows import dict_row
 
 from app.config import get_settings
 from app.dao.db import get_pool
-from app.models.observation import Observation, ObservationCreate
+from app.models.observation import Observation, ObservationCreate, ObservationUpdate
 from app.models.species import SpeciesRef
 
 
@@ -37,6 +37,7 @@ class ObservationRepo(Protocol):
     async def add(self, payload: ObservationCreate) -> Observation: ...
     async def get(self, observation_id: str) -> Observation | None: ...
     async def list_for_user(self, user_id: str) -> list[Observation]: ...
+    async def update(self, observation_id: str, payload: ObservationUpdate) -> Observation | None: ...
 
 
 class InMemoryObservationRepo:
@@ -71,6 +72,14 @@ class InMemoryObservationRepo:
     async def list_for_user(self, user_id: str) -> list[Observation]:
         return [o for o in self._by_id.values() if o.user_id == user_id]
 
+    async def update(self, observation_id: str, payload: ObservationUpdate) -> Observation | None:
+        existing = self._by_id.get(observation_id)
+        if existing is None:
+            return None
+        updated = existing.model_copy(update=payload.model_dump(exclude_unset=True))
+        self._by_id[observation_id] = updated
+        return updated
+
 
 class PostgresObservationRepo:
     """Real persistence against Postgres (Neon). See module docstring."""
@@ -83,6 +92,9 @@ class PostgresObservationRepo:
 
     async def list_for_user(self, user_id: str) -> list[Observation]:
         return await asyncio.to_thread(self._list_for_user_sync, user_id)
+
+    async def update(self, observation_id: str, payload: ObservationUpdate) -> Observation | None:
+        return await asyncio.to_thread(self._update_sync, observation_id, payload)
 
     # ---- sync internals, each run off the event loop via to_thread above --
 
@@ -220,6 +232,31 @@ class PostgresObservationRepo:
                 rows = cur.fetchall()
 
         return [self._row_to_observation(row) for row in rows]
+
+    def _update_sync(self, observation_id: str, payload: ObservationUpdate) -> Observation | None:
+        try:
+            obs_uuid = uuid.UUID(observation_id)
+        except ValueError:
+            return None
+
+        # Only the fields actually sent get touched — `exclude_unset` so an
+        # omitted field isn't overwritten with a stray `null`.
+        fields = payload.model_dump(exclude_unset=True)
+        if not fields:
+            return self._get_sync(observation_id)
+
+        set_clause = ", ".join(f"{column} = %s" for column in fields)
+        pool = get_pool()
+        with pool.connection() as conn:
+            with conn.cursor(row_factory=dict_row) as cur:
+                cur.execute(
+                    f"update observations set {set_clause} where id = %s",
+                    (*fields.values(), obs_uuid),
+                )
+                if cur.rowcount == 0:
+                    return None
+
+        return self._get_sync(observation_id)
 
     @staticmethod
     def _row_to_observation(row: dict[str, Any]) -> Observation:

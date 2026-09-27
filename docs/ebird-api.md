@@ -39,11 +39,46 @@ routers/sightings.py  →  services/sightings.py  →  dao/ebird.py  →  api.eb
 
 ## Endpoints in use today
 
-Only one eBird endpoint is actually called right now:
-
 | Endpoint | dao function | Params | Used by |
 |---|---|---|---|
 | `GET /data/obs/geo/recent` | `get_nearby_bird_sightings()` in `dao/ebird.py` | `lat`, `lng`, `dist` (km), `back` (days) | `GET /sightings/nearby` |
+| `GET /ref/taxonomy/ebird` | `get_taxonomy()` | `species` (optional, comma-separated codes; batched — see the function's docstring) | Life List (`region_repo.get_checklist`) |
+| `GET /ref/region/list/{type}/{parentCode}` | `get_region_children()` | — | Life List's region picker |
+| `GET /product/spplist/{regionCode}` | `get_region_spplist()` | — | Life List (region's full checklist) |
+| `GET /data/obs/{regionCode}/recent` | `recent_obs_in_region()` | `back` (days, capped at 30 by eBird) | Life List, to drop currently-flagged escapees from a region checklist (see below) |
+
+### `exoticCategory` — not in the API reference, but documented by Cornell
+
+`GET /data/obs/{regionCode}/recent` (and `/data/obs/geo/recent`) rows can carry
+an `exoticCategory` field. It's absent from the Postman API reference linked
+above, but it *is* defined — by Cornell Lab of Ornithology, eBird's
+publisher, in their help center rather than the API docs — in
+["Exotic and Introduced Species in eBird"](https://support.ebird.org/en/support/solutions/articles/48001218430-exotic-and-introduced-species-in-ebird):
+
+| Value | Meaning (Cornell's definition) |
+|---|---|
+| absent | regular native/countable record |
+| `"N"` | **Naturalized** — self-sustaining wild population, persisting for years, not maintained by ongoing releases. Counts in official eBird totals. |
+| `"P"` | **Provisional** — either an exotic population that's breeding and self-sustaining but not yet Naturalized, or a rarity where natural vagrancy vs. captive origin is genuinely uncertain. Counts in official eBird totals. |
+| `"X"` | **Escapee** — known or suspected escaped/released, not meeting Provisional's bar. Does **not** count in official eBird totals. |
+
+Per that same article, these codes are "assigned and refined by regional
+volunteer reviewers in collaboration with eBird Central based on local
+knowledge, published articles, and birding records committees decisions" —
+i.e. it's a real, curated classification, not an API quirk, though Cornell's
+own article notes the "fine-tuning process of assigning accurate eBird
+Exotic Categories to individual records remains a work-in-progress."
+
+`region_repo._drop_escapees` uses this to filter `"X"` records out of a
+region's Life List checklist — see [Life List](features/life-list.md). There's
+no equivalent field on `/product/spplist/{regionCode}` or
+`/ref/taxonomy/ebird` (checked directly against live responses) — the only
+way to read this classification through the public API is per observation,
+via a "recent observations" call, and eBird itself caps how far back those
+go at 30 days (`back` in the table above). The classification is a durable
+property of the record, not something that expires — but our only read path
+to it does. A species whose only-ever escapee report is older than 30 days
+has no signal to catch it.
 
 ## Endpoints referenced by planned features
 
@@ -52,10 +87,6 @@ have **no `dao/ebird.py` function yet** — don't assume they're implemented:
 
 | Endpoint | Purpose | Planned for |
 |---|---|---|
-| `GET /ref/taxonomy/ebird` | canonical species names / codes | [Bird info](features/bird-info.md), [Life List](features/life-list.md) |
-| `GET /ref/region/list/{type}/{parentCode}` | region picker options | [Life List](features/life-list.md) |
-| `GET /product/spplist/{regionCode}` | species checklist for a region | [Life List](features/life-list.md) |
-| `GET /data/obs/{regionCode}/recent` | recent sightings in a region | [Explore map](features/explore-map.md) |
 | `GET /data/obs/{regionCode}/recent/notable` | notable (rare) sightings in a region | [Explore map](features/explore-map.md) |
 
 When you implement one, add it to `dao/ebird.py`, move its row up into the
