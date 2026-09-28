@@ -20,12 +20,21 @@ async def get_audio(bird: dict) -> dict | None:
     caches) a real Commons recording by scientific name. Returns
     `{audio_url, attribution}`, or `None` if Commons has nothing or the
     request fails — there is no placeholder to fall back to.
+
+    A transient failure (`commons.CommonsUnavailable` — rate limit, network
+    error) is deliberately not cached, so a later call can retry Commons
+    instead of being stuck with a permanent "nothing found" from one bad
+    request — see `bird_photos.py`'s `_cache` for the same reasoning.
     """
     scientific_name = bird["scientific_name"]
     if scientific_name in _cache:
         return _cache[scientific_name]
 
-    result = await commons.search_audio(scientific_name)
+    try:
+        result = await commons.search_audio(scientific_name)
+    except commons.CommonsUnavailable:
+        return None
+
     info = (
         {"audio_url": result["media_url"], "attribution": commons.format_attribution(result)}
         if result

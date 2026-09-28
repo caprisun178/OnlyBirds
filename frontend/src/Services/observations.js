@@ -52,4 +52,20 @@ export const observationService = {
 
     return { observation: created, isNewSpecies: !alreadySeen };
   },
+
+  // Edits an already-logged observation. `fieldNotes` uses the same shape as
+  // `createFromWizard` above (only the keys present get sent — see
+  // `Dao/apiClient.js#patch` / `ObservationUpdate` on the backend, which
+  // only touches fields actually included in the request).
+  async updateObservation(observationId, fieldNotes) {
+    const payload = {};
+    if (fieldNotes.observedAt !== undefined) payload.observed_at = fieldNotes.observedAt;
+    if (fieldNotes.locationName !== undefined) payload.location_name = fieldNotes.locationName || null;
+    if (fieldNotes.notes !== undefined) payload.notes = fieldNotes.notes || null;
+    if (fieldNotes.sex !== undefined) payload.sex = fieldNotes.sex || null;
+    if (fieldNotes.lifeStage !== undefined) payload.life_stage = fieldNotes.lifeStage || null;
+    if (fieldNotes.detectionType !== undefined) payload.detection_type = fieldNotes.detectionType || null;
+    if (fieldNotes.photoUrl !== undefined) payload.photo_url = fieldNotes.photoUrl || null;
+    return observationDAO.update(observationId, payload);
+  },
 };

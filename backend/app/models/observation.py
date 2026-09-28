@@ -61,3 +61,22 @@ class Observation(ObservationBase):
     species: SpeciesRef = Field(default_factory=SpeciesRef)
     source_observation_id: str | None = None
     status: ObservationStatus = "logged"
+
+
+class ObservationUpdate(BaseModel):
+    """Payload for editing an already-logged observation. Every field is
+    optional so a request only touches what the user actually changed —
+    `source`, `species`/`species_id`, and `status` aren't editable here:
+    re-attributing where a sighting came from or which species it is isn't
+    an "edit", it's effectively a different observation.
+    """
+
+    lat: float | None = None
+    lng: float | None = None
+    location_name: str | None = None
+    observed_at: datetime | None = None
+    photo_url: str | None = None
+    notes: str | None = None
+    sex: Sex | None = None
+    life_stage: LifeStage | None = None
+    detection_type: DetectionType | None = None
