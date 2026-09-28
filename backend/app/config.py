@@ -18,12 +18,19 @@ class Settings(BaseSettings):
 
     # CORS — comma-separated in the environment, list in code.
     cors_origins: str = (
-        "http://localhost:3000,http://localhost:5173,http://localhost:5500,"
-        "http://localhost:8081,http://127.0.0.1:5500"
+        "http://localhost:3000,http://localhost:4174,http://localhost:5173,"
+        "http://localhost:5500,http://localhost:8081,http://127.0.0.1:5500"
     )
 
     # Roadmap step 3; unused by the base server.
     database_url: str | None = None
+
+    # Object storage — Supabase Storage bucket for observation photos
+    # (see docs/features/add-observation.md). Photo upload is disabled
+    # (503) until both of these are set.
+    supabase_url: str | None = None
+    supabase_service_role_key: str | None = None
+    supabase_storage_bucket: str = "observation-photos"
 
     @property
     def cors_origin_list(self) -> list[str]:

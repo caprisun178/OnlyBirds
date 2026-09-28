@@ -61,12 +61,14 @@ Endpoint details (auth, base URL, failure behavior) live on the
 | Region picker options (children of a region) | eBird `GET /ref/region/list/{type}/{parentCode}` | **not stored** — read live, small responses |
 | Species checklist for a region (list of eBird species codes) | eBird `GET /product/spplist/{regionCode}` | **cache table `region_checklists`** — changes rarely |
 | Common / scientific names for those codes | eBird `GET /ref/taxonomy/ebird` | `species` table (upsert one row per code) |
-| Which species the user has actually seen | our own data | `life_list_entries` (already exists) |
-| The user's photo + first-seen date per species | our own data | `life_list_entries.observation_id` → `observations` |
+| Which species the user has actually seen | our own data | **not stored separately** — derived live from `observations` (`app/services/life_list.py`), one entry per species, dated to the earliest sighting |
+| The user's photo + first-seen date per species | our own data | that same earliest `observations` row's `photo_url` / `observed_at` |
 
 The completion view is assembled in `Services/lifeList.js` by taking the
-`region_checklists` list and marking each species seen / not-seen using the
-user's `life_list_entries`. eBird is only ever touched to *fill* the cache.
+`region_checklists` list and marking each species seen / not-seen using
+`GET /users/{id}/life-list` (already derives its entries from `observations`
+on every call — no separate "seen" table to keep in sync). eBird is only
+ever touched to *fill* the checklist cache.
 
 ## 3. Database changes (SQL)
 
@@ -74,7 +76,7 @@ One new cache table. See [Database & migrations](database.md#how-to-apply-a-migr
 for how to run this.
 
 ```sql
--- 0002_life_list_region_checklists.sql
+-- 0003_life_list_region_checklists.sql
 
 create table region_checklists (
     region_code    text primary key,        -- eBird regionCode, e.g. 'US-WA' or 'world'
@@ -89,9 +91,10 @@ create table region_checklists (
 | `species_codes` | A Postgres text array of eBird species codes. The frontend joins these to names via the `species` table. |
 | `fetched_at` | When we last pulled this from eBird. If it is older than, say, 30 days, re-fetch and overwrite the row. |
 
-!!! note "No change to `life_list_entries`"
-    The "seen" side of the view already exists in the baseline schema. This
-    feature only adds the "full checklist" side.
+!!! note "No new table for the \"seen\" side"
+    `GET /users/{id}/life-list` already derives every entry live from
+    `observations` — there's no separate table to keep in sync. This feature
+    only adds the "full checklist" side (`region_checklists`).
 
 ## 4. API endpoints
 
@@ -133,7 +136,7 @@ zipping the last two responses together.
 
 ## 6. Build order
 
-1. Write `backend/migrations/0002_life_list_region_checklists.sql` (SQL above) and run it.
+1. Write `backend/migrations/0003_life_list_region_checklists.sql` (SQL above) and run it.
 2. Add `get_region_children()` / `get_region_spplist()` to `app/dao/ebird.py`.
 3. Add `app/dao/region_repo.py` — `get_checklist(region_code)` returns the cached
    row, or fetches from eBird + taxonomy, upserts `species` rows, writes

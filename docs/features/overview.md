@@ -27,7 +27,7 @@ before starting.
 | Feature | Owner | Branch | Status | Notes |
 |---|---|---|---|---|
 | [Life List page](life-list.md) | _unassigned_ | | not started | |
-| [Add Observation](add-observation.md) | _unassigned_ | | not started | |
+| [Add Observation](add-observation.md) | Sarah Parisi | | in progress | |
 | [User profiles](user-profiles.md) | _unassigned_ | | not started | |
 | [Stickers](stickers.md) | _unassigned_ | | not started | |
 | [Pinned birds](pinned-birds.md) | _unassigned_ | | not started | |

@@ -39,11 +39,6 @@ create table if not exists observations (
 create index if not exists observations_user_idx
     on observations (user_id, observed_at desc);
 
-create table if not exists life_list_entries (
-    id                 uuid primary key default gen_random_uuid(),
-    user_id            uuid not null references users(id) on delete cascade,
-    species_id         uuid not null references species(id),
-    first_observed_at  timestamptz not null,
-    observation_id     uuid references observations(id),
-    unique (user_id, species_id)            -- one row per species per user
-);
+-- No life_list_entries table: the life list is just first-sighting-per-
+-- species, derived on the fly from `observations` (see
+-- app/services/life_list.py) — nothing to store separately.

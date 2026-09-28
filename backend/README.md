@@ -64,6 +64,21 @@ Visit `http://localhost:8000/docs`. `/species/search?q=raven` works with no key;
 `/sightings/nearby` returns iNat results with no key and adds eBird results once
 `EBIRD_API_KEY` is set.
 
+## Sample data
+
+Populate a user with sample observations (species, dates, and locations
+pulled from the reference set in `app/data/birds.py`) without clicking
+through the Add Observation wizard by hand:
+
+```powershell
+python scripts/seed_observations.py --user-id u1
+python scripts/seed_observations.py --user-id u1 --count 30 --seed 42   # reproducible
+```
+
+The backend must already be running (`uvicorn app.main:app --reload`).
+Data lives in the in-memory store, so it's gone on the next restart, and
+re-running the script just adds more — there's no delete endpoint yet.
+
 ## Tests
 
 ```powershell
