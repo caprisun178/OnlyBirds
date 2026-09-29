@@ -50,7 +50,7 @@ export function mount(container, props = {}) {
   function render() {
     container.innerHTML = `
       <div class="ob-container ob-stack">
-        <h1>Your profile</h1>
+        <h1>Your profile 🦉</h1>
         ${state.error ? `<div class="ob-alert ob-alert--danger">${escapeHtml(state.error)}</div>` : ''}
         ${state.loading ? renderLoading() : renderLoaded()}
       </div>
@@ -68,13 +68,13 @@ export function mount(container, props = {}) {
 
     return `
       <div class="ob-card ob-stack">
-        <div class="ob-cluster">
-          ${renderAvatar({ username, avatarUrl: avatar_url, size: 'lg' })}
-          <div>
-            <h2 style="margin-bottom:0;">${escapeHtml(username || 'Unnamed birder')}</h2>
-            <p class="ob-text-muted ob-text-sm" style="margin:0;">Default region: ${escapeHtml(default_region)}</p>
-          </div>
-        </div>
+      <div class="ob-cluster" style="align-items:center; --ob-cluster-gap: var(--ob-space-4);">
+  ${renderAvatar({ username, avatarUrl: avatar_url, size: 'lg' })}
+  <div class="ob-stack" style="--ob-stack-gap: var(--ob-space-1);">
+    <h2 style="margin:0;">${escapeHtml(username || 'Unnamed birder')}</h2>
+    <p class="ob-text-muted ob-text-sm" style="margin:0;">Default region: ${escapeHtml(default_region)}</p>
+  </div>
+  </div>
 
         <div class="ob-cluster">
           <span class="ob-tag ob-tag--info">Life list: ${life_list_total}</span>
@@ -82,8 +82,8 @@ export function mount(container, props = {}) {
         </div>
 
         <div>
-          <button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="toggle-picker">
-            Change default region
+          <button type="button" class="ob-btn ob-btn--primary" data-action="toggle-picker">
+         Change default region
           </button>
         </div>
 
