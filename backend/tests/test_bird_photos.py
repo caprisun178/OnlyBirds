@@ -1,6 +1,13 @@
 import asyncio
+import json
 
 from app.dao import bird_photos, commons
+
+# Captured before conftest's autouse fixture monkeypatches _save_cache_file
+# to a no-op for every test (so tests don't spam the real cache file on
+# disk) — the one test below that specifically exercises persistence needs
+# the real implementation back.
+_real_save_cache_file = bird_photos._save_cache_file
 
 BIRD = {
     "code": "blujay",
@@ -107,3 +114,58 @@ def test_transient_commons_failure_falls_back_but_is_not_cached(monkeypatch):
     second = asyncio.run(bird_photos.get_stock_photo("Turdus migratorius", "American Robin"))
     assert second["photo_url"] == "https://upload.wikimedia.org/real-robin.jpg"
     assert calls["n"] == 2  # not cached after the failure, so it retried
+
+
+def test_a_new_lookup_writes_through_to_the_cache_file(monkeypatch, tmp_path):
+    # Regression: the cache used to be in-memory only — a species resolved
+    # once still had to be re-fetched from Commons after every server
+    # restart, which is slow (a real, reported "it took a while to load"
+    # complaint). A genuine cache miss should now also persist to disk.
+    cache_file = tmp_path / "species_photo_cache.json"
+    monkeypatch.setattr(bird_photos, "_CACHE_FILE", cache_file)
+    monkeypatch.setattr(bird_photos, "_cache", {})
+    monkeypatch.setattr(bird_photos, "_save_cache_file", _real_save_cache_file)
+
+    async def fake_search(query):
+        return {"media_url": "https://upload.wikimedia.org/real-robin.jpg", "artist": "Jane Birder"}
+
+    monkeypatch.setattr(commons, "search_photo", fake_search)
+
+    asyncio.run(bird_photos.get_stock_photo("Turdus migratorius", "American Robin"))
+
+    assert cache_file.exists()
+    saved = json.loads(cache_file.read_text(encoding="utf-8"))
+    assert saved["Turdus migratorius"]["media_url"] == "https://upload.wikimedia.org/real-robin.jpg"
+
+
+def test_cache_file_is_loaded_back_on_a_fresh_lookup(monkeypatch, tmp_path):
+    # The other half of the round trip: an entry already on disk should be
+    # served without ever calling Commons again — this is the whole point
+    # (survives a restart, not just repeat calls within one process).
+    cache_file = tmp_path / "species_photo_cache.json"
+    cache_file.write_text(
+        json.dumps({"Turdus migratorius": {"media_url": "https://upload.wikimedia.org/real-robin.jpg"}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(bird_photos, "_CACHE_FILE", cache_file)
+    monkeypatch.setattr(bird_photos, "_cache", bird_photos._load_cache_file())
+
+    async def fail_if_called(query):
+        raise AssertionError("should have been served from the loaded cache, not Commons")
+
+    monkeypatch.setattr(commons, "search_photo", fail_if_called)
+
+    photo = asyncio.run(bird_photos.get_stock_photo("Turdus migratorius", "American Robin"))
+    assert photo["photo_url"] == "https://upload.wikimedia.org/real-robin.jpg"
+
+
+def test_load_cache_file_handles_a_missing_file(tmp_path, monkeypatch):
+    monkeypatch.setattr(bird_photos, "_CACHE_FILE", tmp_path / "does-not-exist.json")
+    assert bird_photos._load_cache_file() == {}
+
+
+def test_load_cache_file_handles_a_corrupt_file(tmp_path, monkeypatch):
+    cache_file = tmp_path / "species_photo_cache.json"
+    cache_file.write_text("not valid json{{{", encoding="utf-8")
+    monkeypatch.setattr(bird_photos, "_CACHE_FILE", cache_file)
+    assert bird_photos._load_cache_file() == {}

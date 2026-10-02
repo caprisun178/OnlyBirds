@@ -10,6 +10,7 @@ Base URL in development: `http://localhost:8000`. Interactive docs (OpenAPI) at
 | `GET` | `/` | name, version, link to `/docs` |
 | `GET` | `/health` | `status`, `version`, `ebird_key_configured` |
 | `GET` | `/species/search?q=` | iNaturalist taxon autocomplete → `SpeciesRef[]` |
+| `POST` | `/species/photos` | body `SpeciesRef[]` (only `scientific_name`/`common_name` used) → `SpeciesPhoto[]`, a guaranteed real-or-placeholder photo per species — backs Explore Map's species-filter suggestions |
 | `GET` | `/sightings/nearby` | normalized eBird + iNaturalist + our own logged observations → `Observation[]` |
 | `GET` | `/users/{user_id}/observations` | that user's observations, newest first |
 | `POST` | `/observations` | log an observation (`ObservationCreate`) → `201` |

@@ -1,20 +1,54 @@
 """Resolves a real photo for a species, backed by Wikimedia Commons
-(`app/dao/commons.py`), with an in-memory cache and a generated placeholder
+(`app/dao/commons.py`), with a disk-backed cache and a generated placeholder
 fallback (`https://placehold.co/...`) for when Commons has nothing — used by
-both the describe & guess flow (`app/data/birds.py`'s canned reference set)
-and Life List (`app/services/life_list.py`, for a seen species the user
-hasn't uploaded their own photo of).
+both the describe & guess flow (`app/data/birds.py`'s canned reference set),
+Life List (`app/services/life_list.py`, for a seen species the user hasn't
+uploaded their own photo of), and Explore Map's species-filter suggestions
+(`app/services/species.py#get_stock_photos`, most of which are eBird
+sightings that never carry their own photo).
 
-This cache is process-lifetime only — a persistent cache table
-(`species_content.media`, see `bird-info.md`) is the real long-term home for
-this once that feature lands.
+The cache used to be process-lifetime only — real, reported effect: the
+first Commons lookup for a given species (one real HTTP round-trip) is
+noticeably slow, and every server restart threw the whole cache away,
+making that slow first-lookup happen again for species that had already
+been resolved. Now persisted to `species_photo_cache.json` alongside this
+file: loaded once at import, and every new entry is written straight back
+out, so a species resolved once stays fast for the lifetime of the repo
+checkout, not just the current process. A full long-term fix is still a
+real cache table (`species_content.media`, see `bird-info.md`) — this is
+the pragmatic version that doesn't need a migration to get most of the
+benefit today.
 """
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from urllib.parse import quote
 
 from app.dao import commons
+
+_CACHE_FILE = Path(__file__).resolve().parent.parent / "data" / "species_photo_cache.json"
+
+
+def _load_cache_file() -> dict[str, dict | None]:
+    try:
+        with _CACHE_FILE.open("r", encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return {}
+
+
+def _save_cache_file() -> None:
+    try:
+        _CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with _CACHE_FILE.open("w", encoding="utf-8") as f:
+            json.dump(_cache, f, indent=2, sort_keys=True)
+    except OSError as exc:
+        # Best-effort — an unwritable cache file shouldn't break photo
+        # lookups — but silent-forever was hard to debug, so log it.
+        print(f"bird_photos: could not write cache file {_CACHE_FILE}: {exc}", flush=True)
+
 
 # scientific_name -> raw Commons search result, or None if Commons
 # genuinely had nothing for it (cached too, so a species with no photo
@@ -28,7 +62,7 @@ from app.dao import commons
 # moment denies a species a real photo for the rest of the process's
 # uptime — so a transient failure just falls back to the placeholder for
 # *this* call, leaving the next lookup free to try Commons again.
-_cache: dict[str, dict | None] = {}
+_cache: dict[str, dict | None] = _load_cache_file()
 
 # One neutral color for the generated fallback — `app/data/birds.py` groups
 # its own placeholders by "looks like this" category for its describe/guess
@@ -49,6 +83,7 @@ async def _lookup(scientific_name: str) -> dict | None:
     except commons.CommonsUnavailable:
         return None  # transient — not cached, so a later call can retry
     _cache[scientific_name] = result
+    _save_cache_file()
     return result
 
 

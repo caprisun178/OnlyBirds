@@ -85,6 +85,38 @@ multi-session project once it's time to build it for real.
   focus) because *that* screen doesn't have a live map to avoid disturbing.
   Deliberately not reset by a location/radius/source/days change — "find
   this bird" reads as a standing intent while panning around, not a one-off.
+  Typing shows an autocomplete dropdown (`ExploreMap.js#speciesSuggestions()`)
+  of up to 8 distinct species from the already-fetched sightings matching the
+  text, each row showing a photo and the name, image-left/name-right.
+  Clicking one fills the input with that exact common name and applies it as
+  the filter, same as typing it by hand. The dropdown only shows while the
+  input is focused (`state.speciesFilterFocused`) — a suggestion's click
+  handler is wired on `mousedown` with `preventDefault()`, not `click`, the
+  standard autocomplete-dropdown trick: `mousedown` fires *before* the
+  input's own `blur`, so without it the dropdown would already be hidden
+  (blur having fired first) by the time a `click` handler ran. Positioned
+  with `var(--ob-z-modal)`, not `--ob-z-dropdown` — same reasoning as the
+  photo lightbox (see the CSS stacking-context note in this doc's history):
+  Leaflet's own panes/controls reach z-index 1000, and this dropdown can
+  extend down far enough to overlap the map.
+
+  **Photo fallback**: a sighting's own photo (`s.photo_url`) is used when
+  present, but most sightings don't have one — eBird never provides a
+  per-sighting photo at all, so most suggestion rows would otherwise show a
+  bare fallback icon instead of an actual bird photo. `POST /species/photos`
+  (`app/routers/species.py`, `app/services/species.py#get_stock_photos()`)
+  returns a guaranteed real-or-placeholder photo per species, reusing the
+  exact same `bird_photos.get_stock_photo()` Life List already uses so a
+  seen species is never blank there either. Fetched lazily
+  (`ExploreMap.js#loadMissingStockPhotos()`) — only for whichever
+  suggestions are actually showing right now and don't already have a
+  photo, not every species ever seen — and cached client-side
+  (`stockPhotoCache`, keyed by scientific name) for the rest of the mount's
+  lifetime, so narrowing or widening the query never re-fetches one already
+  resolved. `pendingPhotoKeys` dedupes in-flight requests so fast typing
+  can't fire the same species' lookup twice before the first one returns.
+  Progressive, not blocking: suggestions render immediately with the
+  fallback icon, then re-render in place once each photo arrives.
   A **km/mi** unit select sits next to the radius dropdown
   (`ExploreMap.js#setDistanceUnit()`). Each unit has its own clean, native
   radius set (`RADIUS_OPTIONS_BY_UNIT`: 10/25/50/100 km, or the standard
@@ -135,14 +167,61 @@ multi-session project once it's time to build it for real.
     Switching the radius (e.g. 25mi → 5mi, or the reverse) wasn't visibly
     zooming the map at all, even though `fitSearchArea` was correctly firing.
     Cause: every `render()` here fully rebuilds the map's container div from
-    scratch, and `fitBounds()` computes the zoom it needs from Leaflet's
-    cached container size — called immediately after `L.map(container)` on a
-    just-inserted container, that cache can still be stale/zero, so it
-    silently computed the wrong zoom (or none) instead of actually fitting
-    the circle. `map.invalidateSize()` right before `fitBounds()` forces a
-    fresh measurement first. `focusArea()` (the "top spots" click-to-zoom)
-    never needed this — it only ever runs well after mount, on a later
-    click, once the container's size has already settled.
+    scratch, and zoom-for-bounds math reads Leaflet's cached container size —
+    called immediately after `L.map(container)` on a just-inserted container,
+    that cache can still be stale/zero, so it silently computed the wrong
+    zoom (or none) instead of actually fitting the circle.
+    `map.invalidateSize()` right before that calculation forces a fresh
+    measurement first. `focusArea()` (the "top spots" click-to-zoom) never
+    needed this — it only ever runs well after mount, on a later click, once
+    the container's size has already settled.
+
+!!! note "fitBounds() alone still looked barely zoomed in — two more real rounds"
+    Once the sizing bug above was fixed, a live screenshot showed the
+    search-area circle genuinely being fit — just fit *small*, occupying a
+    sliver of a very wide map. Cause: this screen's map container is a fixed
+    480px tall but often 1000px+ wide, and `fitBounds()` ("contain" framing)
+    guarantees the *entire* circle stays visible on both axes — for a
+    roughly circular area in a wide-but-short box, that guarantee is
+    bottlenecked by the short height, so most of the width goes unused as
+    empty map. The zoom level was technically correct; it just didn't look
+    "zoomed in" the way a user expects "zoom to fit my search area" to feel.
+
+    First attempt: compute the strict-containment zoom via
+    `map.getBoundsZoom()` (the same calculation `fitBounds()` uses
+    internally) and nudge a couple of levels past it. Still not tight
+    enough on an actual wide screen — a *fixed* offset from contain-zoom
+    doesn't scale with how much wider the screen actually is. Replaced with
+    true "cover" framing: fill the frame on whichever axis is tighter
+    (`SightingsMap.js#mountSightingsMap()`'s `fitSearchArea` block) using
+    the same Web Mercator meters-per-pixel formula Leaflet uses internally
+    (`156543.03392 * cos(lat) / 2^zoom`) — Leaflet has no public "cover"
+    equivalent of `getBoundsZoom()` to call directly, so this computes it
+    by hand per-axis from `map.getSize()` and takes whichever axis needs
+    more zoom (almost always width, on this layout), capped at 17. This
+    actually scales with the real container size (confirmed: ~z14 on a
+    ~2400px-wide screen for a 5mi circle, vs. the fixed-offset attempt's
+    ~z13 regardless of how wide the screen got). A pin sitting right at the
+    circle's top or bottom edge can now end up just outside the visible
+    map; that's an accepted tradeoff, not an oversight.
+
+!!! note "...and after all that, still no visible change — the actual root cause"
+    None of the zoom math above was the real problem. `setLocation()` /
+    `applyFilters()` / `setDistanceUnit()` each call `render()` once
+    (triggering `wireMap()`, which reads the `locationJustChanged`/
+    `radiusJustChanged` flag) and then `loadSightings()` — which calls
+    `render()` at least once more itself, for its own loading spinner. Each
+    of those is a *separate* map remount racing on `mapGeneration`; only the
+    last one actually survives on screen (an earlier one notices it's stale
+    once its mount promise resolves, and self-destructs). The flag used to
+    get cleared inside `wireMap()` itself, on the *first* of those
+    back-to-back calls — so the surviving *last* remount never saw it true,
+    and silently fell back to the plain fixed `LOCATED_ZOOM`, undoing all
+    the zoom-math work above. Fixed by moving the reset out of `wireMap()`
+    (which now only reads the flags) and into `loadSightings()`'s `finally`
+    block, after its own last `render()` has already run — so the flag
+    stays true across every remount in one logical action and is only
+    cleared once that action's data load is fully done.
   Basemap is Esri's "Light Gray Canvas" tile set
   (`leaflet.js#addBaseTileLayer()`) instead of standard OpenStreetMap street
   tiles — a plain gray reference map with a transparent label overlay for

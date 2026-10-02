@@ -30,6 +30,7 @@
 import { sightingsService } from '../Services/sightings.js';
 import { geocodingService } from '../Services/geocoding.js';
 import { lifeListService } from '../Services/lifeList.js';
+import { speciesService } from '../Services/species.js';
 import { mountSightingsMap } from '../Components/SightingsMap.js';
 import { renderSightingDetail } from '../Components/SightingDetail.js';
 import { escapeHtml } from '../Components/htmlUtils.js';
@@ -55,6 +56,7 @@ const MI_TO_KM = 1 / KM_TO_MI;
 const TOP_AREAS_SHOWN = 5;
 const SEARCH_DEBOUNCE_MS = 350;
 const MIN_SEARCH_LENGTH = 3; // matches geocodingService's own no-op threshold (Services/geocoding.js)
+const SPECIES_SUGGESTIONS_SHOWN = 8;
 
 export function mount(container, props = {}) {
   // onNavigate optional — omitted when this screen is previewed standalone.
@@ -76,6 +78,7 @@ export function mount(container, props = {}) {
     error: null,
 
     speciesQuery: '', // free-text species-name filter, client-side over `sightings` — not reset on location/filter changes, since "find this bird" is a persistent intent while panning around
+    speciesFilterFocused: false, // gates the suggestions dropdown's visibility — suppressed once the input loses focus, not just once the query is cleared
     mineOnly: false, // narrows to the logged-in user's own sightings (user_id match) — distinct from source: 'manual', which is every OnlyBirds user's logged sightings, not just this one
 
     searchQuery: '',
@@ -111,6 +114,8 @@ export function mount(container, props = {}) {
   let radiusJustChanged = false; // true for the one render right after a radius filter change — the search-area circle's size changed, so re-fit to it instead of preserving pan/zoom
   let searchDebounceTimer = null;
   let searchRequestId = 0;
+  let stockPhotoCache = new Map(); // scientific_name -> photo_url, persists for this mount's lifetime
+  let pendingPhotoKeys = new Set(); // scientific names currently being fetched — avoids duplicate overlapping requests
 
   render();
   attemptSilentGeolocation();
@@ -194,6 +199,11 @@ export function mount(container, props = {}) {
     } finally {
       state.loading = false;
       render();
+      // Only clear these once this load cycle's *last* render() has fired
+      // (and so wireMap() has read them) — see wireMap()'s comment for why
+      // they can't just be reset inside wireMap() itself.
+      locationJustChanged = false;
+      radiusJustChanged = false;
     }
   }
 
@@ -216,6 +226,61 @@ export function mount(container, props = {}) {
     return sighting.user_id === userId;
   }
 
+  // Distinct species (by scientific name, falling back to common name)
+  // among `state.sightings` matching the typed text — feeds the species
+  // filter's autocomplete dropdown. Each entry carries a representative
+  // photo: the first matching sighting's own photo if it has one, else a
+  // guaranteed real-or-placeholder stock photo from `stockPhotoCache`
+  // (filled in by loadMissingStockPhotos() below) if one's already been
+  // fetched — most eBird sightings carry neither, so without this most
+  // rows would otherwise show no photo at all. Purely client-side over
+  // what's already fetched, same as filteredSightings() itself.
+  function speciesSuggestions(query) {
+    const trimmed = query.trim().toLowerCase();
+    if (!trimmed) return [];
+    const matches = new Map();
+    for (const s of state.sightings) {
+      const common = s.species?.common_name || '';
+      const sci = s.species?.scientific_name || '';
+      if (!common.toLowerCase().includes(trimmed) && !sci.toLowerCase().includes(trimmed)) continue;
+      const key = sci || common;
+      if (!key || matches.has(key)) continue;
+      const photoUrl = s.photo_url || (sci ? stockPhotoCache.get(sci) : null) || null;
+      matches.set(key, { commonName: common || 'Unknown species', scientificName: sci, photoUrl });
+    }
+    return [...matches.values()].slice(0, SPECIES_SUGGESTIONS_SHOWN);
+  }
+
+  // Fetches a stock photo for whichever currently-shown suggestions don't
+  // have one yet — lazy (only the handful actually visible right now, not
+  // every species ever seen) and deduped against `pendingPhotoKeys` so fast
+  // typing can't fire overlapping requests for the same species twice.
+  // Results land in `stockPhotoCache`, which persists for the rest of this
+  // mount, so narrowing/widening the query never re-fetches one already
+  // resolved.
+  async function loadMissingStockPhotos(suggestions) {
+    const missing = suggestions.filter(
+      (sp) => !sp.photoUrl && sp.scientificName && !pendingPhotoKeys.has(sp.scientificName),
+    );
+    if (missing.length === 0) return;
+    missing.forEach((sp) => pendingPhotoKeys.add(sp.scientificName));
+    try {
+      const photos = await speciesService.getStockPhotos(
+        missing.map((sp) => ({ scientificName: sp.scientificName, commonName: sp.commonName })),
+      );
+      photos.forEach((url, sci) => stockPhotoCache.set(sci, url));
+    } catch (err) {
+      // Non-critical — the dropdown just keeps showing the fallback icon
+      // for these, nothing to surface as a page-level error over — but log
+      // it so a real failure (vs. "nothing to fetch") is still visible
+      // somewhere instead of silently vanishing.
+      console.error('Could not load species photos:', err);
+    } finally {
+      missing.forEach((sp) => pendingPhotoKeys.delete(sp.scientificName));
+      updateSpeciesSuggestionsDom();
+    }
+  }
+
   // Typing a species name only ever changes which of the already-fetched
   // pins are shown — no new fetch, so this skips render() entirely and just
   // tells the live map to swap its markers (SightingsMap#setSightings()
@@ -228,6 +293,18 @@ export function mount(container, props = {}) {
     mapController?.setSightings(filteredSightings());
     updateStatusLineDom();
     updateRegionSummaryDom();
+    updateSpeciesSuggestionsDom();
+  }
+
+  // Picking a suggestion sets the input to that species' exact common name
+  // and applies it as the filter — same path as typing it out by hand,
+  // just faster. Closes the dropdown afterward (there's nothing left to
+  // suggest once the query matches exactly one species anyway).
+  function selectSpeciesSuggestion(suggestion) {
+    const input = container.querySelector('#species-filter');
+    if (input) input.value = suggestion.commonName;
+    state.speciesFilterFocused = false;
+    applySpeciesFilter(suggestion.commonName);
   }
 
   // Same "targeted update, skip render()" reasoning as applySpeciesFilter() —
@@ -470,6 +547,7 @@ export function mount(container, props = {}) {
     }
     wire();
     wireSearchSuggestions();
+    wireSpeciesSuggestions();
     wireMap();
     wireDetailPanel();
     wireRegionSummary();
@@ -530,20 +608,79 @@ export function mount(container, props = {}) {
     });
   }
 
+  // Image-left/name-right autocomplete rows, shown only while the input is
+  // focused and has a non-empty query with matches — a stray render() while
+  // typing elsewhere (e.g. the map's own loading state) shouldn't leave this
+  // dropdown lingering open.
+  function renderSpeciesSuggestions() {
+    if (!state.speciesFilterFocused) return '';
+    const suggestions = speciesSuggestions(state.speciesQuery);
+    if (suggestions.length === 0) return '';
+    return `
+      <div
+        data-role="species-suggestions-list"
+        class="ob-card ob-card--flat"
+        style="position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; z-index: var(--ob-z-modal); max-height: 280px; overflow-y: auto; padding: var(--ob-space-1); background: var(--ob-color-surface); box-shadow: var(--ob-shadow-md);"
+      >
+        ${suggestions.map((sp, i) => `
+          <button
+            type="button"
+            class="ob-btn ob-btn--ghost"
+            data-species-suggestion="${i}"
+            style="width: 100%; justify-content: flex-start; gap: var(--ob-space-2); padding: var(--ob-space-1) var(--ob-space-2);"
+          >
+            ${sp.photoUrl
+              ? `<img src="${escapeHtml(sp.photoUrl)}" alt="" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`
+              : `<span style="display: inline-flex; width: 32px; height: 32px; border-radius: 50%; background: var(--ob-color-surface-alt); align-items: center; justify-content: center; flex-shrink: 0;">🐦</span>`}
+            <span style="text-align: left;">
+              <div class="ob-text-sm">${escapeHtml(sp.commonName)}</div>
+              ${sp.scientificName ? `<div class="ob-text-muted" style="font-style: italic; font-size: 0.85em;">${escapeHtml(sp.scientificName)}</div>` : ''}
+            </span>
+          </button>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  function updateSpeciesSuggestionsDom() {
+    const el = container.querySelector('[data-role="species-suggestions"]');
+    if (el) el.innerHTML = renderSpeciesSuggestions();
+    wireSpeciesSuggestions();
+    if (state.speciesFilterFocused) loadMissingStockPhotos(speciesSuggestions(state.speciesQuery));
+  }
+
+  function wireSpeciesSuggestions() {
+    container.querySelectorAll('[data-species-suggestion]').forEach((btn) => {
+      // mousedown (not click) fires before the input's blur event, so the
+      // suggestion is still in the DOM (not already hidden by blur) when
+      // this runs — the usual autocomplete-dropdown ordering gotcha.
+      btn.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const suggestions = speciesSuggestions(state.speciesQuery);
+        const suggestion = suggestions[Number(btn.dataset.speciesSuggestion)];
+        if (suggestion) selectSpeciesSuggestion(suggestion);
+      });
+    });
+  }
+
   function renderFilters() {
     return `
       <div class="ob-cluster" style="align-items:center; gap: var(--ob-space-3);">
         <div class="ob-field" style="flex-direction:row; align-items:center; gap: var(--ob-space-2);">
           <label class="ob-label" for="species-filter">Bird</label>
-          <input
-            id="species-filter"
-            type="search"
-            class="ob-input"
-            style="width:auto;"
-            placeholder="Filter by species…"
-            value="${escapeHtml(state.speciesQuery)}"
-            ${state.lat == null ? 'disabled' : ''}
-          />
+          <div style="position: relative; width: 280px;">
+            <input
+              id="species-filter"
+              type="search"
+              class="ob-input"
+              style="width: 100%;"
+              autocomplete="off"
+              placeholder="Filter by species…"
+              value="${escapeHtml(state.speciesQuery)}"
+              ${state.lat == null ? 'disabled' : ''}
+            />
+            <div data-role="species-suggestions">${renderSpeciesSuggestions()}</div>
+          </div>
         </div>
         <div class="ob-field" style="flex-direction:row; align-items:center; gap: var(--ob-space-2);">
           <label class="ob-label" for="days-back-filter">Since</label>
@@ -781,6 +918,17 @@ export function mount(container, props = {}) {
     // place-search input below.
     const speciesInput = container.querySelector('#species-filter');
     speciesInput?.addEventListener('input', () => applySpeciesFilter(speciesInput.value));
+    speciesInput?.addEventListener('focus', () => {
+      state.speciesFilterFocused = true;
+      updateSpeciesSuggestionsDom();
+    });
+    speciesInput?.addEventListener('blur', () => {
+      state.speciesFilterFocused = false;
+      updateSpeciesSuggestionsDom();
+    });
+    speciesInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') speciesInput.blur(); // triggers the blur listener above, closing the dropdown
+    });
 
     // Live suggestions as you type (debounced — see scheduleSearch());
     // Enter bypasses the debounce and searches immediately, for anyone who
@@ -822,14 +970,25 @@ export function mount(container, props = {}) {
   // mount, right after picking a new search result, or right after a radius
   // change — both of those re-fit to the search-area circle instead, since
   // the old pan/zoom would otherwise show the wrong boundary).
+  //
+  // `locationJustChanged`/`radiusJustChanged` are deliberately NOT reset
+  // here, even though they're read here — setLocation()/applyFilters()/
+  // setDistanceUnit() each call render() once (triggering this) and then
+  // loadSightings() (which calls render() at least once more itself, for
+  // its own loading spinner). Each of those is a *separate* remount, racing
+  // on `mapGeneration` — only the last one actually survives on screen (an
+  // earlier one notices it's stale once its mount promise resolves and
+  // self-destructs). Clearing the flag in here, on the first of those
+  // calls, meant the surviving *last* remount never saw it and silently
+  // fell back to the plain fixed zoom — a real "I changed the radius and
+  // the map didn't zoom at all" report. loadSightings()'s `finally` block
+  // clears both flags instead, once its own last render() has already run.
   function wireMap() {
     const mapEl = container.querySelector('[data-role="sightings-map"]');
     if (!mapEl) return;
 
     const generation = ++mapGeneration;
     const jumpToSearchArea = locationJustChanged || radiusJustChanged;
-    locationJustChanged = false;
-    radiusJustChanged = false;
     const priorView = jumpToSearchArea ? null : mapController?.getView?.();
     mapController?.destroy();
     mapController = null;

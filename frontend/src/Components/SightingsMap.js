@@ -117,16 +117,45 @@ export async function mountSightingsMap(container, { initialLatLng, onSelectSigh
       // The container was just inserted into the DOM this render (every
       // render() here fully rebuilds the map's container), so Leaflet's
       // internal size cache can still be stale/zero at this exact point —
-      // fitBounds() computes the zoom needed from that cached size, so
-      // calling it before a fresh measurement silently computes the wrong
-      // zoom (or none at all) instead of actually zooming to fit the
-      // circle. invalidateSize() forces a real measurement first. (This is
-      // also why switching from 25mi to 5mi — or the reverse — wasn't
-      // visibly zooming: a real reported bug.) focusArea() below doesn't
-      // need this — it only ever runs well after mount, on a later click,
-      // once the container's size is already settled.
+      // zoom-for-bounds math reads that cached size, so computing it before
+      // a fresh measurement silently gets the wrong answer (or none at
+      // all) instead of actually zooming to fit the circle.
+      // invalidateSize() forces a real measurement first. focusArea()
+      // below doesn't need this — it only ever runs well after mount, on a
+      // later click, once the container's size is already settled.
       map.invalidateSize();
-      map.fitBounds(circle.getBounds(), { padding: [16, 16] });
+
+      // Plain fitBounds()/getBoundsZoom() ("contain" framing) guarantees
+      // the whole circle stays visible on *both* axes — on a wide-but-short
+      // map container (common: this screen's map is a fixed 480px tall but
+      // often 1000px+ wide), that guarantee is bottlenecked by the short
+      // height, leaving most of the width as empty unused map. A first fix
+      // nudged a couple of zoom levels past strict containment, but that
+      // still wasn't tight enough (confirmed live: a real "still not
+      // zoomed in enough" report after trying it). This computes true
+      // "cover" framing instead — fill the frame on whichever axis is
+      // tighter (here, almost always width), letting the other axis crop —
+      // using the same Web Mercator meters-per-pixel formula Leaflet
+      // itself uses internally (`156543.03392 * cos(lat) / 2^zoom`), since
+      // Leaflet has no public "cover" equivalent of getBoundsZoom() to
+      // call directly. A pin right at the circle's top/bottom edge can now
+      // land just outside the visible map — an accepted tradeoff for
+      // "fill the frame" over "guarantee every pin is always on-screen."
+      const size = map.getSize();
+      const diameterMeters = searchArea.radiusKm * 1000 * 2;
+      const metersPerPixelAtZ0 = 156543.03392 * Math.cos((searchArea.lat * Math.PI) / 180);
+      const zoomToFillSpan = (spanPx) => Math.log2((metersPerPixelAtZ0 * spanPx) / diameterMeters);
+      const padding = 16;
+      const coverZoom = Math.max(
+        zoomToFillSpan(Math.max(size.x - padding * 2, 50)),
+        zoomToFillSpan(Math.max(size.y - padding * 2, 50)),
+      );
+      // Pure "fill the frame" cover framing read as a bit too tight once
+      // actually tried live — backed off one level from the strict cover
+      // calculation as a deliberate, easy-to-retune breathing-room margin.
+      const COVER_ZOOM_BACKOFF = 1;
+      const zoom = Math.floor(coverZoom) - COVER_ZOOM_BACKOFF;
+      map.setView([searchArea.lat, searchArea.lng], Math.min(Math.max(zoom, 2), 17));
     }
   }
 
