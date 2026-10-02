@@ -12,7 +12,7 @@ sources, the API, the SQL, and the code layout.
 | [Stickers](stickers.md) | Planned | after Add Observation |
 | [Pinned birds](pinned-birds.md) | Planned | after Add Observation + profiles |
 | [Bird information page](bird-info.md) | Planned | any time (independent) |
-| [Explore map](explore-map.md) | Planned | after Add Observation (needs `observations.geom`) |
+| [Explore map](explore-map.md) | Partial — MVP live (point+radius, no clustering/cache); full spec needs `observations.geom` | after baseline for the MVP; after Add Observation for the rest |
 
 Nothing here is fully built yet. *Partial* means some API already exists.
 
@@ -32,7 +32,7 @@ before starting.
 | [Stickers](stickers.md) | _unassigned_ | | not started | |
 | [Pinned birds](pinned-birds.md) | _unassigned_ | | not started | |
 | [Bird information page](bird-info.md) | _unassigned_ | | not started | |
-| [Explore map](explore-map.md) | _unassigned_ | | not started | |
+| [Explore map](explore-map.md) | Sarah Parisi | | in progress (MVP done, full spec not started) | |
 
 *Status* is one of: `not started` · `in progress` · `in review` · `done`.
 

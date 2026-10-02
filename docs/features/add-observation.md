@@ -152,15 +152,18 @@ optional photo, and free-text notes. Submitting this calls
 `POST /observations`, which the frontend also uses to check the user's
 existing life list first, so it can tell them whether this is a new species.
 
-**Location** works like iNaturalist's: type an address or place name and hit
-Search (`GET /geocode/search`, proxying OpenStreetMap's Nominatim) to
-navigate the map there, then click anywhere on the map to drop a pin for
-exactly where the sighting happened — that pin's coordinates become
-`observations.lat`/`lng`. Dropping a pin without an address search first (a
-plain map click) reverse-geocodes it (`GET /geocode/reverse`) to fill in a
-readable label automatically; either way, the label stays in a plain text
-field the user can edit or overwrite. If geolocation permission is granted,
-the map opens centered on the user's current location instead of a
+**Location** works like iNaturalist's: type an address or place name and
+suggestions appear live as you type (`GET /geocode/search`, proxying
+OpenStreetMap's Nominatim — debounced 350ms, same pattern and reasoning as
+Explore Map's place search, see that page; Enter searches immediately,
+bypassing the debounce), pick one to navigate the map there, then click
+anywhere on the map to drop a pin for exactly where the sighting happened —
+that pin's coordinates become `observations.lat`/`lng`. Dropping a pin
+without an address search first (a plain map click) reverse-geocodes it
+(`GET /geocode/reverse`) to fill in a readable label automatically; either
+way, the label stays in a plain text field the user can edit or overwrite.
+If geolocation permission is granted, the map opens centered on the user's
+current location instead of a
 country-wide default view.
 
 !!! note "The map is a real Leaflet instance, not re-rendered markup"
@@ -225,10 +228,16 @@ anything currently pauses mid-wizard.
 
 The identification logic itself is ours. External calls on this screen: the
 Wikimedia Commons photo lookup above, OpenStreetMap Nominatim for address
-search/reverse-geocode, OpenStreetMap tile servers (loaded directly by the
-browser via Leaflet — not proxied), Supabase Storage for the field-notes
-photo, and (not wired up yet) deriving an eBird region code for the dropped
-pin.
+search/reverse-geocode, Esri's "Light Gray Canvas" tile servers — a plain,
+minimal basemap, much less cluttered than standard OSM street tiles; see
+`Components/leaflet.js#addBaseTileLayer()`, shared with Explore Map so both
+maps use the same basemap. (Used to be CARTO's Positron tiles here, until
+CARTO started requiring a free API key for anonymous tile requests in
+September 2026 — Esri's equivalent needs no key/account, which matters more
+given this is a no-build-step static frontend with nowhere to keep a key out
+of the public JS anyway.) Loaded directly by the browser via Leaflet, not
+proxied. Also: Supabase Storage for the field-notes photo, and (not wired up
+yet) deriving an eBird region code for the dropped pin.
 
 ## 3. Database changes (SQL)
 

@@ -28,6 +28,9 @@ const STEP = {
   DONE: 'done',
 };
 
+const SEARCH_DEBOUNCE_MS = 350;
+const MIN_SEARCH_LENGTH = 3; // matches geocodingService's own no-op threshold (Services/geocoding.js)
+
 export function mount(container, props = {}) {
   const userId = props.userId || getCurrentUser().id;
   const { onNavigate } = props; // optional — omitted when this screen is previewed standalone
@@ -80,7 +83,7 @@ export function mount(container, props = {}) {
 
   function render() {
     container.innerHTML = `
-      <div class="ob-stack">
+      <div class="ob-container ob-stack">
         ${onNavigate ? '<button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="back-to-home" style="align-self:flex-start;">← Back to home</button>' : ''}
         <h1>Add an observation</h1>
         ${renderStepper()}
@@ -397,15 +400,12 @@ export function mount(container, props = {}) {
 
         <div class="ob-field">
           <label class="ob-label" for="address-search">Location</label>
-          <div class="ob-cluster">
-            <input id="address-search" class="ob-input" style="flex:1" placeholder="Search for an address or place" />
-            <button type="button" class="ob-btn ob-btn--ghost" data-action="search-address">Search</button>
-          </div>
+          <input id="address-search" class="ob-input" autocomplete="off" placeholder="Search for an address or place" />
           <div data-role="address-results" class="ob-stack" style="--ob-stack-gap: var(--ob-space-1);"></div>
           <div data-role="location-map" style="height: 320px; border-radius: var(--ob-radius-md); overflow: hidden;"></div>
           <p class="ob-hint" data-role="pin-status">${renderPinStatusText(fn)}</p>
           <input id="location-name" class="ob-input" placeholder='Label for this sighting, e.g. "Discovery Park, Seattle"' value="${escapeHtml(fn.locationName)}" />
-          <p class="ob-hint">Map and address search data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.</p>
+          <p class="ob-hint">Map tiles &copy; <a href="https://www.esri.com" target="_blank" rel="noopener">Esri</a>. Address search data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.</p>
         </div>
 
         <div class="ob-grid" style="--ob-grid-min: 220px;">
@@ -505,18 +505,30 @@ export function mount(container, props = {}) {
 
     const searchInput = form.querySelector('#address-search');
     const resultsEl = form.querySelector('[data-role="address-results"]');
+    // Debounced live suggestions as you type (same reasoning/pattern as
+    // Explore Map's place search — ExploreMap.js#scheduleSearch()); Enter
+    // bypasses the debounce. `searchRequestId` guards against an earlier,
+    // slower response clobbering a newer one if they resolve out of order.
+    let searchDebounceTimer = null;
+    let searchRequestId = 0;
 
     async function runAddressSearch() {
       const query = searchInput.value.trim();
-      if (!query) return;
-      resultsEl.innerHTML = '<p class="ob-text-muted ob-text-sm">Searching…</p>';
+      if (!query) {
+        resultsEl.innerHTML = '';
+        return;
+      }
+      const requestId = (searchRequestId += 1);
+      resultsEl.innerHTML = '<p class="ob-text-muted ob-text-sm"><span class="ob-spinner" style="width:1em;height:1em;vertical-align:middle;margin-right:6px;"></span>Searching…</p>';
       let results;
       try {
         results = await geocodingService.search(query);
       } catch (err) {
+        if (requestId !== searchRequestId) return;
         resultsEl.innerHTML = '<p class="ob-text-muted ob-text-sm">Search failed. Try again in a moment.</p>';
         return;
       }
+      if (requestId !== searchRequestId) return; // a newer search started since this one began
       if (results.length === 0) {
         resultsEl.innerHTML = '<p class="ob-text-muted ob-text-sm">No matches — try a different search, or just click the map.</p>';
         return;
@@ -535,10 +547,19 @@ export function mount(container, props = {}) {
       });
     }
 
-    form.querySelector('[data-action="search-address"]').addEventListener('click', runAddressSearch);
+    searchInput.addEventListener('input', () => {
+      clearTimeout(searchDebounceTimer);
+      if (searchInput.value.trim().length < MIN_SEARCH_LENGTH) {
+        searchRequestId += 1; // invalidate any in-flight fetch's result
+        resultsEl.innerHTML = '';
+        return;
+      }
+      searchDebounceTimer = setTimeout(runAddressSearch, SEARCH_DEBOUNCE_MS);
+    });
     searchInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
+        clearTimeout(searchDebounceTimer);
         runAddressSearch();
       }
     });

@@ -1,4 +1,5 @@
-"""Nearby sightings — normalized feed from eBird + iNaturalist (roadmap step 2)."""
+"""Nearby sightings — normalized feed from eBird, iNaturalist, and our own
+logged observations (roadmap step 2)."""
 
 import httpx
 from fastapi import APIRouter, HTTPException, Query
@@ -15,7 +16,9 @@ async def nearby_sightings(
     lng: float = Query(ge=-180, le=180),
     radius_km: int = Query(default=25, ge=1, le=200),
     days_back: int = Query(default=7, ge=1, le=30),
-    source: str = Query(default="all", pattern="^(all|ebird|inat)$"),
+    # "manual" matches `Source.manual` — our own logged observations, as
+    # opposed to the two external APIs.
+    source: str = Query(default="all", pattern="^(all|ebird|inat|manual)$"),
 ):
     try:
         return await sightings_service.nearby(
@@ -25,6 +28,7 @@ async def nearby_sightings(
             days_back=days_back,
             include_ebird=source in ("all", "ebird"),
             include_inat=source in ("all", "inat"),
+            include_own=source in ("all", "manual"),
         )
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail=f"Upstream API error: {exc}") from exc

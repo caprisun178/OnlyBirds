@@ -5,12 +5,17 @@
 No framework, no build step — a Presenter is a plain JS module the browser
 loads directly. There's still no real router, but `frontend/src/preview.js`
 is no longer a single-screen scratch file you edit and revert — it's a small
-permanent route switcher. It mounts `Home` by default, and its `SCREENS` map
-tells it which route (`data-route` on a `Home` card, or any `onNavigate(route)`
-call) leads to which Presenter's `mount`. `onNavigate` takes an optional
-second argument — a plain object spread onto the target screen's props — for
-passing state across the navigation (e.g. Life List passing the species a
-"seen" card was clicked for to Observation Log):
+permanent route switcher. It mounts `Home` by default, and `Home` itself
+mounts `ExploreMap` directly below its own header (`embedded: true` — see
+`Presenters/Home.js`), so there's still no separate landing page to click
+through: the map is right there on first load, just inside Home rather than
+behind a route change. `ExploreMap` is also its own standalone route for
+direct access. `SCREENS` tells `preview.js` which route (`data-route` on a
+`Home` button, or any `onNavigate(route)` call) leads to which Presenter's
+`mount`. `onNavigate` takes an optional second argument — a plain object
+spread onto the target screen's props — for passing state across the
+navigation (e.g. Life List passing the species a "seen" card was clicked for
+to Observation Log):
 
 ```js
 // frontend/src/preview.js
@@ -29,8 +34,9 @@ cd frontend
 python -m http.server 4174
 ```
 
-Open <http://localhost:4174/src/preview.html>. You'll land on Home; anything
-wired into `SCREENS` is click-through navigable from there.
+Open <http://localhost:4174/src/preview.html>. You'll land on Home — header
+plus the map right below it — and anything wired into `SCREENS` is
+click-through navigable from there.
 
 **Building a screen that isn't wired in yet?** Don't add it to `SCREENS` just
 to look at it — that couples every screen's happy path together before it's
@@ -81,7 +87,7 @@ visual pass.
 
 | Class | For |
 |---|---|
-| `ob-container` | centered page column |
+| `ob-container` | centered, max-width page column — put on a screen's own top-level element when it wants one (forms, card grids: `AddObservation.js`, `LifeList.js`, `ObservationList.js`). **Not** applied globally on `#app` — a screen that wants the full viewport width (`Home.js`, `ExploreMap.js`) just omits it, adding its own `padding-inline: 0.5in` instead for edge spacing (a literal physical unit, not a `--ob-space-*` token, per explicit request). |
 | `ob-stack` | vertical list, even gaps |
 | `ob-cluster` | horizontal row that wraps |
 | `ob-grid` | responsive card grid |

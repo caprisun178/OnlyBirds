@@ -161,15 +161,27 @@ yet.
   species, so the default view (and the "Show more" progression below) works
   through the user's own life list before the rest of the region's
   checklist.
-- **Filters**: seen/unseen (`state.seenFilter`) and bird type
+- **Filters**: seen/unseen (`state.seenFilter`), bird type
   (`state.typeFilter`, an eBird family name like "Ducks, Geese, and
-  Waterfowl" or "Crows, Jays, and Magpies") narrow the list before it's
-  sliced to the visible count. The type dropdown's options
-  (`lifeListService.getFamilies`) are the distinct `family_common_name`
-  values present in the current region's checklist — eBird taxonomy data
-  (see [API endpoints](#4-api-endpoints)), not a curated list, so options
-  vary by region. Both are purely client-side over the already-fetched
-  checklist; changing either resets the visible count back to 50.
+  Waterfowl" or "Crows, Jays, and Magpies"), and a **search bar**
+  (`state.searchQuery`) narrow the list before it's sliced to the visible
+  count. The type dropdown's options (`lifeListService.getFamilies`) are the
+  distinct `family_common_name` values present in the current region's
+  checklist — eBird taxonomy data (see [API endpoints](#4-api-endpoints)),
+  not a curated list, so options vary by region. The search bar matches
+  common *or* scientific name, case-insensitive, substring — live as you
+  type, not on submit. All three are purely client-side over the
+  already-fetched checklist; changing any of them resets the visible count
+  back to 50.
+
+  Live-as-you-type search is the one control here that fights this
+  Presenter's render model: every state change does a full
+  `container.innerHTML` rebuild (see [Building a
+  screen](../frontend-screens.md)), which would normally kick focus out of
+  a text input after every keystroke. `applySearch()` works around it by
+  capturing focus + cursor position before `render()` and restoring them
+  after, rather than teaching the whole Presenter partial re-renders for
+  one field.
 - **Default filter + "Show more"**: only the first 50 species after
   sort+filter render initially. Not in the original plan, but a real region
   checklist runs 500-700+ species (and a country-level one, thousands) —

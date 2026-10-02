@@ -1,3 +1,7 @@
+import asyncio
+
+import httpx
+
 from app.dao import nominatim
 
 RAW_SEARCH_RESULT = [
@@ -59,3 +63,50 @@ def test_reverse_returns_null_when_nominatim_has_nothing(client, monkeypatch):
     resp = client.get("/geocode/reverse", params={"lat": 0, "lng": 0})
     assert resp.status_code == 200
     assert resp.json() is None
+
+
+def test_get_client_is_reused_across_calls(monkeypatch):
+    # Regression: _client() used to open (and immediately close) a brand new
+    # httpx.AsyncClient per call — a fresh TCP+TLS handshake to Nominatim on
+    # every keystroke once Explore Map's search went live-as-you-type.
+    # Real, measured slowness followed. _get_client() should hand back the
+    # same instance every time instead.
+    monkeypatch.setattr(nominatim, "_client", None)
+    first = nominatim._get_client()
+    second = nominatim._get_client()
+    assert first is second
+
+
+def test_search_caches_identical_queries_briefly(monkeypatch):
+    # Regression: live-as-you-type search can legitimately re-request the
+    # exact same string (pause then resume, backspace to an earlier prefix,
+    # reopening a just-used search) — each of those should be served from
+    # cache, not hit Nominatim (and its ~1 req/sec usage-policy ceiling)
+    # again.
+    monkeypatch.setattr(nominatim, "_client", None)
+    monkeypatch.setattr(nominatim, "_search_cache", {})
+
+    call_count = 0
+
+    def handler(request):
+        nonlocal call_count
+        call_count += 1
+        return httpx.Response(200, json=RAW_SEARCH_RESULT)
+
+    real_async_client = httpx.AsyncClient
+    monkeypatch.setattr(
+        nominatim.httpx,
+        "AsyncClient",
+        lambda *args, **kwargs: real_async_client(
+            base_url=kwargs.get("base_url", ""),
+            timeout=kwargs.get("timeout"),
+            headers=kwargs.get("headers"),
+            transport=httpx.MockTransport(handler),
+        ),
+    )
+
+    first = asyncio.run(nominatim.search("Discovery Park"))
+    second = asyncio.run(nominatim.search("Discovery Park"))
+
+    assert first == second == RAW_SEARCH_RESULT
+    assert call_count == 1  # the second call was served from cache

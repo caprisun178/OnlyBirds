@@ -16,8 +16,18 @@ class Settings(BaseSettings):
     inat_base_url: str = "https://api.inaturalist.org/v1"
     http_timeout_seconds: float = 15.0
 
-    # CORS — comma-separated in the environment, list in code.
-    cors_origins: str = "http://localhost:3000,http://localhost:4174,http://localhost:5173,http://localhost:8081"
+    # CORS — comma-separated in the environment, list in code. Both
+    # `localhost` and `127.0.0.1` for each dev port: browsers treat them as
+    # different origins even though they're the same machine, so a frontend
+    # opened at one when only the other is whitelisted fails every API call
+    # with a bare "Failed to fetch" (no CORS-specific message) — a real case
+    # of this, see docs/index.md's environment-variables table.
+    cors_origins: str = (
+        "http://localhost:3000,http://127.0.0.1:3000,"
+        "http://localhost:4174,http://127.0.0.1:4174,"
+        "http://localhost:5173,http://127.0.0.1:5173,"
+        "http://localhost:8081,http://127.0.0.1:8081"
+    )
 
     # Roadmap step 3; unused by the base server.
     database_url: str | None = None
