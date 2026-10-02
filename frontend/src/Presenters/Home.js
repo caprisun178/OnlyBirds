@@ -21,10 +21,11 @@ const FEATURES = [
   {
     emoji: '✨',
     title: 'Stickers',
-    body: 'A hundred species. Collect them on your profile!',
+    body: 'Earn rewards for logging new species and track your collection.',
     route: 'stickers',
     buttonLabel: 'View stickers',
-    tag: 'Coming soon',
+    tag: 'Building now',
+    tagVariant: 'progress',
   },
   {
     emoji: '🗺️',

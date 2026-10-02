@@ -9,7 +9,7 @@ sources, the API, the SQL, and the code layout.
 | [Life List page](life-list.md) | Partial — API returns entries; region filter + checklist view planned | after baseline |
 | [Add Observation](add-observation.md) | Partial — `POST /observations` exists; identification flow planned | after baseline |
 | [User profiles](user-profiles.md) | Planned | after baseline |
-| [Stickers](stickers.md) | Planned | after Add Observation |
+| [Stickers](stickers.md) | Partial — fixture catalog, awards, shelf and filters | after Add Observation |
 | [Pinned birds](pinned-birds.md) | Planned | after Add Observation + profiles |
 | [Bird information page](bird-info.md) | Planned | any time (independent) |
 | [Explore map](explore-map.md) | Planned | after Add Observation (needs `observations.geom`) |
@@ -29,7 +29,7 @@ before starting.
 | [Life List page](life-list.md) | _unassigned_ | | not started | |
 | [Add Observation](add-observation.md) | Sarah Parisi | | in progress | |
 | [User profiles](user-profiles.md) | _unassigned_ | | not started | |
-| [Stickers](stickers.md) | _unassigned_ | | not started | |
+| [Stickers](stickers.md) | Aldridge | `working/aaldridge/stickers` | in progress | Fixture-backed collection; durable awards and region rules remain |
 | [Pinned birds](pinned-birds.md) | _unassigned_ | | not started | |
 | [Bird information page](bird-info.md) | _unassigned_ | | not started | |
 | [Explore map](explore-map.md) | _unassigned_ | | not started | |
@@ -92,15 +92,13 @@ How the features connect when a user logs a bird:
 
 ```text
 Add Observation → /identify/describe → user confirms species
-      → POST /observations   (source = manual, region + geom derived)
-      → Services: first time this user has seen this species?
-            yes → insert life_list_entries row
-                → evaluate_stickers(user_id)
-                      → insert user_stickers rows + push sticker_awarded notifications
-                → profile life-list total / sticker count recompute  (they are COUNT queries)
-      → evaluate_pins(observation)
-            → other users who pinned this species, whose pin region contains the
-              observation's region → insert pin_hit notifications
-      → Life List page now shows that species' card filled in (was a MissingBird)
-      → Explore map shows the new sighting
+   → POST /observations   (source = manual, status = logged)
+   → persist observation; derive the life list from logged observations
+   → if this adds a species, evaluate_stickers(user_id, observation.id)
+      → record newly earned rules in the in-memory award ledger
+   → next GET /users/{id}/stickers returns fresh earned state and progress
+   → Life List API now includes the new species
+
+Region derivation, durable sticker awards, award notifications, pin evaluation,
+and the Explore map integration are still future work.
 ```

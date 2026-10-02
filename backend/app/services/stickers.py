@@ -17,15 +17,6 @@ def _species_codes(entries: list[LifeListEntry]) -> set[str]:
     }
 
 
-def _taxon_groups(entries: list[LifeListEntry]) -> set[str]:
-    """Collect taxonomic group labels represented in the user's life list."""
-    return {
-        entry.species.taxon_group
-        for entry in entries
-        if entry.species.taxon_group
-    }
-
-
 def _group_progress(group_code: str, entries: list[LifeListEntry]) -> tuple[int, int | None, bool]:
     """Calculate matched species, target size, and completion for a group."""
     group = sticker_repo.get_group(group_code)
@@ -35,7 +26,11 @@ def _group_progress(group_code: str, entries: list[LifeListEntry]) -> tuple[int,
     if group.species_codes:
         matched = len(seen_codes.intersection(group.species_codes))
         return matched, len(group.species_codes), matched == len(group.species_codes)
-    matched = len(_taxon_groups(entries).intersection(group.taxon_groups))
+    matched = sum(
+        entry.species.taxon_group in group.taxon_groups
+        for entry in entries
+        if entry.species.taxon_group
+    )
     return matched, None, matched > 0
 
 

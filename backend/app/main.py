@@ -4,8 +4,11 @@
     uvicorn main:app --reload          # via the backend/main.py shim
 """
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app import __version__
 from app.config import get_settings
@@ -63,3 +66,8 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
+app.mount(
+    "/static/stickers",
+    StaticFiles(directory=Path(__file__).resolve().parent / "data" / "stickers"),
+    name="sticker-art",
+)

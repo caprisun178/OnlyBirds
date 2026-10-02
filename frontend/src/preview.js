@@ -25,7 +25,7 @@ const SCREENS = {
   'add-observation': (container, params) => mountAddObservation(container, { onNavigate: navigate, ...params }),
   'life-list': (container, params) => mountLifeList(container, { onNavigate: navigate, ...params }),
   'observation-log': (container, params) => mountObservationList(container, { onNavigate: navigate, ...params }),
-  stickers: (container, params) => mountStickerShelf(container, params),
+  stickers: (container, params) => mountStickerShelf(container, { onNavigate: navigate, ...params }),
 };
 
 // `params` is an optional plain object spread onto the target screen's

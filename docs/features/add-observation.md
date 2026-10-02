@@ -336,8 +336,9 @@ no placeholder fallback for audio the way there is for photos.
 | `Components/` | `frontend/src/Components/LocationPicker.js` | owns a live Leaflet map + marker; loads Leaflet from a CDN at runtime; reports position changes via a callback rather than importing Dao/Services itself |
 | `testData/` | `frontend/src/testData/testProfile.js` | stand-in "current user" until `user-profiles.md` ships |
 
-Still to build: `region`/`geom` on `observations` and the sticker/pin engine
-calls after a successful log.
+Still to build: `region`/`geom` on `observations` and pin-engine calls. The
+sticker engine already runs after a logged observation adds a new life-list
+species; its award ledger is currently in memory.
 
 !!! note "Candidate cards are `div[role=button]`, not real `<button>`s"
     HTML doesn't allow interactive content — an `<audio controls>` player
@@ -408,8 +409,9 @@ For the next feature that follows this shape:
     div-instead-of-button restructuring described above.
 
 Not yet done: `region`/`geom` derivation (`geom` needs the `lat`/`lng` this
-step now collects — it's just not computed yet) and the sticker/pin engine
-calls. `POST /uploads/photo` is fully wired but returns `503` until a
+step now collects — it's just not computed yet) and pin-engine calls. The
+sticker engine already runs after a logged observation adds a new life-list
+species; its award ledger is currently in memory. `POST /uploads/photo` is fully wired but returns `503` until a
 Supabase project's `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` are set
 locally — see the note under "Field notes" above.
 

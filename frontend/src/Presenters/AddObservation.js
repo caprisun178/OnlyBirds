@@ -676,6 +676,7 @@ export function mount(container, props = {}) {
           ${onNavigate ? `
             <button type="button" class="ob-btn ob-btn--ghost" data-action="view-life-list">View life list</button>
             <button type="button" class="ob-btn ob-btn--ghost" data-action="view-observations">View my observations</button>
+            ${isNewSpecies ? '<button type="button" class="ob-btn ob-btn--ghost" data-action="view-stickers">View sticker shelf</button>' : ''}
           ` : ''}
         </div>
       </div>
@@ -719,6 +720,10 @@ export function mount(container, props = {}) {
     container.querySelector('[data-action="view-observations"]')?.addEventListener('click', () => {
       onNavigate('observation-log', { userId });
     });
+    const stickersBtn = container.querySelector('[data-action="view-stickers"]');
+    if (stickersBtn) {
+      stickersBtn.addEventListener('click', () => onNavigate('stickers', { userId }));
+    }
   }
 
   function wireStep() {

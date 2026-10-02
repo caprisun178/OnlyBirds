@@ -37,8 +37,10 @@ class InMemoryStickerRepo:
 
     def list_stickers(self) -> list[Sticker]:
         """Return the catalog in rarity and display order."""
+        rarity_order = {"common": 0, "uncommon": 1, "rare": 2}
         return sorted(
-            self._stickers.values(), key=lambda sticker: (sticker.rarity, sticker.sort_order)
+            self._stickers.values(),
+            key=lambda sticker: (rarity_order[sticker.rarity], sticker.sort_order, sticker.code),
         )
 
     def get_group(self, code: str) -> Group | None:
