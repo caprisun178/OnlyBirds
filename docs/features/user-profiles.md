@@ -1,6 +1,6 @@
 # User profiles
 
-> **Status:** Planned.
+> **Status:** Partial — backend done (POST /users, GET /users/{username}, PATCH /users/{id}); frontend planned done soon.
 
 ## 1. What you're building
 
@@ -11,7 +11,7 @@ A deliberately small profile.
 | `username` | chosen at signup, unique, immutable-ish |
 | `avatar_url` | uploaded image |
 | `default_region` | picked by the user from the eBird region hierarchy |
-| life list total | **derived** — count of the user's `life_list_entries` rows |
+| life list total | **derived** — number of distinct species in the user's observations (same computation as the Life List page, `get_life_list`) |
 | sticker collection | **derived** — the user's `user_stickers` rows |
 
 No bio, no follower graph in MVP.
@@ -57,7 +57,7 @@ token verification is a follow-up.
 | `username` | the user, at signup | `users.username` |
 | Avatar image file | the user's device | **object storage** (S3 / Supabase Storage); the URL goes in `users.avatar_url` |
 | `default_region` | the user picks from the region picker (same one as the Life List — proxied eBird `GET /ref/region/list`) | `users.default_region` |
-| life list total | our own data | **not stored** — `select count(*) from life_list_entries where user_id = $1` |
+| life list total | our own data | **not stored** — computed from `observations` via `get_life_list`|
 | sticker count | our own data | **not stored** — `select count(*) from user_stickers where user_id = $1` |
 
 Totals are always computed, never cached — they are cheap counts and caching
@@ -69,7 +69,7 @@ Three columns on `users`. Nothing new. See
 [Database & migrations](database.md#how-to-apply-a-migration).
 
 ```sql
--- 0004_user_profile_fields.sql
+-- 0003_user_profile_fields.sql
 
 alter table users add column username       text unique;
 alter table users add column avatar_url     text;
@@ -82,11 +82,14 @@ alter table users add column default_region text not null default 'world';  -- e
 | `avatar_url` | URL of the uploaded image in object storage. Null → the UI shows initials. |
 | `default_region` | eBird region code used as the app-wide default. `world` means "no regional bias". Not null so callers never have to handle a missing value. |
 
-Derived totals — no column, just queries the profile endpoint runs:
+Derived totals — no column, just values the profile endpoint computes:
+
+The life list total is computed in `app/services/user.py` by reusing `get_life_list` (the `life_list_entries` table does not exist; the life list is derived from observations).
+
+The sticker count is a query on `user_stickers`. It currently returns `0` until Stickers merges.
 
 ```sql
-select count(*) from life_list_entries where user_id = $1;   -- life list total
-select count(*) from user_stickers      where user_id = $1;   -- sticker count
+select count(*) from user_stickers where user_id = $1;   -- sticker count
 ```
 
 ## 4. API endpoints
@@ -124,7 +127,7 @@ select count(*) from user_stickers      where user_id = $1;   -- sticker count
 
 ## 6. Build order
 
-1. Write and run `backend/migrations/0004_user_profile_fields.sql`.
+1. Write and run `backend/migrations/0003_user_profile_fields.sql`.
 2. Add `app/dao/user_repo.py` and `app/services/user.py`.
 3. Add `app/routers/users.py`; register it in `app/main.py`.
 4. Tests: create a user, `PATCH` the `default_region`, `GET` the public profile,

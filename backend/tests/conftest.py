@@ -2,7 +2,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.dao.observation_repo import InMemoryObservationRepo
+from app.dao.user_repo import InMemoryUserRepo
 from app.main import app
+
+
 
 
 @pytest.fixture(autouse=True)
@@ -21,11 +24,15 @@ def no_live_media_lookups(monkeypatch):
     monkeypatch.setattr("app.dao.bird_audio._cache", {})
 
 
+
 @pytest.fixture()
 def client(monkeypatch):
-    # Isolate each test from the process-wide in-memory store.
+    # Isolate each test from the process-wide in-memory stores.
     fresh = InMemoryObservationRepo()
     monkeypatch.setattr("app.dao.observation_repo.observation_repo", fresh)
     monkeypatch.setattr("app.services.observation.observation_repo", fresh)
+    fresh_users = InMemoryUserRepo()
+    monkeypatch.setattr("app.dao.user_repo.user_repo", fresh_users)
+    monkeypatch.setattr("app.services.user.user_repo", fresh_users)
     with TestClient(app) as c:
         yield c

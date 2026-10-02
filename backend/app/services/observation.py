@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.dao.observation_repo import observation_repo
-from app.models.observation import Observation, ObservationCreate
+from app.models.observation import Observation, ObservationCreate, ObservationUpdate
 
 
 async def log_observation(payload: ObservationCreate) -> Observation:
@@ -26,3 +26,7 @@ async def list_observations(user_id: str) -> list[Observation]:
     """Newest first."""
     rows = await observation_repo.list_for_user(user_id)
     return sorted(rows, key=lambda o: o.observed_at, reverse=True)
+
+
+async def update_observation(observation_id: str, payload: ObservationUpdate) -> Observation | None:
+    return await observation_repo.update(observation_id, payload)

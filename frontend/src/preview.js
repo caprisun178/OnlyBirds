@@ -15,23 +15,30 @@
 import { mount as mountHome } from './Presenters/Home.js';
 import { mount as mountAddObservation } from './Presenters/AddObservation.js';
 import { mount as mountStickerShelf } from './Presenters/StickerShelf.js';
+import { mount as mountLifeList } from './Presenters/LifeList.js';
+import { mount as mountObservationList } from './Presenters/ObservationList.js';
 
 const app = document.getElementById('app');
 
 const SCREENS = {
-  home: (container) => mountHome(container, { onNavigate: navigate }),
-  'add-observation': (container) => mountAddObservation(container, { onNavigate: navigate }),
-  stickers: (container) => mountStickerShelf(container),
+  home: (container, params) => mountHome(container, { onNavigate: navigate, ...params }),
+  'add-observation': (container, params) => mountAddObservation(container, { onNavigate: navigate, ...params }),
+  'life-list': (container, params) => mountLifeList(container, { onNavigate: navigate, ...params }),
+  'observation-log': (container, params) => mountObservationList(container, { onNavigate: navigate, ...params }),
+  stickers: (container, params) => mountStickerShelf(container, params),
 };
 
-function navigate(route) {
+// `params` is an optional plain object spread onto the target screen's
+// props — e.g. `onNavigate('observation-log', { scientificName, commonName })`
+// from a Life List species card, to open that species' log pre-filtered.
+function navigate(route, params) {
   const mountScreen = SCREENS[route];
   if (!mountScreen) {
     console.log('navigate to:', route, '(no screen yet)');
     return;
   }
   app.innerHTML = '';
-  mountScreen(app);
+  mountScreen(app, params);
 }
 
 navigate('home');

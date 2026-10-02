@@ -55,14 +55,37 @@ async def get_nearby_bird_sightings(
 # docs/ebird-api.md and the feature page named on each docstring.
 
 
+_TAXONOMY_BATCH_SIZE = 500  # eBird 400s a `species=` list somewhere between 500 and 1000 codes
+
+
 async def get_taxonomy(species_codes: list[str] | None = None) -> list[dict]:
     """Common/scientific names + family for eBird species codes.
 
     `GET /ref/taxonomy/ebird` (optional `species=<comma-separated codes>` to
     scope it; omit for the full taxonomy). Needed by Life List (populating
     `species` from a region checklist) and Bird info (species search/profile).
+
+    A whole-country region (e.g. the US has ~1,800 species) blows past
+    eBird's undocumented limit on how many codes fit in one `species=` list
+    — confirmed by testing to fail somewhere between 500 and 1000 — so this
+    batches into `_TAXONOMY_BATCH_SIZE`-sized calls and merges the results.
     """
-    raise NotImplementedError
+    if not species_codes:
+        async with _client() as client:
+            resp = await client.get("/ref/taxonomy/ebird", params={"fmt": "json"})
+            resp.raise_for_status()
+            return resp.json()
+
+    results: list[dict] = []
+    async with _client() as client:
+        for i in range(0, len(species_codes), _TAXONOMY_BATCH_SIZE):
+            batch = species_codes[i : i + _TAXONOMY_BATCH_SIZE]
+            resp = await client.get(
+                "/ref/taxonomy/ebird", params={"fmt": "json", "species": ",".join(batch)}
+            )
+            resp.raise_for_status()
+            results.extend(resp.json())
+    return results
 
 
 async def get_region_children(parent_code: str, region_type: str) -> list[dict]:
@@ -72,7 +95,10 @@ async def get_region_children(parent_code: str, region_type: str) -> list[dict]:
     `country` | `subnational1` | `subnational2`. Needed by Life List's region
     picker (also reused by User profiles' `default_region` picker).
     """
-    raise NotImplementedError
+    async with _client() as client:
+        resp = await client.get(f"/ref/region/list/{region_type}/{parent_code}")
+        resp.raise_for_status()
+        return resp.json()
 
 
 async def get_region_spplist(region_code: str) -> list[str]:
@@ -81,16 +107,31 @@ async def get_region_spplist(region_code: str) -> list[str]:
     `GET /product/spplist/{region_code}`. Needed by Life List to build the
     region's full checklist (cached in `region_checklists`).
     """
-    raise NotImplementedError
+    async with _client() as client:
+        resp = await client.get(f"/product/spplist/{region_code}")
+        resp.raise_for_status()
+        return resp.json()
 
 
 async def recent_obs_in_region(region_code: str, days_back: int = 7) -> list[dict]:
-    """Recent observations anywhere in a region (not point-radius).
+    """Recent observations anywhere in a region (not point-radius) — one row
+    per species, its most recent report in the last `days_back` days. Each
+    row includes `exoticCategory` (missing from the API reference doc, but
+    defined by Cornell Lab — eBird's publisher — in their help center:
+    "N" naturalized, "P" provisional, "X" escapee, absent for a regular
+    native/countable record — see
+    https://support.ebird.org/en/support/solutions/articles/48001218430-exotic-and-introduced-species-in-ebird
+    and docs/ebird-api.md#exoticcategory--not-in-the-api-reference-but-documented-by-cornell).
 
-    `GET /data/obs/{region_code}/recent` (`back=<days_back>`). Needed by
-    Explore map when the viewport is region-shaped rather than a point.
+    `GET /data/obs/{region_code}/recent` (`back=<days_back>`, capped at 30 by
+    eBird itself). Needed by Explore map when the viewport is region-shaped
+    rather than a point, and by Life List to drop escapee reports from a
+    region's checklist (`region_repo._drop_escapees`).
     """
-    raise NotImplementedError
+    async with _client() as client:
+        resp = await client.get(f"/data/obs/{region_code}/recent", params={"back": days_back})
+        resp.raise_for_status()
+        return resp.json()
 
 
 async def notable_obs(region_code: str, days_back: int = 7) -> list[dict]:
