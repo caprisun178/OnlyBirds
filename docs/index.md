@@ -25,7 +25,11 @@ OnlyBirds/
 The backend runs and is deployed. The frontend is a single plain JS/HTML app
 under `frontend/src/` (no framework, no build step) sharing one design system
 (`frontend/styles/`). There's no separate landing/marketing page — `Home`
-(`Presenters/Home.js`) is the app's front door. Layer rules are in
+(`Presenters/Home.js`) is the app's front door, and it's just a header
+(Life List, Add Observation, Login) with [Explore
+map](features/explore-map.md) (`Presenters/ExploreMap.js`) embedded directly
+below it, so you can start filtering sightings the moment the app loads —
+no click-through welcome screen first. Layer rules are in
 [Contributing](contributing.md#frontend-layering).
 
 ## Prerequisites

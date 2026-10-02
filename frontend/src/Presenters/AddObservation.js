@@ -80,7 +80,7 @@ export function mount(container, props = {}) {
 
   function render() {
     container.innerHTML = `
-      <div class="ob-stack">
+      <div class="ob-container ob-stack">
         ${onNavigate ? '<button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="back-to-home" style="align-self:flex-start;">← Back to home</button>' : ''}
         <h1>Add an observation</h1>
         ${renderStepper()}
@@ -405,7 +405,7 @@ export function mount(container, props = {}) {
           <div data-role="location-map" style="height: 320px; border-radius: var(--ob-radius-md); overflow: hidden;"></div>
           <p class="ob-hint" data-role="pin-status">${renderPinStatusText(fn)}</p>
           <input id="location-name" class="ob-input" placeholder='Label for this sighting, e.g. "Discovery Park, Seattle"' value="${escapeHtml(fn.locationName)}" />
-          <p class="ob-hint">Map and address search data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.</p>
+          <p class="ob-hint">Map tiles &copy; <a href="https://www.esri.com" target="_blank" rel="noopener">Esri</a>. Address search data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.</p>
         </div>
 
         <div class="ob-grid" style="--ob-grid-min: 220px;">

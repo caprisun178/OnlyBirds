@@ -10,7 +10,7 @@ Base URL in development: `http://localhost:8000`. Interactive docs (OpenAPI) at
 | `GET` | `/` | name, version, link to `/docs` |
 | `GET` | `/health` | `status`, `version`, `ebird_key_configured` |
 | `GET` | `/species/search?q=` | iNaturalist taxon autocomplete → `SpeciesRef[]` |
-| `GET` | `/sightings/nearby` | normalized eBird + iNaturalist feed → `Observation[]` |
+| `GET` | `/sightings/nearby` | normalized eBird + iNaturalist + our own logged observations → `Observation[]` |
 | `GET` | `/users/{user_id}/observations` | that user's observations, newest first |
 | `POST` | `/observations` | log an observation (`ObservationCreate`) → `201` |
 | `GET` | `/observations/{id}` | one observation, or `404` |
@@ -24,11 +24,16 @@ Base URL in development: `http://localhost:8000`. Interactive docs (OpenAPI) at
 | `lat` | float | — | required, −90…90 |
 | `lng` | float | — | required, −180…180 |
 | `radius_km` | int | 25 | 1…200 |
-| `days_back` | int | 7 | 1…30 (eBird only) |
-| `source` | enum | `all` | `all` \| `ebird` \| `inat` |
+| `days_back` | int | 7 | 1…30 (eBird + our own; iNaturalist ignores this) |
+| `source` | enum | `all` | `all` \| `ebird` \| `inat` \| `manual` (our own logged observations) |
 
 With no `EBIRD_API_KEY` configured, eBird results are silently omitted — see
-[eBird API](ebird-api.md) for auth, endpoints, and failure behavior.
+[eBird API](ebird-api.md) for auth, endpoints, and failure behavior. Our own
+observations (`source=manual`) come from `observations` directly — no
+external call, no key needed — filtered by radius via
+`dao/observation_repo.py#list_near` (haversine in Python; there's no
+PostGIS geom column yet, see [Explore map](features/explore-map.md)), and
+scoped to `status = 'logged'` rows from any user, not just the caller.
 
 ## Examples
 

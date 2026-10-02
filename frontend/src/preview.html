@@ -7,7 +7,14 @@
   <link rel="stylesheet" href="../styles/base.css" />
 </head>
 <body>
-  <div id="app" class="ob-container ob-stack"></div>
+  <!-- No `ob-container` here — that 1060px-max centered-column width belongs
+       to individual screens that want a narrow reading column (forms, card
+       grids), not to the app shell itself. A screen that wants it applies
+       `ob-container` on its own top-level element (see AddObservation.js,
+       LifeList.js, ObservationList.js); Home/ExploreMap deliberately don't,
+       since a map screen wants the full viewport width, not a narrow
+       centered column with large empty margins on either side. -->
+  <div id="app" class="ob-stack"></div>
   <script type="module" src="./preview.js"></script>
 </body>
 </html>

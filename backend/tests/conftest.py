@@ -31,6 +31,7 @@ def client(monkeypatch):
     fresh = InMemoryObservationRepo()
     monkeypatch.setattr("app.dao.observation_repo.observation_repo", fresh)
     monkeypatch.setattr("app.services.observation.observation_repo", fresh)
+    monkeypatch.setattr("app.services.sightings.observation_repo", fresh)
     fresh_users = InMemoryUserRepo()
     monkeypatch.setattr("app.dao.user_repo.user_repo", fresh_users)
     monkeypatch.setattr("app.services.user.user_repo", fresh_users)

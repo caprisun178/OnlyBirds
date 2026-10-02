@@ -124,8 +124,10 @@
   --ob-container:  1060px;
   --ob-z-header:   100;
   --ob-z-dropdown: 200;
-  --ob-z-modal:    300;
-  --ob-z-toast:    400;
+  /* Leaflet's own controls/panes reach z-index 1000 (.leaflet-top/.leaflet-bottom) —
+     anything meant to sit above a map (a modal, a toast) has to clear that. */
+  --ob-z-modal:    1100;
+  --ob-z-toast:    1200;
 }
 
 /* ----------------------------------------------------------------------

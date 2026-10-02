@@ -225,10 +225,16 @@ anything currently pauses mid-wizard.
 
 The identification logic itself is ours. External calls on this screen: the
 Wikimedia Commons photo lookup above, OpenStreetMap Nominatim for address
-search/reverse-geocode, OpenStreetMap tile servers (loaded directly by the
-browser via Leaflet — not proxied), Supabase Storage for the field-notes
-photo, and (not wired up yet) deriving an eBird region code for the dropped
-pin.
+search/reverse-geocode, Esri's "Light Gray Canvas" tile servers — a plain,
+minimal basemap, much less cluttered than standard OSM street tiles; see
+`Components/leaflet.js#addBaseTileLayer()`, shared with Explore Map so both
+maps use the same basemap. (Used to be CARTO's Positron tiles here, until
+CARTO started requiring a free API key for anonymous tile requests in
+September 2026 — Esri's equivalent needs no key/account, which matters more
+given this is a no-build-step static frontend with nowhere to keep a key out
+of the public JS anyway.) Loaded directly by the browser via Leaflet, not
+proxied. Also: Supabase Storage for the field-notes photo, and (not wired up
+yet) deriving an eBird region code for the dropped pin.
 
 ## 3. Database changes (SQL)
 

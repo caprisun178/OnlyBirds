@@ -192,7 +192,7 @@ export function mount(container, props = {}) {
 
   function render() {
     container.innerHTML = `
-      <div class="ob-stack">
+      <div class="ob-container ob-stack">
         ${onNavigate ? `<button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="back" style="align-self:flex-start;">← Back to ${scientificName ? 'life list' : 'home'}</button>` : ''}
         <h1>${scientificName ? escapeHtml(commonName || scientificName) : 'My observations'}</h1>
         ${scientificName ? `<p class="ob-text-muted ob-text-sm" style="margin:0;"><em>${escapeHtml(scientificName)}</em></p>` : ''}

@@ -3,8 +3,17 @@
 // sort order shouldn't cost a network round trip when we already have the
 // checklist in hand.
 import { regionsDAO } from '../Dao/regions.js';
+import { lifeListDAO } from '../Dao/lifelist.js';
 
 export const lifeListService = {
+  // Scientific names already on a user's life list — unscoped by region,
+  // since "new to you" (Explore Map's region-summary box) means new against
+  // everything they've ever logged, not just one region's checklist.
+  async getSeenScientificNames(userId) {
+    const entries = await lifeListDAO.getAll(userId);
+    return new Set(entries.map((e) => e.species?.scientific_name).filter(Boolean));
+  },
+
   async getRegionOptions(parentCode, type) {
     return regionsDAO.getChildren(parentCode, type);
   },

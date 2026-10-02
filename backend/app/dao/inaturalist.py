@@ -44,18 +44,30 @@ async def get_taxon(taxon_id: int | str) -> dict | None:
         return results[0] if results else None
 
 
+_AVES_TAXON_ID = 3  # iNaturalist's taxon id for Class Aves (birds) — see obs_in_bbox()'s docstring below
+
+
 async def get_nearby_observations(
     lat: float,
     lng: float,
     radius_km: int = 25,
     per_page: int = 30,
 ) -> list[dict]:
-    """Recent research-grade observations near a point."""
+    """Recent research-grade **bird** observations near a point.
+
+    Regression: this used to omit `taxon_id`/`quality_grade` entirely, so it
+    returned iNaturalist's full firehose near a point — mammals, insects,
+    plants, unverified "casual" grade sightings, not just birds — which
+    showed up as non-bird pins on the Explore Map. `taxon_id=3` (Aves) plus
+    `quality_grade=research` narrows it to what this app is actually about.
+    """
     params = {
         "lat": lat,
         "lng": lng,
         "radius": radius_km,
         "per_page": per_page,
+        "taxon_id": _AVES_TAXON_ID,
+        "quality_grade": "research",
         "order_by": "observed_on",
         "order": "desc",
     }
