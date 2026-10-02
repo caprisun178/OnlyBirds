@@ -13,11 +13,12 @@ noticeably slow, and every server restart threw the whole cache away,
 making that slow first-lookup happen again for species that had already
 been resolved. Now persisted to `species_photo_cache.json` alongside this
 file: loaded once at import, and every new entry is written straight back
-out, so a species resolved once stays fast for the lifetime of the repo
-checkout, not just the current process. A full long-term fix is still a
-real cache table (`species_content.media`, see `bird-info.md`) — this is
-the pragmatic version that doesn't need a migration to get most of the
-benefit today.
+out (merged with whatever's currently on disk, not a blind overwrite — see
+`_save_cache_file()` for why that distinction mattered in practice), so a
+species resolved once stays fast for the lifetime of the repo checkout, not
+just the current process. A full long-term fix is still a real cache table
+(`species_content.media`, see `bird-info.md`) — this is the pragmatic
+version that doesn't need a migration to get most of the benefit today.
 """
 
 from __future__ import annotations
@@ -40,10 +41,29 @@ def _load_cache_file() -> dict[str, dict | None]:
 
 
 def _save_cache_file() -> None:
+    # Merge with whatever's on disk right now rather than blindly
+    # overwriting with just this process's own `_cache` — real, observed
+    # data loss otherwise: two server processes alive at once (the
+    # `--reload` watcher's old worker not actually dying before a new one
+    # starts, seen repeatedly in local dev — see docs/features/explore-map.md)
+    # each hold their own in-memory `_cache`, loaded from disk at different
+    # times. If the one with fewer entries (loaded before the other had
+    # fetched more species) writes last, a plain overwrite would silently
+    # erase everything the other process had already saved. Re-reading and
+    # merging first means a write can only ever add entries, never lose
+    # ones already on disk — this process's own `_cache` also absorbs the
+    # merge result, so a late-loaded entry from another process becomes
+    # visible here too. Doesn't fully solve two processes writing at the
+    # exact same instant (would need real file locking for that), but turns
+    # "stale process clobbers everything" into "worst case, one write loses
+    # a race by a few milliseconds" — a real fix for a real incident.
     try:
         _CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        on_disk = _load_cache_file()
+        merged = {**on_disk, **_cache}
         with _CACHE_FILE.open("w", encoding="utf-8") as f:
-            json.dump(_cache, f, indent=2, sort_keys=True)
+            json.dump(merged, f, indent=2, sort_keys=True)
+        _cache.update(merged)
     except OSError as exc:
         # Best-effort — an unwritable cache file shouldn't break photo
         # lookups — but silent-forever was hard to debug, so log it.

@@ -117,7 +117,42 @@ multi-session project once it's time to build it for real.
   can't fire the same species' lookup twice before the first one returns.
   Progressive, not blocking: suggestions render immediately with the
   fallback icon, then re-render in place once each photo arrives.
-  A **km/mi** unit select sits next to the radius dropdown
+
+!!! note "A resolved placeholder looked exactly like it hadn't loaded — a real report"
+    `get_stock_photo()` always returns *some* URL — a real Commons photo, or
+    (last resort) a generated `placehold.co` image with the species name
+    printed on it, so a Life List card is never blank. That text-on-a-card
+    placeholder reads fine at Life List's size; shrunk to this dropdown's
+    32px circle the printed name is illegible and looks exactly like a
+    broken or not-yet-loaded image — confirmed live for two real species
+    with no Commons title match (Northern Mockingbird, Northern Flicker):
+    the photo had genuinely finished resolving, it just wasn't a real
+    photo. `isGeneratedPlaceholder()` treats a `placehold.co` URL as
+    equivalent to "no photo" for *this* dropdown specifically, falling back
+    to the plain icon instead of trying to render illegible text at 32px.
+
+!!! note "The photo cache used to vanish on every server restart — a real, reported slowness"
+    `bird_photos.py`'s cache was in-memory only — the first Commons lookup
+    for a species (one real HTTP round-trip) is noticeably slow, and every
+    restart threw the whole thing away, making that slow first-lookup
+    happen again for species already resolved (a real "it took a while to
+    load" report). Now persisted to `backend/app/data/species_photo_cache.json`:
+    loaded once at import, every new entry written straight back out, so a
+    species resolved once stays fast for the life of the repo checkout, not
+    just the current process — see `bird_photos.py`'s own docstring.
+    `backend/scripts/seed_bird_photos.py` pre-warms it for `app/data/birds.py`'s
+    existing ~70-species curated list (reused rather than hand-curating a
+    separate "top 200" list) — run it once (`cd backend && python
+    scripts/seed_bird_photos.py`) so even the *first* search for a common
+    species is already fast. Strictly sequential with a 1-second pause
+    between requests, not concurrent: Commons rate-limits readily under a
+    burst (confirmed live — concurrent requests mostly came back
+    `CommonsUnavailable`, correctly left uncached rather than poisoning the
+    cache with false "nothing found" results, but still meant most species
+    fell back to a placeholder for that run). Safe to re-run — an
+    already-cached species costs nothing, no Commons call at all.
+
+- **km/mi unit toggle**: a select sits next to the radius dropdown
   (`ExploreMap.js#setDistanceUnit()`). Each unit has its own clean, native
   radius set (`RADIUS_OPTIONS_BY_UNIT`: 10/25/50/100 km, or the standard
   5/10/25/50 mi presets — not an awkward conversion of the km numbers, which

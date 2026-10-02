@@ -226,6 +226,19 @@ export function mount(container, props = {}) {
     return sighting.user_id === userId;
   }
 
+  // `get_stock_photo()` on the backend always returns *a* URL — a real
+  // Commons photo, or a generated placehold.co image with the species name
+  // printed on it as a last resort so Life List cards are never blank. That
+  // text-on-a-card placeholder reads fine at Life List's size, but shrunk
+  // to this dropdown's 32px circle the text is illegible and looks exactly
+  // like a broken/not-yet-loaded image (a real "still not loading" report —
+  // it had actually finished loading, it just wasn't a real photo). Treated
+  // as equivalent to "no photo" here so it falls back to the plain icon
+  // instead, which reads unambiguously at any size.
+  function isGeneratedPlaceholder(url) {
+    return url.startsWith('https://placehold.co/');
+  }
+
   // Distinct species (by scientific name, falling back to common name)
   // among `state.sightings` matching the typed text — feeds the species
   // filter's autocomplete dropdown. Each entry carries a representative
@@ -629,7 +642,7 @@ export function mount(container, props = {}) {
             data-species-suggestion="${i}"
             style="width: 100%; justify-content: flex-start; gap: var(--ob-space-2); padding: var(--ob-space-1) var(--ob-space-2);"
           >
-            ${sp.photoUrl
+            ${sp.photoUrl && !isGeneratedPlaceholder(sp.photoUrl)
               ? `<img src="${escapeHtml(sp.photoUrl)}" alt="" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`
               : `<span style="display: inline-flex; width: 32px; height: 32px; border-radius: 50%; background: var(--ob-color-surface-alt); align-items: center; justify-content: center; flex-shrink: 0;">🐦</span>`}
             <span style="text-align: left;">

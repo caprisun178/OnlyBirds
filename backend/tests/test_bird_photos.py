@@ -138,6 +138,37 @@ def test_a_new_lookup_writes_through_to_the_cache_file(monkeypatch, tmp_path):
     assert saved["Turdus migratorius"]["media_url"] == "https://upload.wikimedia.org/real-robin.jpg"
 
 
+def test_save_merges_with_disk_instead_of_overwriting(monkeypatch, tmp_path):
+    # Regression — a real incident, not a hypothetical: two server
+    # processes alive at once (the dev `--reload` watcher's old worker not
+    # actually dying before a new one starts — a known issue in this
+    # environment), each with their own in-memory `_cache` loaded from disk
+    # at different times. The one loaded earlier (fewer entries) writing
+    # last used to silently erase everything a *different* process had
+    # since saved — confirmed live: a cache that had grown to 62 species
+    # dropped back to 16 after exactly this. A save must never destroy an
+    # entry it doesn't know about.
+    cache_file = tmp_path / "species_photo_cache.json"
+    # Simulates another process having already saved a species this one's
+    # own (smaller) in-memory `_cache` has never heard of.
+    cache_file.write_text(
+        json.dumps({"Cyanocitta cristata": {"media_url": "https://upload.wikimedia.org/real-bluejay.jpg"}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(bird_photos, "_CACHE_FILE", cache_file)
+    monkeypatch.setattr(bird_photos, "_cache", {"Turdus migratorius": {"media_url": "https://upload.wikimedia.org/real-robin.jpg"}})
+    monkeypatch.setattr(bird_photos, "_save_cache_file", _real_save_cache_file)
+
+    bird_photos._save_cache_file()
+
+    saved = json.loads(cache_file.read_text(encoding="utf-8"))
+    assert saved["Cyanocitta cristata"]["media_url"] == "https://upload.wikimedia.org/real-bluejay.jpg"  # not lost
+    assert saved["Turdus migratorius"]["media_url"] == "https://upload.wikimedia.org/real-robin.jpg"  # this process's own entry
+    # The merge result is also reflected back into this process's own
+    # in-memory cache, so a later lookup in the same process benefits too.
+    assert bird_photos._cache["Cyanocitta cristata"]["media_url"] == "https://upload.wikimedia.org/real-bluejay.jpg"
+
+
 def test_cache_file_is_loaded_back_on_a_fresh_lookup(monkeypatch, tmp_path):
     # The other half of the round trip: an entry already on disk should be
     # served without ever calling Commons again — this is the whole point
