@@ -146,7 +146,7 @@ Set in `backend/.env` (copied from `backend/.env.example`):
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
 | `EBIRD_API_KEY` | for eBird data | _unset_ | see [eBird API](ebird-api.md) |
-| `CORS_ORIGINS` | no | `http://localhost:3000,http://localhost:5173,http://localhost:8081` | comma-separated allowed web origins |
+| `CORS_ORIGINS` | no | `http://localhost:3000,http://127.0.0.1:3000,http://localhost:4174,http://127.0.0.1:4174,http://localhost:5173,http://127.0.0.1:5173,http://localhost:8081,http://127.0.0.1:8081` | comma-separated allowed web origins — both `localhost` and `127.0.0.1` per port, since browsers treat them as different origins; a frontend opened at one when only the other is whitelisted fails every API call with a bare "Failed to fetch" (no CORS-specific message) |
 | `DATABASE_URL` | for migrations | _unset_ | Postgres connection string (Supabase). Used by `scripts/migrate.sh`; the base server still runs without it. See [Deployment](deployment.md). |
 
 `.env` is git-ignored. Never commit real keys.

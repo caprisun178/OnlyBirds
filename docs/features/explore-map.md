@@ -31,7 +31,36 @@ multi-session project once it's time to build it for real.
   explicit "Use my location" button and a place search
   (`Services/geocoding.js`, the same Nominatim proxy Add Observation's
   location picker uses) for when that's denied, wrong, or the user wants
-  somewhere else entirely.
+  somewhere else entirely. The place search shows live suggestions as you
+  type — debounced 350ms (`ExploreMap.js#scheduleSearch()`), under the
+  3-character minimum `geocodingService.search()` already no-ops on — rather
+  than requiring an explicit "Search" click (removed; Enter still searches
+  immediately, bypassing the debounce, for anyone who doesn't want to wait
+  it out). A `searchRequestId` counter guards against an earlier, slower
+  response landing after a newer one and clobbering its results. Only the
+  suggestions dropdown is patched per keystroke
+  (`updateSearchSuggestionsDom()`), not the whole search bar — same
+  "targeted update" reasoning as the species filter below; going through a
+  full `render()` here would rebuild the `<input>` itself on every
+  keystroke's resolved fetch and kick focus out of it mid-word.
+
+!!! note "Live suggestions made the search slow — a real Nominatim adapter bug"
+    `app/dao/nominatim.py`'s comment used to say "fine here since it's one
+    manual search per user action, never a loop" — true until Explore Map's
+    search went live-as-you-type above, turning that into a request per
+    debounced keystroke. Two real problems followed, both backend-side:
+    `_client()` opened (and immediately closed) a brand new
+    `httpx.AsyncClient` — a fresh TCP+TLS handshake to Nominatim — on every
+    single call, and nothing was cached, so retyping or pausing and resuming
+    the same string re-requested it from scratch every time. Fixed:
+    `_get_client()` now hands back one shared, persistent client (same
+    reasoning as `app/dao/db.py#get_pool()` reusing one Postgres pool
+    instead of reconnecting per query), and `search()` caches each exact
+    `(query, limit)` for 60 seconds, capped at 200 entries (crude eviction —
+    clears entirely rather than a real LRU, which isn't worth the complexity
+    at this scale). Both also mean fewer requests against Nominatim's
+    ~1 req/sec usage-policy ceiling, not just lower latency.
+    `tests/test_geocoding.py` covers both.
 - **Data**: the existing `GET /sightings/nearby?lat=&lng=&radius_km=&days_back=&source=`
   — point + radius, not a bounding box, and no caching. Merges eBird,
   iNaturalist (both with graceful degradation, see [Backend
@@ -56,6 +85,20 @@ multi-session project once it's time to build it for real.
   focus) because *that* screen doesn't have a live map to avoid disturbing.
   Deliberately not reset by a location/radius/source/days change — "find
   this bird" reads as a standing intent while panning around, not a one-off.
+  A **km/mi** unit select sits next to the radius dropdown
+  (`ExploreMap.js#setDistanceUnit()`). Each unit has its own clean, native
+  radius set (`RADIUS_OPTIONS_BY_UNIT`: 10/25/50/100 km, or the standard
+  5/10/25/50 mi presets — not an awkward conversion of the km numbers, which
+  used to show as 6/16/31/62 mi) and its own default (25km, or a plain 5mi —
+  switching units resets to that unit's default rather than trying to
+  convert/approximate whatever was selected before, e.g. so miles doesn't
+  start out on some odd carried-over number). Whatever's picked is converted
+  to km (`nativeToKm()`) before it's ever sent anywhere — `state.radiusKm`
+  stays the one canonical value behind `radius_km`, the search-area circle,
+  and the trip-planning subtitle (`formatDistance()` converts it back for
+  display); only the dropdown's own options and the unit toggle are
+  unit-aware, so switching units can't accidentally widen or narrow what's
+  actually being searched.
 - **Map**: `Components/SightingsMap.js`, a Leaflet map (loaded from a CDN via
   the now-shared `Components/leaflet.js` — extracted from
   `LocationPicker.js`, which used to carry its own copy of the same loader)
@@ -72,6 +115,34 @@ multi-session project once it's time to build it for real.
   true point before placing markers — no clustering library, every pin stays
   individually clickable, and `onSelectSighting` still gets the sighting's
   real unmodified lat/lng (only the *marker's drawn position* is jittered).
+  A dashed blue circle (`SightingsMap.js#mountSightingsMap()`'s `searchArea`
+  option, `L.circle` centered on `state.lat`/`lng` with `radius: radiusKm *
+  1000`, `interactive: false` so it never swallows a click meant for a pin
+  underneath) marks the actual point+radius search boundary — without it, a
+  wide radius (e.g. 25km) left no way to tell where that boundary actually
+  was relative to the pins on screen, a real "I can't see where my selected
+  area is" report. Picking a new place or changing the radius filter re-fits
+  the view to the whole circle (`fitSearchArea`, via `map.fitBounds()`,
+  since a fixed zoom level can't suit every radius option from 10km to
+  100km at once) instead of preserving the prior pan/zoom the way other
+  filter changes do — `locationJustChanged`/`radiusJustChanged` in
+  `ExploreMap.js#wireMap()` are the two exceptions to that preservation,
+  since both change what the circle itself covers. A one-line legend under
+  the map (part of `renderStatusLine()`) explains the dashed line, same as
+  the green-dot legend for "yours."
+
+!!! note "The re-fit silently did nothing — a real Leaflet sizing bug"
+    Switching the radius (e.g. 25mi → 5mi, or the reverse) wasn't visibly
+    zooming the map at all, even though `fitSearchArea` was correctly firing.
+    Cause: every `render()` here fully rebuilds the map's container div from
+    scratch, and `fitBounds()` computes the zoom it needs from Leaflet's
+    cached container size — called immediately after `L.map(container)` on a
+    just-inserted container, that cache can still be stale/zero, so it
+    silently computed the wrong zoom (or none) instead of actually fitting
+    the circle. `map.invalidateSize()` right before `fitBounds()` forces a
+    fresh measurement first. `focusArea()` (the "top spots" click-to-zoom)
+    never needed this — it only ever runs well after mount, on a later
+    click, once the container's size has already settled.
   Basemap is Esri's "Light Gray Canvas" tile set
   (`leaflet.js#addBaseTileLayer()`) instead of standard OpenStreetMap street
   tiles — a plain gray reference map with a transparent label overlay for

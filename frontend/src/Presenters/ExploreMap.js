@@ -35,8 +35,26 @@ import { renderSightingDetail } from '../Components/SightingDetail.js';
 import { escapeHtml } from '../Components/htmlUtils.js';
 
 const DAYS_BACK_OPTIONS = [7, 14, 30];
-const RADIUS_KM_OPTIONS = [10, 25, 50, 100];
+// Each unit offers its own clean, native-feeling set of radii (standard
+// mile-radius presets, not an awkward unit conversion of the km ones — that
+// used to show 6/16/31/62 mi, converted from 10/25/50/100 km). Picking an
+// option converts it to km (MI_TO_KM) before it's ever sent to the backend
+// — `state.radiusKm` is always the canonical value in both the API call and
+// everywhere else in this file (the search-area circle, trip-planning
+// subtitle, etc.); only the dropdown's own options/labels vary by unit.
+const RADIUS_OPTIONS_BY_UNIT = {
+  km: [10, 25, 50, 100],
+  mi: [5, 10, 25, 50],
+};
+// Switching units resets to the new unit's own default rather than
+// converting/approximating the old radius — simpler and more predictable
+// than picking "the closest native option" to whatever was selected before.
+const RADIUS_DEFAULT_BY_UNIT = { km: 25, mi: 5 };
+const KM_TO_MI = 0.621371;
+const MI_TO_KM = 1 / KM_TO_MI;
 const TOP_AREAS_SHOWN = 5;
+const SEARCH_DEBOUNCE_MS = 350;
+const MIN_SEARCH_LENGTH = 3; // matches geocodingService's own no-op threshold (Services/geocoding.js)
 
 export function mount(container, props = {}) {
   // onNavigate optional — omitted when this screen is previewed standalone.
@@ -51,6 +69,7 @@ export function mount(container, props = {}) {
     locating: false, // explicit "Use my location" in flight
     daysBack: 7,
     radiusKm: 25,
+    distanceUnit: 'km', // 'km' | 'mi' — see RADIUS_OPTIONS_BY_UNIT's comment
     source: 'all', // 'all' | 'ebird' | 'inat' | 'manual'
     sightings: [],
     loading: false,
@@ -89,6 +108,9 @@ export function mount(container, props = {}) {
   let mapController = null;
   let mapGeneration = 0; // guards against a stale remount resolving after a newer one started
   let locationJustChanged = false; // true for the one render right after setLocation() — jump there instead of preserving pan/zoom
+  let radiusJustChanged = false; // true for the one render right after a radius filter change — the search-area circle's size changed, so re-fit to it instead of preserving pan/zoom
+  let searchDebounceTimer = null;
+  let searchRequestId = 0;
 
   render();
   attemptSilentGeolocation();
@@ -274,11 +296,41 @@ export function mount(container, props = {}) {
 
   function applyFilters({ daysBack, radiusKm, source } = {}) {
     if (daysBack !== undefined) state.daysBack = daysBack;
-    if (radiusKm !== undefined) state.radiusKm = radiusKm;
+    if (radiusKm !== undefined && radiusKm !== state.radiusKm) {
+      state.radiusKm = radiusKm;
+      radiusJustChanged = true;
+    }
     if (source !== undefined) state.source = source;
     state.selectedSighting = null; // the selected pin might not match the new filters
     render();
     loadSightings();
+  }
+
+  // Switching units resets the radius to the new unit's own default (see
+  // RADIUS_DEFAULT_BY_UNIT) rather than trying to convert/approximate the
+  // old selection — e.g. mi's default is a plain 5, not whatever odd number
+  // 25km would convert to. A deliberate, infrequent action, so a full
+  // render() (same as any other filter change) is fine — no need for
+  // applySpeciesFilter()'s targeted-update dance.
+  function setDistanceUnit(unit) {
+    if (unit === state.distanceUnit) return;
+    state.distanceUnit = unit;
+    const newRadiusKm = nativeToKm(RADIUS_DEFAULT_BY_UNIT[unit], unit);
+    if (newRadiusKm !== state.radiusKm) {
+      state.radiusKm = newRadiusKm;
+      radiusJustChanged = true; // re-fit the search-area circle to the new default radius
+    }
+    render();
+    loadSightings();
+  }
+
+  function nativeToKm(value, unit) {
+    return unit === 'mi' ? Math.round(value * MI_TO_KM) : value;
+  }
+
+  function formatDistance(km) {
+    if (state.distanceUnit === 'mi') return `${Math.round(km * KM_TO_MI)} mi`;
+    return `${km} km`;
   }
 
   // Selecting a pin only ever touches the detail panel — never the map
@@ -331,21 +383,52 @@ export function mount(container, props = {}) {
     if (e.key === 'Escape') closeLightbox();
   }
 
+  // Live suggestions as you type, instead of requiring an explicit
+  // "Search" click/Enter — debounced so it doesn't fire a request per
+  // keystroke, and guarded by `searchRequestId` so a slower, earlier
+  // response can't clobber a newer one if they resolve out of order.
+  // `geocodingService.search()` already no-ops under 3 characters, so this
+  // doesn't bother debouncing/fetching for a query that's going to come
+  // back empty anyway.
+  function scheduleSearch(query) {
+    state.searchQuery = query;
+    clearTimeout(searchDebounceTimer);
+    if (query.trim().length < MIN_SEARCH_LENGTH) {
+      searchRequestId += 1; // invalidate any in-flight fetch's result
+      state.searchResults = [];
+      state.searchError = null;
+      state.searching = false;
+      updateSearchSuggestionsDom();
+      return;
+    }
+    searchDebounceTimer = setTimeout(() => runSearch(query), SEARCH_DEBOUNCE_MS);
+  }
+
+  // Patches just the suggestions dropdown, not the whole search bar — a
+  // full render() on every keystroke's resolved fetch would steal focus
+  // out of the input mid-type, same "targeted update" reasoning as
+  // applySpeciesFilter() elsewhere in this file.
   async function runSearch(query) {
     const trimmed = query.trim();
     if (!trimmed) return;
+    const requestId = (searchRequestId += 1);
     state.searching = true;
     state.searchError = null;
-    render();
+    updateSearchSuggestionsDom();
     try {
-      state.searchResults = await geocodingService.search(trimmed);
+      const results = await geocodingService.search(trimmed);
+      if (requestId !== searchRequestId) return; // a newer search started since this one began
+      state.searchResults = results;
       if (state.searchResults.length === 0) state.searchError = 'No matches — try a different search.';
     } catch (err) {
+      if (requestId !== searchRequestId) return;
       state.searchError = 'Search failed. Try again in a moment.';
       state.searchResults = [];
     } finally {
-      state.searching = false;
-      render();
+      if (requestId === searchRequestId) {
+        state.searching = false;
+        updateSearchSuggestionsDom();
+      }
     }
   }
 
@@ -386,6 +469,7 @@ export function mount(container, props = {}) {
       container.querySelector('[data-action="back-to-home"]')?.addEventListener('click', () => onNavigate('home'));
     }
     wire();
+    wireSearchSuggestions();
     wireMap();
     wireDetailPanel();
     wireRegionSummary();
@@ -403,20 +487,47 @@ export function mount(container, props = {}) {
       <div class="ob-field">
         <label class="ob-label ob-visually-hidden" for="place-search">Search for a place</label>
         <div class="ob-cluster">
-          <input id="place-search" type="search" class="ob-input" style="flex:1" placeholder="Search for a place…" value="${escapeHtml(state.searchQuery)}" />
-          <button type="button" class="ob-btn ob-btn--ghost" data-action="search-place" ${state.searching ? 'disabled' : ''}>${state.searching ? 'Searching…' : 'Search'}</button>
+          <input id="place-search" type="search" class="ob-input" style="flex:1" autocomplete="off" placeholder="Search for a place…" value="${escapeHtml(state.searchQuery)}" />
           <button type="button" class="ob-btn ob-btn--ghost" data-action="use-my-location" ${state.locating ? 'disabled' : ''}>${state.locating ? 'Locating…' : 'Use my location'}</button>
         </div>
-        ${state.searchError ? `<p class="ob-text-muted ob-text-sm">${escapeHtml(state.searchError)}</p>` : ''}
-        ${state.searchResults.length > 0 ? `
-          <div class="ob-stack" style="--ob-stack-gap: var(--ob-space-1);" data-role="search-results">
-            ${state.searchResults.map((r, i) => `
-              <button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" style="justify-content:flex-start;" data-search-result="${i}">${escapeHtml(r.display_name)}</button>
-            `).join('')}
-          </div>
-        ` : ''}
+        <div data-role="search-suggestions">${renderSearchSuggestions()}</div>
       </div>
     `;
+  }
+
+  // Suggestions dropdown only — split out from renderSearchBar() so typing
+  // can patch just this subtree (updateSearchSuggestionsDom()) without
+  // touching the `<input>` itself and losing cursor focus mid-word.
+  function renderSearchSuggestions() {
+    if (state.searching) {
+      return '<p class="ob-text-muted ob-text-sm"><span class="ob-spinner" style="width:1em;height:1em;vertical-align:middle;margin-right:6px;"></span>Searching…</p>';
+    }
+    if (state.searchError) {
+      return `<p class="ob-text-muted ob-text-sm">${escapeHtml(state.searchError)}</p>`;
+    }
+    if (state.searchResults.length === 0) return '';
+    return `
+      <div class="ob-stack" style="--ob-stack-gap: var(--ob-space-1);" data-role="search-results">
+        ${state.searchResults.map((r, i) => `
+          <button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" style="justify-content:flex-start;" data-search-result="${i}">${escapeHtml(r.display_name)}</button>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  function updateSearchSuggestionsDom() {
+    const el = container.querySelector('[data-role="search-suggestions"]');
+    if (el) el.innerHTML = renderSearchSuggestions();
+    wireSearchSuggestions();
+  }
+
+  function wireSearchSuggestions() {
+    container.querySelectorAll('[data-search-result]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const result = state.searchResults[Number(btn.dataset.searchResult)];
+        if (result) setLocation(result.lat, result.lng, result.display_name);
+      });
+    });
   }
 
   function renderFilters() {
@@ -441,9 +552,13 @@ export function mount(container, props = {}) {
           </select>
         </div>
         <div class="ob-field" style="flex-direction:row; align-items:center; gap: var(--ob-space-2);">
-          <label class="ob-label" for="radius-filter">Radius</label>
+          <label class="ob-label" for="distance-unit-filter">Radius</label>
+          <select id="distance-unit-filter" class="ob-select" style="width:auto;" aria-label="Distance unit">
+            <option value="km" ${state.distanceUnit === 'km' ? 'selected' : ''}>km</option>
+            <option value="mi" ${state.distanceUnit === 'mi' ? 'selected' : ''}>mi</option>
+          </select>
           <select id="radius-filter" class="ob-select" style="width:auto;" ${state.lat == null ? 'disabled' : ''}>
-            ${RADIUS_KM_OPTIONS.map((r) => `<option value="${r}" ${r === state.radiusKm ? 'selected' : ''}>${r} km</option>`).join('')}
+            ${RADIUS_OPTIONS_BY_UNIT[state.distanceUnit].map((v) => `<option value="${v}" ${nativeToKm(v, state.distanceUnit) === state.radiusKm ? 'selected' : ''}>${v} ${state.distanceUnit}</option>`).join('')}
           </select>
         </div>
         <div class="ob-field" style="flex-direction:row; align-items:center; gap: var(--ob-space-2);">
@@ -477,7 +592,7 @@ export function mount(container, props = {}) {
         <div class="ob-cluster" style="justify-content: space-between; align-items: center;">
           <div>
             <h3 class="ob-card__title" style="margin: 0;">🗺️ Trip planning</h3>
-            <p class="ob-text-muted ob-text-sm" style="margin: 2px 0 0;">Based on the last ${state.daysBack} days within ${state.radiusKm} km of ${escapeHtml(state.placeLabel || 'this area')}</p>
+            <p class="ob-text-muted ob-text-sm" style="margin: 2px 0 0;">Based on the last ${state.daysBack} days within ${formatDistance(state.radiusKm)} of ${escapeHtml(state.placeLabel || 'this area')}</p>
           </div>
           <button
             type="button"
@@ -646,6 +761,7 @@ export function mount(container, props = {}) {
     return `
       <p class="ob-text-muted ob-text-sm">${matches.length} sighting${matches.length === 1 ? '' : 's'}${filterNote} near ${escapeHtml(state.placeLabel || 'this area')} in the last ${state.daysBack} days.</p>
       <p class="ob-text-muted ob-text-sm" style="margin-top: var(--ob-space-1);"><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--ob-color-success-text); margin-right: var(--ob-space-1); vertical-align:middle;"></span>${mineCount} ${mineCount === 1 ? 'is' : 'are'} yours.</p>
+      <p class="ob-text-muted ob-text-sm" style="margin-top: var(--ob-space-1);"><span style="display:inline-block; width:14px; height:0; border-top: 2px dashed #3aa0ff; margin-right: var(--ob-space-1); vertical-align:middle;"></span>Dashed circle = your ${formatDistance(state.radiusKm)} search area.</p>
     `;
   }
 
@@ -659,29 +775,24 @@ export function mount(container, props = {}) {
 
   function wire() {
     // Live-as-you-type — applySpeciesFilter() deliberately never calls
-    // render(), so (unlike the place-search input below) there's no focus
-    // to lose here; this listener only ever gets (re)attached on an actual
-    // full render (radius/days/source changes, initial load), not on every
-    // keystroke.
+    // render(), so there's no focus to lose here; this listener only ever
+    // gets (re)attached on an actual full render (radius/days/source
+    // changes, initial load), not on every keystroke. Same reasoning as the
+    // place-search input below.
     const speciesInput = container.querySelector('#species-filter');
     speciesInput?.addEventListener('input', () => applySpeciesFilter(speciesInput.value));
 
+    // Live suggestions as you type (debounced — see scheduleSearch());
+    // Enter bypasses the debounce and searches immediately, for anyone who
+    // types fast and doesn't want to wait it out.
     const searchInput = container.querySelector('#place-search');
-    const runTheSearch = () => runSearch(searchInput.value);
-    container.querySelector('[data-action="search-place"]')?.addEventListener('click', runTheSearch);
+    searchInput?.addEventListener('input', () => scheduleSearch(searchInput.value));
     searchInput?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        runTheSearch();
+        clearTimeout(searchDebounceTimer);
+        runSearch(searchInput.value);
       }
-    });
-    searchInput?.addEventListener('input', () => { state.searchQuery = searchInput.value; });
-
-    container.querySelectorAll('[data-search-result]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const result = state.searchResults[Number(btn.dataset.searchResult)];
-        if (result) setLocation(result.lat, result.lng, result.display_name);
-      });
     });
 
     container.querySelector('[data-action="use-my-location"]')?.addEventListener('click', useMyLocation);
@@ -690,7 +801,10 @@ export function mount(container, props = {}) {
     daysBackSelect?.addEventListener('change', () => applyFilters({ daysBack: Number(daysBackSelect.value) }));
 
     const radiusSelect = container.querySelector('#radius-filter');
-    radiusSelect?.addEventListener('change', () => applyFilters({ radiusKm: Number(radiusSelect.value) }));
+    radiusSelect?.addEventListener('change', () => applyFilters({ radiusKm: nativeToKm(Number(radiusSelect.value), state.distanceUnit) }));
+
+    const distanceUnitSelect = container.querySelector('#distance-unit-filter');
+    distanceUnitSelect?.addEventListener('change', () => setDistanceUnit(distanceUnitSelect.value));
 
     const sourceSelect = container.querySelector('#source-filter');
     sourceSelect?.addEventListener('change', () => applyFilters({ source: sourceSelect.value }));
@@ -705,15 +819,18 @@ export function mount(container, props = {}) {
   // avoid snapping back to the searched location on every filter change,
   // this preserves whatever the user last panned/zoomed to (falling back to
   // `state.lat`/`lng` only when there's no prior view, e.g. the very first
-  // mount or right after picking a new search result).
+  // mount, right after picking a new search result, or right after a radius
+  // change — both of those re-fit to the search-area circle instead, since
+  // the old pan/zoom would otherwise show the wrong boundary).
   function wireMap() {
     const mapEl = container.querySelector('[data-role="sightings-map"]');
     if (!mapEl) return;
 
     const generation = ++mapGeneration;
-    const jumpToNewLocation = locationJustChanged;
-    locationJustChanged = false; // only the render right after setLocation() jumps; later ones (loading, sightings-loaded) preserve pan/zoom
-    const priorView = jumpToNewLocation ? null : mapController?.getView?.();
+    const jumpToSearchArea = locationJustChanged || radiusJustChanged;
+    locationJustChanged = false;
+    radiusJustChanged = false;
+    const priorView = jumpToSearchArea ? null : mapController?.getView?.();
     mapController?.destroy();
     mapController = null;
 
@@ -722,8 +839,15 @@ export function mount(container, props = {}) {
       : state.lat != null
         ? [state.lat, state.lng]
         : undefined;
+    const searchArea = state.lat != null ? { lat: state.lat, lng: state.lng, radiusKm: state.radiusKm } : null;
 
-    mountSightingsMap(mapEl, { initialLatLng, onSelectSighting: selectSighting, isOwnSighting })
+    mountSightingsMap(mapEl, {
+      initialLatLng,
+      onSelectSighting: selectSighting,
+      isOwnSighting,
+      searchArea,
+      fitSearchArea: jumpToSearchArea,
+    })
       .then((controller) => {
         if (generation !== mapGeneration) {
           controller.destroy(); // a newer render already started remounting — this one lost the race

@@ -87,13 +87,48 @@ function layoutMarkerPositions(sightings) {
  * outline around it (used by Explore Map's "top spots" list, so clicking
  * one shows exactly which pins it covers); a later call replaces the
  * outline, and `null` just clears it.
+ *
+ * `searchArea` — `{ lat, lng, radiusKm }` or omitted — draws a dashed
+ * circle for the actual point+radius search area, so a wide radius (e.g.
+ * 25km) doesn't leave the user unable to tell where their search boundary
+ * actually is relative to the pins on screen (a real "I can't see where my
+ * selected area is" report). `fitSearchArea: true` fits the initial view to
+ * that whole circle instead of a fixed zoom on `initialLatLng` — a fixed
+ * zoom can't suit every radius option (10km through 100km) at once.
  */
-export async function mountSightingsMap(container, { initialLatLng, onSelectSighting, isOwnSighting } = {}) {
+export async function mountSightingsMap(container, { initialLatLng, onSelectSighting, isOwnSighting, searchArea, fitSearchArea } = {}) {
   const L = await loadLeaflet();
 
   const map = L.map(container).setView(initialLatLng || DEFAULT_CENTER, initialLatLng ? LOCATED_ZOOM : DEFAULT_ZOOM);
 
   addBaseTileLayer(map, L);
+
+  if (searchArea && searchArea.lat != null && searchArea.lng != null && searchArea.radiusKm) {
+    const circle = L.circle([searchArea.lat, searchArea.lng], {
+      radius: searchArea.radiusKm * 1000,
+      color: '#3aa0ff',
+      weight: 2,
+      dashArray: '6 6',
+      fillColor: '#3aa0ff',
+      fillOpacity: 0.04,
+      interactive: false, // reference outline only — never swallow a click meant for a pin
+    }).addTo(map);
+    if (fitSearchArea) {
+      // The container was just inserted into the DOM this render (every
+      // render() here fully rebuilds the map's container), so Leaflet's
+      // internal size cache can still be stale/zero at this exact point —
+      // fitBounds() computes the zoom needed from that cached size, so
+      // calling it before a fresh measurement silently computes the wrong
+      // zoom (or none at all) instead of actually zooming to fit the
+      // circle. invalidateSize() forces a real measurement first. (This is
+      // also why switching from 25mi to 5mi — or the reverse — wasn't
+      // visibly zooming: a real reported bug.) focusArea() below doesn't
+      // need this — it only ever runs well after mount, on a later click,
+      // once the container's size is already settled.
+      map.invalidateSize();
+      map.fitBounds(circle.getBounds(), { padding: [16, 16] });
+    }
+  }
 
   const ownIcon = ownSightingIcon(L);
   let markers = [];
