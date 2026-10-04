@@ -35,11 +35,12 @@ export function mount(container, props = {}) {
     regionLabel: props.regionLabel || props.region || 'United States',
     data: null, // { regionCode, total, seen, species }
 
-    // Filters — seen/unseen and bird type (eBird family) narrow the species
-    // list before it's sliced to `limit`. Region is already a "filter" via
-    // the region picker below.
+    // Filters — seen/unseen, bird type (eBird family), and a name search
+    // narrow the species list before it's sliced to `limit`. Region is
+    // already a "filter" via the region picker below.
     seenFilter: 'all', // 'all' | 'seen' | 'unseen'
     typeFilter: '', // '' (all types) or a family_common_name
+    searchQuery: '', // matched against common + scientific name, case-insensitive
     families: [], // distinct family_common_name values in the current checklist
 
     // Region picker: cascading country -> state/province -> county selects,
@@ -75,6 +76,7 @@ export function mount(container, props = {}) {
       state.families = lifeListService.getFamilies(data.species);
       state.seenFilter = 'all';
       state.typeFilter = '';
+      state.searchQuery = '';
       state.limit = DEFAULT_LIMIT;
     } catch (err) {
       state.error = err.message || 'Could not load the checklist for this region.';
@@ -101,20 +103,46 @@ export function mount(container, props = {}) {
     render();
   }
 
+  // Search re-renders on every keystroke (live filtering), unlike the
+  // dropdown filters above — a full `render()` would otherwise kick focus
+  // out of the input after each character, since this presenter always
+  // rebuilds the whole container from scratch. Preserving focus + cursor
+  // position across that rebuild is simpler here than teaching this
+  // presenter partial re-renders just for one field.
+  function applySearch(query) {
+    state.searchQuery = query;
+    state.limit = DEFAULT_LIMIT;
+    const input = container.querySelector('#species-search');
+    const hadFocus = input && document.activeElement === input;
+    const selectionStart = input?.selectionStart;
+    const selectionEnd = input?.selectionEnd;
+    render();
+    if (hadFocus) {
+      const newInput = container.querySelector('#species-search');
+      newInput?.focus();
+      newInput?.setSelectionRange(selectionStart, selectionEnd);
+    }
+  }
+
   // The sorted (seen-first by default) species list, narrowed by the
-  // seen/unseen and bird-type filters. `limit` slices this, not the raw data.
+  // seen/unseen filter, bird-type filter, and name search. `limit` slices
+  // this, not the raw data.
   function filteredSpecies() {
+    const query = state.searchQuery.trim().toLowerCase();
     return state.data.species.filter((sp) => {
       if (state.seenFilter === 'seen' && !sp.seen) return false;
       if (state.seenFilter === 'unseen' && sp.seen) return false;
       if (state.typeFilter && sp.family_common_name !== state.typeFilter) return false;
+      if (query && !sp.common_name.toLowerCase().includes(query) && !sp.scientific_name.toLowerCase().includes(query)) {
+        return false;
+      }
       return true;
     });
   }
 
   function render() {
     container.innerHTML = `
-      <div class="ob-stack">
+      <div class="ob-container ob-stack">
         ${onNavigate ? '<button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="back-to-home" style="align-self:flex-start;">← Back to home</button>' : ''}
         <h1>Life List</h1>
         ${state.error ? `<div class="ob-alert ob-alert--danger">${escapeHtml(state.error)}</div>` : ''}
@@ -155,6 +183,17 @@ export function mount(container, props = {}) {
         ${renderProgressBar(state.data.seen, state.data.total)}
 
         ${state.pickerOpen ? renderRegionPicker() : ''}
+
+        <div class="ob-field">
+          <label class="ob-label ob-visually-hidden" for="species-search">Search species</label>
+          <input
+            id="species-search"
+            type="search"
+            class="ob-input"
+            placeholder="Search by common or scientific name…"
+            value="${escapeHtml(state.searchQuery)}"
+          />
+        </div>
 
         <div class="ob-cluster" style="justify-content: space-between;">
           <div class="ob-cluster" role="group" aria-label="Grid or list view">
@@ -292,6 +331,9 @@ export function mount(container, props = {}) {
 
     const sortSelect = container.querySelector('#sort-select');
     if (sortSelect) sortSelect.addEventListener('change', () => applySort(sortSelect.value));
+
+    const searchInput = container.querySelector('#species-search');
+    searchInput?.addEventListener('input', () => applySearch(searchInput.value));
 
     const seenFilterSelect = container.querySelector('#seen-filter');
     if (seenFilterSelect) {

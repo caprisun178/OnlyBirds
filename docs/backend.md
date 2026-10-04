@@ -5,12 +5,20 @@ Base URL in development: `http://localhost:8000`. Interactive docs (OpenAPI) at
 
 ## Endpoints
 
+The core, cross-feature endpoints — the ones most things end up calling.
+Geocoding (`/geocode/search`, `/geocode/reverse`), identification
+(`/identify/...`), photo uploads (`/uploads/photos`), and user accounts
+(`/users`, `/users/{username}`) are documented on their own feature pages
+([Add Observation](features/add-observation.md),
+[User profiles](features/user-profiles.md)) instead of duplicated here.
+
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/` | name, version, link to `/docs` |
 | `GET` | `/health` | `status`, `version`, `ebird_key_configured` |
 | `GET` | `/species/search?q=` | iNaturalist taxon autocomplete → `SpeciesRef[]` |
-| `GET` | `/sightings/nearby` | normalized eBird + iNaturalist feed → `Observation[]` |
+| `POST` | `/species/photos` | body `SpeciesRef[]` (only `scientific_name`/`common_name` used) → `SpeciesPhoto[]`, a guaranteed real-or-placeholder photo per species — backs Explore Map's species-filter suggestions |
+| `GET` | `/sightings/nearby` | normalized eBird + iNaturalist + our own logged observations → `Observation[]` |
 | `GET` | `/users/{user_id}/observations` | that user's observations, newest first |
 | `POST` | `/observations` | log an observation (`ObservationCreate`) → `201` |
 | `GET` | `/observations/{id}` | one observation, or `404` |
@@ -24,11 +32,16 @@ Base URL in development: `http://localhost:8000`. Interactive docs (OpenAPI) at
 | `lat` | float | — | required, −90…90 |
 | `lng` | float | — | required, −180…180 |
 | `radius_km` | int | 25 | 1…200 |
-| `days_back` | int | 7 | 1…30 (eBird only) |
-| `source` | enum | `all` | `all` \| `ebird` \| `inat` |
+| `days_back` | int | 7 | 1…30 (eBird + our own; iNaturalist ignores this) |
+| `source` | enum | `all` | `all` \| `ebird` \| `inat` \| `manual` (our own logged observations) |
 
 With no `EBIRD_API_KEY` configured, eBird results are silently omitted — see
-[eBird API](ebird-api.md) for auth, endpoints, and failure behavior.
+[eBird API](ebird-api.md) for auth, endpoints, and failure behavior. Our own
+observations (`source=manual`) come from `observations` directly — no
+external call, no key needed — filtered by radius via
+`dao/observation_repo.py#list_near` (haversine in Python; there's no
+PostGIS geom column yet, see [Explore map](features/explore-map.md)), and
+scoped to `status = 'logged'` rows from any user, not just the caller.
 
 ## Examples
 
@@ -67,8 +80,11 @@ python -m pytest                       # test (offline, no key)
 
 ## Known limitations
 
-- Observations live in an in-memory store — they reset on restart. Moving to
-  Postgres is in progress; see [Deployment](deployment.md).
+- Observations persist in Postgres (Neon) once `DATABASE_URL` is set —
+  `PostgresObservationRepo` is used automatically
+  (`app/dao/observation_repo.py`); without it (tests, or a fresh clone with
+  no database configured yet), they fall back to an in-memory store that
+  resets on restart. See [Deployment](deployment.md).
 - `user_id` / `auth_provider_id` are trusted as passed; no token verification.
 - Cross-source species dedupe in the life list is name-based until external
   `source_ids` are resolved to our own `species` rows.

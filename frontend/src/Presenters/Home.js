@@ -1,106 +1,43 @@
 // frontend/src/Presenters/Home.js
-// The app's landing screen — no separate marketing page, this is the first
-// thing shown. A welcome, a main call to action, and cards that lead to the
-// other screens. No router yet, so navigation goes through an optional
-// onNavigate callback (it just logs for now). Auth/login is separate
-// in-progress work, not wired in here.
+// The app's landing screen: a header with quick links (Life List, Add
+// Observation, Login) and Explore Map embedded directly below it, so you
+// can start filtering sightings the moment the app loads — no separate
+// welcome page to click through first. No router yet, so navigation goes
+// through an optional onNavigate callback (it just logs for now). Auth/
+// login is separate in-progress work — the header's Login button has
+// nowhere to go yet, so it hits the same "no screen yet" fallback every
+// other not-yet-built route already does.
+//
+// Deliberately no `ob-container` here (unlike AddObservation/LifeList/
+// ObservationList, which each opt into it on their own top-level element) —
+// a map screen wants the full viewport width, not a narrow centered reading
+// column with large empty margins on a wide screen. `#app` itself carries
+// no side padding either (see preview.html), so this provides its own — a
+// literal 0.5in (not a `--ob-space-*` token) so it stays exactly that
+// regardless of any future change to the spacing scale.
 
-import { renderHomeCard } from '../Components/HomeCard.js';
-
-// Keep tags in sync with docs/features/overview.md. .
-const FEATURES = [
-  {
-    emoji: '📋',
-    title: 'Life list',
-    body: "Your region's full checklist, your finds filled in, a bar creeping toward 100%.",
-    route: 'life-list',
-    buttonLabel: 'Open life list',
-    tag: 'Building now',
-    tagVariant: 'progress',
-  },
-  {
-    emoji: '✨',
-    title: 'Stickers',
-    body: 'A hundred species. Collect them on your profile!',
-    route: 'stickers',
-    buttonLabel: 'View stickers',
-    tag: 'Coming soon',
-  },
-  {
-    emoji: '🗺️',
-    title: 'Explore map',
-    body: "Drift around the map and see what's been spotted near you.",
-    route: 'explore-map',
-    buttonLabel: 'Open map',
-    tag: 'Coming soon',
-  },
-  {
-    emoji: '📌',
-    title: 'Pinned birds',
-    body: "Mark the ones you want. We'll nudge you when someone reports it in your area.",
-    route: 'pinned-birds',
-    buttonLabel: 'See pinned birds',
-    tag: 'Coming soon',
-  },
-  {
-    emoji: '🔊',
-    title: 'Bird guide',
-    body: 'Look up any species for its calls, range, migration and photos.',
-    route: 'bird-info',
-    buttonLabel: 'Browse the guide',
-    tag: 'Coming soon',
-  },
-];
+import { mount as mountExploreMap } from './ExploreMap.js';
 
 export function mount(container, props = {}) {
   const { onNavigate = (route) => console.log('navigate to:', route) } = props;
 
   container.innerHTML = `
-    <div class="ob-container ob-stack">
-      <header class="ob-stack">
-        <p class="ob-text-muted ob-text-sm">🐦 spot it, log it, collect it!</p>
-        <h1>Welcome to Only Birds 🐤</h1>
-        <p class="ob-text-muted">
-          Spot a bird, pop it on your list, and earn stickers along the way.
-        </p>
+    <div class="ob-stack" style="padding-inline: 0.5in;">
+      <header class="ob-cluster" style="justify-content: space-between; align-items: center;">
+        <h1 style="margin: 0;">Only Birds 🐤</h1>
+        <nav class="ob-cluster" aria-label="Main">
+          <button type="button" class="ob-btn ob-btn--ghost" data-route="life-list">Life List</button>
+          <button type="button" class="ob-btn ob-btn--ghost" data-route="add-observation">Add Observation</button>
+          <button type="button" class="ob-btn ob-btn--primary" data-route="login">Log in</button>
+        </nav>
       </header>
-
-      <div class="ob-cluster">
-        <button class="ob-btn ob-btn--primary ob-btn--lg" type="button" data-route="add-observation">
-          Describe a bird
-        </button>
-        <button class="ob-btn ob-btn--ghost ob-btn--lg" type="button" data-route="life-list">
-          See my life list
-        </button>
-      </div>
-
-      <section class="ob-card ob-stack" aria-labelledby="how-title">
-        <h2 id="how-title" class="ob-card__title">A logbook and a treasure map</h2>
-        <p class="ob-card__body">
-          Keep a diary of what you've seen, and see the whole checklist for your
-          region with your birds coloured in.
-        </p>
-      </section>
-
-      <section class="ob-stack" aria-labelledby="features-title">
-        <h2 id="features-title">Stuff you can do 🎉</h2>
-        <div class="ob-grid">
-          ${FEATURES.map((feature) => renderHomeCard(feature)).join('')}
-        </div>
-      </section>
-
-      <section class="ob-card ob-text-center ob-stack" aria-labelledby="closing-title">
-        <h2 id="closing-title" class="ob-card__title">Ready to start collecting? 🐣</h2>
-        <div>
-          <button class="ob-btn ob-btn--primary" type="button" data-route="add-observation">
-            Describe a bird
-          </button>
-        </div>
-      </section>
+      <div data-role="explore-map"></div>
     </div>
   `;
 
   container.querySelectorAll('[data-route]').forEach((el) => {
     el.addEventListener('click', () => onNavigate(el.dataset.route));
   });
+
+  mountExploreMap(container.querySelector('[data-role="explore-map"]'), { ...props, onNavigate, embedded: true });
 }

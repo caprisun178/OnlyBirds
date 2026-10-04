@@ -23,6 +23,8 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from datetime import datetime
+from math import atan2, cos, radians, sin, sqrt
 from typing import Any, Protocol
 
 from psycopg.rows import dict_row
@@ -32,12 +34,29 @@ from app.dao.db import get_pool
 from app.models.observation import Observation, ObservationCreate, ObservationUpdate
 from app.models.species import SpeciesRef
 
+_EARTH_RADIUS_KM = 6371.0
+
+
+def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """Great-circle distance between two points, in km — stands in for a
+    real PostGIS radius query until `observations.geom` exists (see
+    docs/features/explore-map.md's "full spec" vs. what's actually built).
+    `lat`/`lng` columns already exist on `observations`; this just filters
+    them in Python instead of in SQL.
+    """
+    phi1, phi2 = radians(lat1), radians(lat2)
+    dphi = radians(lat2 - lat1)
+    dlambda = radians(lng2 - lng1)
+    a = sin(dphi / 2) ** 2 + cos(phi1) * cos(phi2) * sin(dlambda / 2) ** 2
+    return 2 * _EARTH_RADIUS_KM * atan2(sqrt(a), sqrt(1 - a))
+
 
 class ObservationRepo(Protocol):
     async def add(self, payload: ObservationCreate) -> Observation: ...
     async def get(self, observation_id: str) -> Observation | None: ...
     async def list_for_user(self, user_id: str) -> list[Observation]: ...
     async def update(self, observation_id: str, payload: ObservationUpdate) -> Observation | None: ...
+    async def list_near(self, lat: float, lng: float, radius_km: float, since: datetime) -> list[Observation]: ...
 
 
 class InMemoryObservationRepo:
@@ -80,6 +99,17 @@ class InMemoryObservationRepo:
         self._by_id[observation_id] = updated
         return updated
 
+    async def list_near(self, lat: float, lng: float, radius_km: float, since: datetime) -> list[Observation]:
+        return [
+            o
+            for o in self._by_id.values()
+            if o.status == "logged"
+            and o.lat is not None
+            and o.lng is not None
+            and o.observed_at >= since
+            and _haversine_km(lat, lng, o.lat, o.lng) <= radius_km
+        ]
+
 
 class PostgresObservationRepo:
     """Real persistence against Postgres (Neon). See module docstring."""
@@ -95,6 +125,9 @@ class PostgresObservationRepo:
 
     async def update(self, observation_id: str, payload: ObservationUpdate) -> Observation | None:
         return await asyncio.to_thread(self._update_sync, observation_id, payload)
+
+    async def list_near(self, lat: float, lng: float, radius_km: float, since: datetime) -> list[Observation]:
+        return await asyncio.to_thread(self._list_near_sync, lat, lng, radius_km, since)
 
     # ---- sync internals, each run off the event loop via to_thread above --
 
@@ -257,6 +290,39 @@ class PostgresObservationRepo:
                     return None
 
         return self._get_sync(observation_id)
+
+    def _list_near_sync(self, lat: float, lng: float, radius_km: float, since: datetime) -> list[Observation]:
+        # No PostGIS geom column yet, so this can't do a real radius query in
+        # SQL — instead, a generous bounding box narrows the candidates (1°
+        # latitude is ~111 km; longitude degrees shrink toward the poles, so
+        # that side widens by 1/cos(lat)), then `_haversine_km` filters to
+        # the exact circle in Python. Fine at this app's current scale;
+        # revisit once `observations.geom` exists (docs/features/explore-map.md).
+        lat_delta = radius_km / 111.0
+        lng_delta = radius_km / (111.0 * max(0.1, cos(radians(lat))))
+
+        pool = get_pool()
+        with pool.connection() as conn:
+            with conn.cursor(row_factory=dict_row) as cur:
+                cur.execute(
+                    """
+                    select o.*, u.auth_provider_id as user_auth_id,
+                           s.scientific_name as species_scientific_name,
+                           s.common_name as species_common_name
+                    from observations o
+                    join users u on u.id = o.user_id
+                    left join species s on s.id = o.species_id
+                    where o.status = 'logged'
+                      and o.lat between %s and %s
+                      and o.lng between %s and %s
+                      and o.observed_at >= %s
+                    """,
+                    (lat - lat_delta, lat + lat_delta, lng - lng_delta, lng + lng_delta, since),
+                )
+                rows = cur.fetchall()
+
+        candidates = [self._row_to_observation(row) for row in rows]
+        return [o for o in candidates if _haversine_km(lat, lng, o.lat, o.lng) <= radius_km]
 
     @staticmethod
     def _row_to_observation(row: dict[str, Any]) -> Observation:

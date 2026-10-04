@@ -22,6 +22,11 @@ def no_live_media_lookups(monkeypatch):
     monkeypatch.setattr("app.dao.commons.search_audio", _no_media)
     monkeypatch.setattr("app.dao.bird_photos._cache", {})
     monkeypatch.setattr("app.dao.bird_audio._cache", {})
+    # bird_photos' cache now writes through to a real file on disk (see its
+    # module docstring) — tests exercise cache-miss paths constantly, which
+    # would otherwise spam the real species_photo_cache.json with test
+    # fixture junk (or fail outright in a read-only CI checkout).
+    monkeypatch.setattr("app.dao.bird_photos._save_cache_file", lambda: None)
 
 
 
@@ -31,6 +36,7 @@ def client(monkeypatch):
     fresh = InMemoryObservationRepo()
     monkeypatch.setattr("app.dao.observation_repo.observation_repo", fresh)
     monkeypatch.setattr("app.services.observation.observation_repo", fresh)
+    monkeypatch.setattr("app.services.sightings.observation_repo", fresh)
     fresh_users = InMemoryUserRepo()
     monkeypatch.setattr("app.dao.user_repo.user_repo", fresh_users)
     monkeypatch.setattr("app.services.user.user_repo", fresh_users)

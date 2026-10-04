@@ -6,13 +6,13 @@ sources, the API, the SQL, and the code layout.
 
 | Feature | Status | Start it… |
 |---|---|---|
-| [Life List page](life-list.md) | Partial — API returns entries; region filter + checklist view planned | after baseline |
-| [Add Observation](add-observation.md) | Partial — `POST /observations` exists; identification flow planned | after baseline |
-| [User profiles](user-profiles.md) | Planned | after baseline |
+| [Life List page](life-list.md) | Partial — region completion view works end to end (picker, checklist, seen/unseen, progress, sort, filters, pagination); Postgres persistence for the checklist cache, the "world" life list, and deep-linking a missing card into Add Observation still planned | after baseline |
+| [Add Observation](add-observation.md) | Partial — `POST /observations`, the describe & guess identification flow, and field-notes photo upload all work end to end; see the page for what's still missing | after baseline |
+| [User profiles](user-profiles.md) | Partial — backend done (`POST /users`, `GET /users/{username}`, `PATCH /users/{id}`); frontend screens planned | after baseline |
 | [Stickers](stickers.md) | Planned | after Add Observation |
 | [Pinned birds](pinned-birds.md) | Planned | after Add Observation + profiles |
 | [Bird information page](bird-info.md) | Planned | any time (independent) |
-| [Explore map](explore-map.md) | Planned | after Add Observation (needs `observations.geom`) |
+| [Explore map](explore-map.md) | Partial — MVP live and well beyond bare point+radius now (place search with live suggestions, species-photo filter, trip-planning box with top spots, a mi/km toggle); full spec (viewport-driven bbox fetch, clustering, `observations.geom`) still not started | after baseline for the MVP; after Add Observation for the rest |
 
 Nothing here is fully built yet. *Partial* means some API already exists.
 
@@ -26,13 +26,13 @@ before starting.
 
 | Feature | Owner | Branch | Status | Notes |
 |---|---|---|---|---|
-| [Life List page](life-list.md) | _unassigned_ | | not started | |
+| [Life List page](life-list.md) | Sarah Parisi | | in progress (region completion view done, Postgres persistence + world list not started) | |
 | [Add Observation](add-observation.md) | Sarah Parisi | | in progress | |
-| [User profiles](user-profiles.md) | _unassigned_ | | not started | |
+| [User profiles](user-profiles.md) | Yasmin Castro | | in progress (backend done, frontend not started) | |
 | [Stickers](stickers.md) | _unassigned_ | | not started | |
 | [Pinned birds](pinned-birds.md) | _unassigned_ | | not started | |
 | [Bird information page](bird-info.md) | _unassigned_ | | not started | |
-| [Explore map](explore-map.md) | _unassigned_ | | not started | |
+| [Explore map](explore-map.md) | Sarah Parisi | | in progress (MVP done, full spec not started) | |
 
 *Status* is one of: `not started` · `in progress` · `in review` · `done`.
 
