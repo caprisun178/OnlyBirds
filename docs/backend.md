@@ -5,6 +5,13 @@ Base URL in development: `http://localhost:8000`. Interactive docs (OpenAPI) at
 
 ## Endpoints
 
+The core, cross-feature endpoints — the ones most things end up calling.
+Geocoding (`/geocode/search`, `/geocode/reverse`), identification
+(`/identify/...`), photo uploads (`/uploads/photos`), and user accounts
+(`/users`, `/users/{username}`) are documented on their own feature pages
+([Add Observation](features/add-observation.md),
+[User profiles](features/user-profiles.md)) instead of duplicated here.
+
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/` | name, version, link to `/docs` |
@@ -73,8 +80,11 @@ python -m pytest                       # test (offline, no key)
 
 ## Known limitations
 
-- Observations live in an in-memory store — they reset on restart. Moving to
-  Postgres is in progress; see [Deployment](deployment.md).
+- Observations persist in Postgres (Neon) once `DATABASE_URL` is set —
+  `PostgresObservationRepo` is used automatically
+  (`app/dao/observation_repo.py`); without it (tests, or a fresh clone with
+  no database configured yet), they fall back to an in-memory store that
+  resets on restart. See [Deployment](deployment.md).
 - `user_id` / `auth_provider_id` are trusted as passed; no token verification.
 - Cross-source species dedupe in the life list is name-based until external
   `source_ids` are resolved to our own `species` rows.

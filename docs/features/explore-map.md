@@ -152,6 +152,27 @@ multi-session project once it's time to build it for real.
     fell back to a placeholder for that run). Safe to re-run — an
     already-cached species costs nothing, no Commons call at all.
 
+!!! note "A dev-server restart silently erased most of the cache — real data loss, not hypothetical"
+    `_save_cache_file()` used to blindly overwrite `species_photo_cache.json`
+    with whatever was in *this process's* own `_cache` dict. In local dev,
+    the `--reload` watcher's old worker process doesn't always actually die
+    before a new one starts (a recurring issue in this environment — see
+    [Environment Setup](../index.md) and this page's own notes on the
+    search-radius zoom bug above); two processes ended up alive at once,
+    each with their own in-memory cache loaded from disk at a different
+    point in time. When the one holding fewer entries (loaded earlier, before
+    the seed script had added more) saved last, it wiped out everything the
+    other process had already written — confirmed live: a cache that had
+    grown to 62 species dropped back to 16 after exactly this. Fixed:
+    `_save_cache_file()` now re-reads the current file and merges into it
+    rather than overwriting, so a save can only add entries, never destroy
+    ones already on disk it doesn't know about (`app/dao/bird_photos.py`;
+    `tests/test_bird_photos.py` reproduces the exact two-process scenario).
+    Doesn't fully solve two processes writing at the literal same instant —
+    would need real file locking for that — but turns "stale process
+    clobbers everything" into "worst case, one write loses a race by a few
+    milliseconds."
+
 - **km/mi unit toggle**: a select sits next to the radius dropdown
   (`ExploreMap.js#setDistanceUnit()`). Each unit has its own clean, native
   radius set (`RADIUS_OPTIONS_BY_UNIT`: 10/25/50/100 km, or the standard
@@ -196,7 +217,31 @@ multi-session project once it's time to build it for real.
   `ExploreMap.js#wireMap()` are the two exceptions to that preservation,
   since both change what the circle itself covers. A one-line legend under
   the map (part of `renderStatusLine()`) explains the dashed line, same as
-  the green-dot legend for "yours."
+  the green-dot legend for "yours." Basemap is Esri's "Light Gray Canvas"
+  tile set (`leaflet.js#addBaseTileLayer()`) instead of standard
+  OpenStreetMap street tiles — a plain gray reference map with a
+  transparent label overlay for place names, no dense street labels or
+  business/POI icons crowding the sightings pins. Shared with
+  `LocationPicker.js` (Add Observation's map) so both screens use the same
+  basemap rather than each picking its own. (Originally CARTO's Positron
+  tiles here; switched to Esri's keyless equivalent once CARTO started
+  requiring a free API key for anonymous tile requests in September 2026 —
+  see the note below.)
+
+!!! note "CARTO started requiring an API key for its free basemap tiles"
+    The basemap was originally CARTO's "Positron" tiles
+    (`basemaps.cartocdn.com`), picked for being free and keyless. CARTO
+    changed that in September 2026: anonymous tile requests now come back
+    stamped "API KEY REQUIRED" instead of a clean tile. A key is free (up to
+    5M tile requests/month, no CARTO account needed) but still means a new
+    external dependency to register for and keep configured, for a static,
+    no-build-step frontend with no natural place to keep a key out of the
+    public JS anyway. Switched to Esri's "Light Gray Canvas" tiles instead
+    (`server.arcgisonline.com/.../Canvas/World_Light_Gray_Base` +
+    `..._Reference` for labels) — visually similar, genuinely keyless, no
+    account. One gotcha: Esri's tile path is `{z}/{y}/{x}` (y before x),
+    unlike the `{z}/{x}/{y}` convention CARTO/OSM/most other providers use —
+    easy to transpose and get upside-down-looking tiles.
 
 !!! note "The re-fit silently did nothing — a real Leaflet sizing bug"
     Switching the radius (e.g. 25mi → 5mi, or the reverse) wasn't visibly
@@ -257,15 +302,6 @@ multi-session project once it's time to build it for real.
     block, after its own last `render()` has already run — so the flag
     stays true across every remount in one logical action and is only
     cleared once that action's data load is fully done.
-  Basemap is Esri's "Light Gray Canvas" tile set
-  (`leaflet.js#addBaseTileLayer()`) instead of standard OpenStreetMap street
-  tiles — a plain gray reference map with a transparent label overlay for
-  place names, no dense street labels or business/POI icons crowding the
-  sightings pins. Shared with `LocationPicker.js` (Add Observation's map) so
-  both screens use the same basemap rather than each picking its own.
-  (Originally CARTO's Positron tiles here; switched to Esri's keyless
-  equivalent once CARTO started requiring a free API key for anonymous tile
-  requests in September 2026 — see the note below.)
 - **Detail panel**: clicking a pin doesn't open a small map popup — it opens
   a docked panel to the right of the map (`Components/SightingDetail.js`,
   shared markup so it isn't duplicated anywhere else this gets shown),
@@ -364,21 +400,6 @@ multi-session project once it's time to build it for real.
     "medium" (500px) version exists at the identical path, just a different
     filename. `_upgrade_inat_photo_size()` swaps `square.jpg` for
     `medium.jpg` before it ever reaches the frontend — see `test_adapters.py`.
-
-!!! note "CARTO started requiring an API key for its free basemap tiles"
-    The basemap was originally CARTO's "Positron" tiles
-    (`basemaps.cartocdn.com`), picked for being free and keyless. CARTO
-    changed that in September 2026: anonymous tile requests now come back
-    stamped "API KEY REQUIRED" instead of a clean tile. A key is free (up to
-    5M tile requests/month, no CARTO account needed) but still means a new
-    external dependency to register for and keep configured, for a static,
-    no-build-step frontend with no natural place to keep a key out of the
-    public JS anyway. Switched to Esri's "Light Gray Canvas" tiles instead
-    (`server.arcgisonline.com/.../Canvas/World_Light_Gray_Base` +
-    `..._Reference` for labels) — visually similar, genuinely keyless, no
-    account. One gotcha: Esri's tile path is `{z}/{y}/{x}` (y before x),
-    unlike the `{z}/{x}/{y}` convention CARTO/OSM/most other providers use —
-    easy to transpose and get upside-down-looking tiles.
 
 ### Re-rendering a live map from a template-string Presenter
 
