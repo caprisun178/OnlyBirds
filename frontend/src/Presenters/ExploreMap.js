@@ -293,11 +293,36 @@ export function mount(container, props = {}) {
     return sighting.user_id === userId;
   }
 
+  // A sighting's unique identity across all three sources. `id` alone isn't
+  // enough: eBird/iNaturalist sightings aren't rows in our own database —
+  // they're fetched live on every request — so they always come back with
+  // `id: null` (only a manually-logged, persisted observation gets a real
+  // one). Comparing by `id` directly meant every eBird/iNaturalist pin
+  // shared the same `null` "identity" as whichever one was selected, so
+  // selecting one marked *all* of them selected too (confirmed live: every
+  // pin on the map turned red the moment one iNaturalist sighting was
+  // picked).
+  //
+  // `source_observation_id` (both adapters set this — app/services/adapters.py)
+  // isn't a safe identity on its own either: confirmed live, eBird's is
+  // actually the *checklist* id (`subId`), shared by every species on that
+  // same checklist — four different species from one outing all came back
+  // with the identical `S399279214`. Species is folded into the key too, so
+  // those still get distinguished from each other. `id` still wins when
+  // present, since that's the real primary key; the last-resort fallback
+  // only matters if a future source ever omits both.
+  function sightingKey(sighting) {
+    if (sighting.id) return `id:${sighting.id}`;
+    const species = sighting.species?.scientific_name || sighting.species?.common_name || '';
+    if (sighting.source_observation_id) return `src:${sighting.source}:${sighting.source_observation_id}:${species}`;
+    return `fallback:${sighting.source}:${sighting.lat}:${sighting.lng}:${sighting.observed_at}:${species}`;
+  }
+
   // Read live by SightingsMap.setSightings() on every call (see
   // mountSightingsMap's isSelected doc) — not a snapshot, so it always
   // reflects whichever pin selectSighting()/clearSelection() most recently set.
   function isSelected(sighting) {
-    return state.selectedSighting != null && sighting.id === state.selectedSighting.id;
+    return state.selectedSighting != null && sightingKey(sighting) === sightingKey(state.selectedSighting);
   }
 
   // `get_stock_photo()` on the backend always returns *a* URL — a real
