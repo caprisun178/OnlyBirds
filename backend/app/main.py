@@ -15,6 +15,7 @@ from app.routers import (
     identify,
     life_list,
     observations,
+    quiz,
     sightings,
     species,
     uploads,
@@ -50,6 +51,7 @@ def create_app() -> FastAPI:
     app.include_router(geocoding.router)
     app.include_router(life_list.router)
     app.include_router(users.router)
+    app.include_router(quiz.router)
 
     @app.get("/", tags=["health"])
     async def root() -> dict:

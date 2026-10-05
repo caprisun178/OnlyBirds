@@ -23,6 +23,7 @@ import { mount as mountAddObservation } from './Presenters/AddObservation.js';
 import { mount as mountLifeList } from './Presenters/LifeList.js';
 import { mount as mountObservationList } from './Presenters/ObservationList.js';
 import { mount as mountExploreMap } from './Presenters/ExploreMap.js';
+import { mount as mountTestYourSkill } from './Presenters/TestYourSkill.js';
 
 const app = document.getElementById('app');
 
@@ -32,6 +33,7 @@ const SCREENS = {
   'life-list': (container, params) => mountLifeList(container, { onNavigate: navigate, ...params }),
   'observation-log': (container, params) => mountObservationList(container, { onNavigate: navigate, ...params }),
   'explore-map': (container, params) => mountExploreMap(container, { onNavigate: navigate, ...params }),
+  'test-your-skill': (container, params) => mountTestYourSkill(container, { onNavigate: navigate, ...params }),
 };
 
 // `params` is an optional plain object spread onto the target screen's

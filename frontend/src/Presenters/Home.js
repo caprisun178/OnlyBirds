@@ -28,6 +28,7 @@ export function mount(container, props = {}) {
         <nav class="ob-cluster" aria-label="Main">
           <button type="button" class="ob-btn ob-btn--ghost" data-route="life-list">Life List</button>
           <button type="button" class="ob-btn ob-btn--ghost" data-route="add-observation">Add Observation</button>
+          <button type="button" class="ob-btn ob-btn--ghost" data-route="test-your-skill">Test Your Skill</button>
           <button type="button" class="ob-btn ob-btn--primary" data-route="login">Log in</button>
         </nav>
       </header>
