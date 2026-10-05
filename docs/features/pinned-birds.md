@@ -1,12 +1,16 @@
 # Pinned birds
 
-> **Status:** Partial — backend built and tested end to end (`region_for_point()`,
+> **Status:** Completed — backend built and tested end to end (`region_for_point()`,
 > `observations.region`, `pinned_birds` + `notifications` tables, match/dedupe
-> engine wired into every logged observation, full pin + notification API).
-> Frontend (`PinButton`, `NotificationBell`, `NotificationsFeed.js`) not yet
-> built. One real design change from this page's original draft: matching is
-> keyed on **`scientific_name`**, not eBird's `speciesCode` — see the note in
-> [§3](#3-database-changes-sql) for why.
+> engine wired into every logged observation, full pin + notification API),
+> migrations applied to the live database. Frontend built and verified live
+> too: `PinButton` on `MissingBird`/Life List cards, `NotificationBell` with
+> an unread preview dropdown, the full `NotificationsFeed` screen, and
+> clicking a `pin_hit` notification jumps straight to the exact sighting on
+> Explore Map — highlighted with its own marker color, not just centered
+> among a pile of identical pins. One real design change from this page's
+> original draft: matching is keyed on **`scientific_name`**, not eBird's
+> `speciesCode` — see the note in [§3](#3-database-changes-sql) for why.
 
 ## 1. What you're building
 
@@ -183,10 +187,10 @@ it automatically.
 | `services/` | `app/services/notifications.py` (**new**) | feed model + unread count; shared by pins and stickers |
 | `routers/` | `app/routers/pins.py`, `app/routers/notifications.py` (**new**) | the endpoints above |
 | `services/` | `app/services/observation.py` (hook) | compute `region` via `region_for_point()` before persisting; call `evaluate_pins(observation)` after every logged observation (deferred import — see that file's comment on the circular-import reason) |
-| `Dao/` | `frontend/src/Dao/pins.js`, `Dao/notifications.js` (**planned**) | raw calls |
-| `Services/` | `frontend/src/Services/pins.js`, `Services/notifications.js` (**planned**) | UI models |
-| `Presenters/` | `PinToggle` state on the Life List card; `NotificationsFeed.js` (**planned**) | |
-| `Components/` | `PinButton`, `NotificationBell`, `NotificationList` (**planned**) | presentational |
+| `Dao/` | `frontend/src/Dao/pins.js`, `Dao/notifications.js` (**new**) | raw calls |
+| `Services/` | `frontend/src/Services/pins.js`, `Services/notifications.js` (**new**) | UI models |
+| `Presenters/` | pin state on `LifeList.js`; `NotificationsFeed.js` (**new**); `Home.js` (extend) owns the bell's open/closed state and unread preview | |
+| `Components/` | `MissingBird.js` (extend — the pin toggle button), `NotificationBell.js` (**new** — bell icon + unread badge + preview dropdown) | presentational |
 
 ## 6. Build order
 
@@ -207,8 +211,11 @@ it automatically.
    exactly one `pin_hit`; a same-day repeat adds none; a different day
    doesn't dedupe) plus region-prefix matching, the life-list guard,
    reporter self-exclusion, and the full notification feed/mark-read flow.
-9. ⬜ Frontend: `PinButton` on the `MissingBird`/`SpeciesCard` cards, then
-   `NotificationBell` + `NotificationsFeed.js`.
+9. ✅ Frontend: `PinButton` on the `MissingBird` card (only — pinning an
+   already-seen `SpeciesCard` species is rejected server-side, so it never
+   needed the button), `NotificationBell` with an unread preview dropdown,
+   `NotificationsFeed.js`, and clicking a `pin_hit` notification jumps to
+   the exact sighting on Explore Map with its own highlighted marker color.
 
 ## Related pages
 

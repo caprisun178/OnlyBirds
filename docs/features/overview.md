@@ -10,12 +10,12 @@ sources, the API, the SQL, and the code layout.
 | [Add Observation](add-observation.md) | Partial — `POST /observations`, the describe & guess identification flow, and field-notes photo upload all work end to end; see the page for what's still missing | after baseline |
 | [User profiles](user-profiles.md) | Partial — backend done (`POST /users`, `GET /users/{username}`, `PATCH /users/{id}`); frontend screens planned | after baseline |
 | [Stickers](stickers.md) | Planned | after Add Observation |
-| [Pinned birds](pinned-birds.md) | Partial — backend built and tested end to end (region tagging, pin + notification API, match/dedupe engine); frontend not started | after Add Observation + profiles |
+| [Pinned birds](pinned-birds.md) | **Completed** — region tagging, pin + notification API, match/dedupe engine, migrations applied to the live database; frontend `PinButton` on Life List cards, `NotificationBell` with an unread preview dropdown, full `NotificationsFeed` screen, click-through to the exact sighting on the map (highlighted, not just centered) — all built and verified live end to end | after Add Observation + profiles |
 | [Bird information page](bird-info.md) | Planned | any time (independent) |
 | [Explore map](explore-map.md) | Partial — MVP live and well beyond bare point+radius now (place search with live suggestions, species-photo filter, trip-planning box with top spots, a mi/km toggle); full spec (viewport-driven bbox fetch, clustering, `observations.geom`) still not started | after baseline for the MVP; after Add Observation for the rest |
-| [Plan a trip](plan-a-trip.md) | Partial — destination + date-range input, eBird hotspot suggestions (tap one for a last-year sightings map), iNaturalist-based "likely species," life-list gap | after baseline |
+| [Plan a trip](plan-a-trip.md) | **Completed** — destination + date-range input, eBird hotspot suggestions with a per-hotspot last-year sightings map (eBird + iNaturalist merged, cached, degrades gracefully), iNaturalist-based "likely species," life-list gap — built and verified live end to end | after baseline |
 
-Nothing here is fully built yet. *Partial* means some API already exists.
+*Partial* means some API already exists but the feature isn't done end to end. **Completed** means the backend and frontend are both built and verified live — see that page's own Status line for specifics.
 
 ## Who's working on what
 
@@ -31,10 +31,10 @@ before starting.
 | [Add Observation](add-observation.md) | Sarah Parisi | | in progress | |
 | [User profiles](user-profiles.md) | Yasmin Castro | | in progress (backend done, frontend not started) | |
 | [Stickers](stickers.md) | _unassigned_ | | not started | |
-| [Pinned birds](pinned-birds.md) | Sarah Parisi | `working/sparisi/Feature-plan-a-trip` | in progress (backend done, frontend not started) | |
+| [Pinned birds](pinned-birds.md) | Sarah Parisi | `working/sparisi/Feature-plan-a-trip` | done | |
 | [Bird information page](bird-info.md) | _unassigned_ | | not started | |
 | [Explore map](explore-map.md) | Sarah Parisi | | in progress (MVP done, full spec not started) | |
-| [Plan a trip](plan-a-trip.md) | Sarah Parisi | `working/sparisi/Feature-plan-a-trip` | in progress | |
+| [Plan a trip](plan-a-trip.md) | Sarah Parisi | `working/sparisi/Feature-plan-a-trip` | done | |
 
 *Status* is one of: `not started` · `in progress` · `in review` · `done`.
 

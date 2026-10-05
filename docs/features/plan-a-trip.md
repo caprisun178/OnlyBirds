@@ -1,6 +1,6 @@
 # Plan a trip
 
-> **Status:** Partial — backend and frontend both built end to end
+> **Status:** Completed — backend and frontend both built end to end
 > (`GET /trip/plan`, `GET /trip/hotspot-sightings`, `Presenters/PlanATrip.js`,
 > the Home button); verified live against both real APIs, including the
 > hotspot drill-down's eBird + iNaturalist merge. A first tap on a hotspot
