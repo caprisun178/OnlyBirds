@@ -14,10 +14,13 @@ from app.routers import (
     health,
     identify,
     life_list,
+    notifications,
     observations,
+    pins,
     quiz,
     sightings,
     species,
+    trip,
     uploads,
     species,
     uploads,
@@ -52,6 +55,9 @@ def create_app() -> FastAPI:
     app.include_router(life_list.router)
     app.include_router(users.router)
     app.include_router(quiz.router)
+    app.include_router(trip.router)
+    app.include_router(pins.router)
+    app.include_router(notifications.router)
 
     @app.get("/", tags=["health"])
     async def root() -> dict:

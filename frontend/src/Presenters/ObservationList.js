@@ -247,7 +247,7 @@ export function mount(container, props = {}) {
     const dateLabel = obs.observed_at
       ? new Date(obs.observed_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
       : 'Unknown date';
-    const detectionIcon = obs.detection_type === 'sound' ? '🔊 ' : '';
+    const detectionPrefix = obs.detection_type === 'sound' ? 'Heard — ' : '';
     const tags = [obs.sex, obs.life_stage].filter((v) => v && v !== 'unknown');
 
     return `
@@ -257,7 +257,7 @@ export function mount(container, props = {}) {
           : ''}
         <div class="ob-stack" style="flex:1;">
           ${scientificName ? '' : `<h3 class="ob-card__title">${escapeHtml(obs.species?.common_name || 'Unknown species')}</h3>`}
-          <p class="ob-card__body ob-text-sm">${detectionIcon}${escapeHtml(dateLabel)} — ${escapeHtml(obs.location_name || 'location not set')}</p>
+          <p class="ob-card__body ob-text-sm">${detectionPrefix}${escapeHtml(dateLabel)} — ${escapeHtml(obs.location_name || 'location not set')}</p>
           ${obs.notes ? `<p class="ob-text-sm">${escapeHtml(obs.notes)}</p>` : ''}
           <div class="ob-cluster">
             ${tags.map((t) => `<span class="ob-tag">${escapeHtml(t)}</span>`).join('')}

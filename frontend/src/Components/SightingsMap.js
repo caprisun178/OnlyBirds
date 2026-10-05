@@ -31,6 +31,21 @@ function ownSightingIcon(L) {
   });
 }
 
+// The pin shown in the docked detail panel (or jumped to from a
+// notification) — bigger than every other marker and a color nothing else
+// on this map uses (own-sighting is green; this is danger-red, same token
+// `.ob-alert--danger` uses), so it's unambiguous which pin "this" is among
+// a cluster of plain blue ones. Takes priority over ownSightingIcon when a
+// sighting is both selected and the user's own.
+function selectedSightingIcon(L) {
+  return L.divIcon({
+    className: 'ob-selected-sighting-marker',
+    html: '<div style="width:22px;height:22px;border-radius:50%;background:var(--ob-color-danger-text);border:3px solid #fff;box-shadow:0 0 0 2px var(--ob-color-danger-text), 0 2px 6px rgba(0,0,0,0.45);"></div>',
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+  });
+}
+
 // eBird hotspot checklists all report the exact same lat/lng — a busy
 // hotspot's 35 species over a week are 35 sightings stacked on the identical
 // point, which without this renders as what looks like a single pin (found
@@ -76,6 +91,12 @@ function layoutMarkerPositions(sightings) {
  * `onSelectSighting(sighting)` fires when a pin is clicked. `isOwnSighting(sighting)`,
  * if given, marks matching pins with a distinct highlighted icon instead of
  * Leaflet's default pin — the logged-in user's own observations.
+ * `isSelected(sighting)`, if given, marks the matching pin (there should
+ * only ever be one) with a larger, red, highest-z-index icon — the sighting
+ * currently shown in the docked detail panel, so it's unambiguous which pin
+ * that panel is actually describing. Re-evaluated on every `setSightings()`
+ * call, not just at mount — pass a live-reading closure (e.g.
+ * `(s) => s.id === state.selectedSighting?.id`), same as `isOwnSighting`.
  *
  * Returns `{ setView(lat, lng, zoom?), getView(), setSightings(list), focusArea(bounds), destroy() }`.
  * `getView()` reads the map's current center/zoom — used to preserve the
@@ -96,7 +117,7 @@ function layoutMarkerPositions(sightings) {
  * that whole circle instead of a fixed zoom on `initialLatLng` — a fixed
  * zoom can't suit every radius option (10km through 100km) at once.
  */
-export async function mountSightingsMap(container, { initialLatLng, onSelectSighting, isOwnSighting, searchArea, fitSearchArea } = {}) {
+export async function mountSightingsMap(container, { initialLatLng, onSelectSighting, isOwnSighting, isSelected, searchArea, fitSearchArea } = {}) {
   const L = await loadLeaflet();
 
   const map = L.map(container).setView(initialLatLng || DEFAULT_CENTER, initialLatLng ? LOCATED_ZOOM : DEFAULT_ZOOM);
@@ -160,6 +181,7 @@ export async function mountSightingsMap(container, { initialLatLng, onSelectSigh
   }
 
   const ownIcon = ownSightingIcon(L);
+  const selectedIcon = selectedSightingIcon(L);
   let markers = [];
   let areaHighlight = null;
 
@@ -175,7 +197,12 @@ export async function mountSightingsMap(container, { initialLatLng, onSelectSigh
       markers.forEach((m) => map.removeLayer(m));
       const located = sightings.filter((s) => s.lat != null && s.lng != null);
       markers = layoutMarkerPositions(located).map(({ sighting: s, lat, lng }) => {
-        const options = isOwnSighting?.(s) ? { icon: ownIcon } : undefined;
+        const selected = isSelected?.(s);
+        const options = selected
+          ? { icon: selectedIcon, zIndexOffset: 1000 } // always drawn above every other pin, even in a cluster
+          : isOwnSighting?.(s)
+            ? { icon: ownIcon }
+            : undefined;
         const marker = L.marker([lat, lng], options).addTo(map);
         marker.on('click', () => onSelectSighting?.(s));
         return marker;

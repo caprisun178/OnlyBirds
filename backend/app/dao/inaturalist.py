@@ -54,9 +54,11 @@ async def get_nearby_observations(
     lng: float,
     radius_km: int = 25,
     per_page: int = 30,
+    d1: str | None = None,
+    d2: str | None = None,
     days_back: int | None = None,
 ) -> list[dict]:
-    """Recent research-grade **bird** observations near a point.
+    """Research-grade **bird** observations near a point, most recent first.
 
     Regression: this used to omit `taxon_id`/`quality_grade` entirely, so it
     returned iNaturalist's full firehose near a point — mammals, insects,
@@ -70,9 +72,15 @@ async def get_nearby_observations(
     return a sighting from 8 months ago as long as it ranked within the
     first `per_page` results (a real "Since: Last 7 days doesn't filter"
     report, since iNat results get merged in alongside eBird's, which *does*
-    filter correctly). `d1` (`YYYY-MM-DD`) is iNaturalist's own date-range
-    param — `days_back`, when given, turns into `d1 = today - days_back`,
-    excluding anything observed before that.
+    filter correctly). Two ways to narrow the date window, for two different
+    callers: `days_back`, used by Explore Map's "last N days" filter, turns
+    into `d1 = today - days_back`. `d1`/`d2` (`YYYY-MM-DD`), same as
+    `get_species_counts()`, give an explicit date range in any year —
+    needed by docs/features/plan-a-trip.md's hotspot drill-down, where
+    "today minus N days" can't express "this window, last year". An
+    explicit `d1` wins over `days_back`'s computed value if both are somehow
+    given; passing both isn't expected in practice. Omitted entirely,
+    iNaturalist doesn't filter by date at all.
     """
     params: dict[str, float | int | str] = {
         "lat": lat,
@@ -84,11 +92,51 @@ async def get_nearby_observations(
         "order_by": "observed_on",
         "order": "desc",
     }
-    if days_back is not None:
-        d1 = date.today() - timedelta(days=days_back)
-        params["d1"] = d1.isoformat()
+    if d1 is None and days_back is not None:
+        d1 = (date.today() - timedelta(days=days_back)).isoformat()
+    if d1:
+        params["d1"] = d1
+    if d2:
+        params["d2"] = d2
     async with _client() as client:
         resp = await client.get("/observations", params=params)
+        resp.raise_for_status()
+        return resp.json().get("results", [])
+
+
+async def get_species_counts(
+    lat: float,
+    lng: float,
+    radius_km: int = 25,
+    d1: str | None = None,
+    d2: str | None = None,
+    per_page: int = 20,
+) -> list[dict]:
+    """Species seen near a point, ranked by observation count — iNaturalist's
+    own `/observations/species_counts` aggregation, not raw observations
+    fetched one at a time and deduped by hand. Backs
+    docs/features/plan-a-trip.md's "likely species" list: eBird has no
+    equivalent reachable through the public API — its frequency/abundance
+    data lives behind the separate Status & Trends product (special access,
+    not the regular API key), and its `/historic` endpoint is per-day and
+    keyed by eBird region code, not point+radius — so this is
+    iNaturalist-only. `d1`/`d2` (`YYYY-MM-DD`) narrow to a date window in
+    any year; omitted, iNaturalist doesn't filter by date at all.
+    """
+    params: dict[str, float | int | str] = {
+        "lat": lat,
+        "lng": lng,
+        "radius": radius_km,
+        "taxon_id": _AVES_TAXON_ID,
+        "quality_grade": "research",
+        "per_page": per_page,
+    }
+    if d1:
+        params["d1"] = d1
+    if d2:
+        params["d2"] = d2
+    async with _client() as client:
+        resp = await client.get("/observations/species_counts", params=params)
         resp.raise_for_status()
         return resp.json().get("results", [])
 

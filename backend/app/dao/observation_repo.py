@@ -81,6 +81,7 @@ class InMemoryObservationRepo:
             life_stage=payload.life_stage,
             detection_type=payload.detection_type,
             status=payload.status,
+            region=payload.region,
         )
         self._by_id[obs.id] = obs
         return obs
@@ -173,9 +174,9 @@ class PostgresObservationRepo:
                     insert into observations (
                         user_id, species_id, lat, lng, location_name, observed_at,
                         source, source_observation_id, photo_url, notes,
-                        sex, life_stage, detection_type, status
+                        sex, life_stage, detection_type, status, region
                     ) values (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                     )
                     returning id
                     """,
@@ -194,6 +195,7 @@ class PostgresObservationRepo:
                         payload.life_stage,
                         payload.detection_type,
                         payload.status,
+                        payload.region,
                     ),
                 )
                 new_id = cur.fetchone()["id"]
@@ -215,6 +217,7 @@ class PostgresObservationRepo:
             life_stage=payload.life_stage,
             detection_type=payload.detection_type,
             status=payload.status,
+            region=payload.region,
         )
 
     def _get_sync(self, observation_id: str) -> Observation | None:
@@ -347,6 +350,7 @@ class PostgresObservationRepo:
             life_stage=row["life_stage"],
             detection_type=row["detection_type"],
             status=row["status"],
+            region=row.get("region"),
         )
 
 
