@@ -12,7 +12,7 @@ const IS_LOCAL =
   typeof window !== 'undefined' &&
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-const BASE_URL =
+export const BASE_URL =
   (typeof process !== 'undefined' && process.env && process.env.API_BASE_URL) ||
   (IS_LOCAL ? 'http://localhost:8000' : ONRENDER_URL);
 

@@ -39,6 +39,15 @@ class Settings(BaseSettings):
     supabase_service_role_key: str | None = None
     supabase_storage_bucket: str = "observation-photos"
 
+    # Outbound email for the beta "Report a problem" button (see
+    # docs/features/report-a-problem.md) — SMTP only, no provider SDK.
+    # POST /feedback is disabled (503) until all four are set.
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    report_email_to: str | None = None
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
