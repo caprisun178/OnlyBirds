@@ -14,6 +14,8 @@ changeLog
 =============================
 """
 
+from datetime import date, timedelta
+
 import httpx
 
 from app.config import get_settings
@@ -52,6 +54,7 @@ async def get_nearby_observations(
     lng: float,
     radius_km: int = 25,
     per_page: int = 30,
+    days_back: int | None = None,
 ) -> list[dict]:
     """Recent research-grade **bird** observations near a point.
 
@@ -60,8 +63,18 @@ async def get_nearby_observations(
     plants, unverified "casual" grade sightings, not just birds — which
     showed up as non-bird pins on the Explore Map. `taxon_id=3` (Aves) plus
     `quality_grade=research` narrows it to what this app is actually about.
+
+    Second regression, found later: this had no date filtering at all —
+    `order_by=observed_on&order=desc` only sorts newest-first, it doesn't
+    exclude anything, so an "only show the last 7 days" request could still
+    return a sighting from 8 months ago as long as it ranked within the
+    first `per_page` results (a real "Since: Last 7 days doesn't filter"
+    report, since iNat results get merged in alongside eBird's, which *does*
+    filter correctly). `d1` (`YYYY-MM-DD`) is iNaturalist's own date-range
+    param — `days_back`, when given, turns into `d1 = today - days_back`,
+    excluding anything observed before that.
     """
-    params = {
+    params: dict[str, float | int | str] = {
         "lat": lat,
         "lng": lng,
         "radius": radius_km,
@@ -71,6 +84,9 @@ async def get_nearby_observations(
         "order_by": "observed_on",
         "order": "desc",
     }
+    if days_back is not None:
+        d1 = date.today() - timedelta(days=days_back)
+        params["d1"] = d1.isoformat()
     async with _client() as client:
         resp = await client.get("/observations", params=params)
         resp.raise_for_status()

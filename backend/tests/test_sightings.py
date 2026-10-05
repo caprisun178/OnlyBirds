@@ -16,7 +16,7 @@ def _stub_external_sources(monkeypatch):
     async def no_ebird(lat, lng, dist_km=25, days_back=7):
         return []
 
-    async def no_inat(lat, lng, radius_km=25):
+    async def no_inat(lat, lng, radius_km=25, days_back=None):
         return []
 
     monkeypatch.setattr(ebird, "get_nearby_bird_sightings", no_ebird)
@@ -87,7 +87,7 @@ def test_source_filter_manual_excludes_ebird_and_inat(client, monkeypatch):
             "locName": "Some Park", "obsDt": "2026-09-01 08:00", "subId": "S1", "lat": lat, "lng": lng,
         }]
 
-    async def no_inat(lat, lng, radius_km=25):
+    async def no_inat(lat, lng, radius_km=25, days_back=None):
         return []
 
     monkeypatch.setattr(ebird, "get_nearby_bird_sightings", fake_ebird)
@@ -117,3 +117,25 @@ def test_source_filter_all_includes_manual(client, monkeypatch):
     resp = client.get("/sightings/nearby", params={**SEATTLE, "radius_km": 25, "source": "all"})
     assert resp.status_code == 200
     assert len(resp.json()) == 1
+
+
+def test_days_back_reaches_the_inaturalist_call(client, monkeypatch):
+    # Regression: iNaturalist results had no date filtering at all, so a
+    # "Since: Last 7 days" request could still surface an 8-month-old
+    # sighting (a real report) — days_back must actually reach the DAO call,
+    # not just the eBird one.
+    captured = {}
+
+    async def no_ebird(lat, lng, dist_km=25, days_back=7):
+        return []
+
+    async def capturing_inat(lat, lng, radius_km=25, days_back=None):
+        captured["days_back"] = days_back
+        return []
+
+    monkeypatch.setattr(ebird, "get_nearby_bird_sightings", no_ebird)
+    monkeypatch.setattr(inaturalist, "get_nearby_observations", capturing_inat)
+
+    resp = client.get("/sightings/nearby", params={**SEATTLE, "radius_km": 25, "days_back": 14})
+    assert resp.status_code == 200
+    assert captured["days_back"] == 14
