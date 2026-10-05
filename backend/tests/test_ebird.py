@@ -12,6 +12,7 @@ import httpx
 
 from app.config import get_settings
 from app.dao import ebird
+from app.dao.ebird import EBirdConfigError
 
 RAW_HOTSPOT = {
     "locId": "L1021141",
@@ -120,3 +121,66 @@ def test_get_historic_checklist_sends_the_right_path(monkeypatch):
 
     assert captured["path"].endswith("/data/obs/L385792/historic/2026/10/4")
     assert result == [RAW_HISTORIC_OBS]
+
+
+def test_region_for_point_returns_the_nearest_hotspots_subnational2(monkeypatch):
+    near = {"lat": 36.10, "lng": -80.10, "subnational2Code": "US-NC-067", "subnational1Code": "US-NC", "countryCode": "US"}
+    far = {"lat": 37.50, "lng": -80.10, "subnational2Code": "US-NC-999", "subnational1Code": "US-NC", "countryCode": "US"}
+
+    async def fake_hotspots(lat, lng, dist_km=25):
+        return [far, near]  # nearest isn't first in the list — must actually compare distances
+
+    monkeypatch.setattr(ebird, "get_hotspots_near", fake_hotspots)
+
+    result = asyncio.run(ebird.region_for_point(36.11, -80.11))
+
+    assert result == "US-NC-067"
+
+
+def test_region_for_point_falls_back_to_subnational1_then_country(monkeypatch):
+    async def fake_hotspots(lat, lng, dist_km=25):
+        return [{"lat": lat, "lng": lng, "subnational1Code": "US-NC", "countryCode": "US"}]
+
+    monkeypatch.setattr(ebird, "get_hotspots_near", fake_hotspots)
+    assert asyncio.run(ebird.region_for_point(36.1, -80.1)) == "US-NC"
+
+    async def fake_hotspots_country_only(lat, lng, dist_km=25):
+        return [{"lat": lat, "lng": lng, "countryCode": "US"}]
+
+    monkeypatch.setattr(ebird, "get_hotspots_near", fake_hotspots_country_only)
+    assert asyncio.run(ebird.region_for_point(36.1, -80.1)) == "US"
+
+
+def test_region_for_point_expands_radius_until_a_hotspot_is_found(monkeypatch):
+    calls = []
+
+    async def fake_hotspots(lat, lng, dist_km=25):
+        calls.append(dist_km)
+        if dist_km < 200:
+            return []
+        return [{"lat": lat, "lng": lng, "subnational2Code": "US-NC-067"}]
+
+    monkeypatch.setattr(ebird, "get_hotspots_near", fake_hotspots)
+
+    result = asyncio.run(ebird.region_for_point(36.1, -80.1))
+
+    assert result == "US-NC-067"
+    assert calls == [10, 50, 200]  # stopped as soon as one succeeded, didn't try 500
+
+
+def test_region_for_point_falls_back_to_world_when_nothing_found_at_any_radius(monkeypatch):
+    async def no_hotspots(lat, lng, dist_km=25):
+        return []
+
+    monkeypatch.setattr(ebird, "get_hotspots_near", no_hotspots)
+
+    assert asyncio.run(ebird.region_for_point(0.0, -140.0)) == "world"
+
+
+def test_region_for_point_falls_back_to_world_without_crashing_when_ebird_unconfigured(monkeypatch):
+    async def no_key(lat, lng, dist_km=25):
+        raise EBirdConfigError("EBIRD_API_KEY is not set")
+
+    monkeypatch.setattr(ebird, "get_hotspots_near", no_key)
+
+    assert asyncio.run(ebird.region_for_point(36.1, -80.1)) == "world"

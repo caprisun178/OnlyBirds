@@ -21,16 +21,24 @@
 // wrong. See docs/features/explore-map.md.
 //
 // `embedded: true` (set by `Presenters/Home.js`, which mounts this directly
-// below its own header instead of sending you to a separate route) drops
-// the "← Back to home" button (meaningless nested inside Home itself) and
-// renders the section title as an `<h2>` instead of an `<h1>`, since Home
-// already has its own page-level `<h1>`. Still reachable standalone at the
-// `explore-map` route with the full `<h1>` + back button.
+// below its own header) drops the "← Back to home" button (meaningless
+// nested inside Home itself) and renders the section title as an `<h2>`
+// instead of an `<h1>`, since Home already has its own page-level `<h1>`.
+// Home is the *only* way this screen is reached through the app's real
+// navigation — there used to also be a standalone `explore-map` route,
+// reachable in parallel to Home, which read as two different home pages (a
+// real "why did clicking a notification send me somewhere that isn't the
+// app I was just using" report); it's gone from `preview.js`'s `SCREENS`
+// now. The non-embedded code path above still works if you mount this file
+// directly yourself (`embedded` left at its default `false`) for isolated
+// dev preview — see preview.js's own header comment — just not through
+// `onNavigate()` from anywhere in the app.
 
 import { sightingsService } from '../Services/sightings.js';
 import { geocodingService } from '../Services/geocoding.js';
 import { lifeListService } from '../Services/lifeList.js';
 import { speciesService } from '../Services/species.js';
+import { observationService } from '../Services/observations.js';
 import { mountSightingsMap } from '../Components/SightingsMap.js';
 import { renderSightingDetail } from '../Components/SightingDetail.js';
 import { escapeHtml } from '../Components/htmlUtils.js';
@@ -129,7 +137,16 @@ export function mount(container, props = {}) {
   let pendingPhotoKeys = new Set(); // scientific names currently being fetched — avoids duplicate overlapping requests
 
   render();
-  attemptSilentGeolocation();
+  // `focusObservationId` (set by Home.js/NotificationsFeed.js when a
+  // pin_hit notification is clicked — see focusOnObservation() below) picks
+  // an explicit location for the map; silent geolocation would otherwise
+  // race it and clobber it the moment the browser's permission prompt (or
+  // cached answer) resolves.
+  if (props.focusObservationId) {
+    focusOnObservation(props.focusObservationId);
+  } else {
+    attemptSilentGeolocation();
+  }
   loadSeenSpecies();
 
   // ---- Data ---------------------------------------------------------------
@@ -179,6 +196,9 @@ export function mount(container, props = {}) {
     );
   }
 
+  // Returns loadSightings()'s promise (existing callers all ignore it —
+  // fire-and-forget) so focusOnObservation() below can await the full
+  // location-change-to-sightings-loaded cycle before selecting a pin.
   function setLocation(lat, lng, label) {
     state.lat = lat;
     state.lng = lng;
@@ -189,7 +209,41 @@ export function mount(container, props = {}) {
     locationJustChanged = true;
     preservedView = NOT_CAPTURED; // irrelevant here (locationJustChanged forces a jump regardless), kept for consistency with applyFilters()/setDistanceUnit()
     render();
-    loadSightings();
+    return loadSightings();
+  }
+
+  // Jumps the map to one specific observation (by id) and opens its detail
+  // panel — reached by clicking a pin_hit notification (NotificationsFeed.js,
+  // Home.js's bell dropdown), whose payload only carries an observation_id,
+  // not a ready-to-use lat/lng/species. Fetches that one observation
+  // directly via GET /observations/{id} rather than hoping it turns up in
+  // the normal "last N days, within this radius" nearby query — a
+  // notification can be opened long after it arrived, by which point the
+  // sighting it points at may be well outside `state.daysBack`'s default
+  // window, so it's added into `state.sightings` explicitly if the regular
+  // load didn't happen to include it.
+  async function focusOnObservation(observationId) {
+    let obs;
+    try {
+      obs = await observationService.getById(observationId);
+    } catch (err) {
+      state.error = 'Could not load that sighting.';
+      render();
+      return;
+    }
+    if (obs.lat == null || obs.lng == null) {
+      state.error = 'That sighting has no location to show on the map.';
+      render();
+      return;
+    }
+    await setLocation(obs.lat, obs.lng, obs.location_name || 'Selected sighting');
+    if (!state.sightings.some((s) => s.id === obs.id)) {
+      state.sightings = [...state.sightings, obs];
+    }
+    // selectSighting() refreshes the map's pins itself (including picking
+    // up the just-appended sighting above), so no separate setSightings()
+    // call is needed here.
+    selectSighting(obs);
   }
 
   async function loadSightings() {
@@ -237,6 +291,13 @@ export function mount(container, props = {}) {
 
   function isOwnSighting(sighting) {
     return sighting.user_id === userId;
+  }
+
+  // Read live by SightingsMap.setSightings() on every call (see
+  // mountSightingsMap's isSelected doc) — not a snapshot, so it always
+  // reflects whichever pin selectSighting()/clearSelection() most recently set.
+  function isSelected(sighting) {
+    return state.selectedSighting != null && sighting.id === state.selectedSighting.id;
   }
 
   // `get_stock_photo()` on the backend always returns *a* URL — a real
@@ -438,21 +499,26 @@ export function mount(container, props = {}) {
     return `${km} km`;
   }
 
-  // Selecting a pin only ever touches the detail panel — never the map
-  // itself — so this deliberately bypasses render()/wireMap() (see that
-  // function's comment) and patches the panel's DOM directly, the same
-  // "targeted update" pattern used elsewhere in this codebase (e.g.
-  // AddObservation's photo-upload status) to avoid disrupting something
-  // live for an unrelated state change. A full render() here would remount
-  // the whole Leaflet map (tiles and all) just from clicking a pin.
+  // Selecting a pin never remounts the map — this deliberately bypasses
+  // render()/wireMap() (see that function's comment) and patches the detail
+  // panel's DOM directly, the same "targeted update" pattern used elsewhere
+  // in this codebase (e.g. AddObservation's photo-upload status), to avoid
+  // disrupting something live for an unrelated state change. It does still
+  // refresh the map's own pins in place (mapController.setSightings(), not
+  // a remount) so the selected one actually shows as selected (see
+  // SightingsMap.js's isSelected) — without this, there was no visual way
+  // to tell which pin the detail panel was describing among a cluster of
+  // identical ones (a real "not clear which observation is selected" report).
   function selectSighting(sighting) {
     state.selectedSighting = sighting;
     updateDetailPanelDom();
+    mapController?.setSightings(filteredSightings());
   }
 
   function clearSelection() {
     state.selectedSighting = null;
     updateDetailPanelDom();
+    mapController?.setSightings(filteredSightings());
   }
 
   function toggleDetailPanel() {
@@ -1045,6 +1111,7 @@ export function mount(container, props = {}) {
       initialLatLng,
       onSelectSighting: selectSighting,
       isOwnSighting,
+      isSelected,
       searchArea,
       fitSearchArea: jumpToSearchArea,
     })

@@ -9,6 +9,7 @@
 // See docs/features/life-list.md.
 
 import { lifeListService } from '../Services/lifeList.js';
+import { pinsService } from '../Services/pins.js';
 import { renderSpeciesCard } from '../Components/SpeciesCard.js';
 import { renderMissingBird } from '../Components/MissingBird.js';
 import { renderProgressBar } from '../Components/ProgressBar.js';
@@ -60,11 +61,18 @@ export function mount(container, props = {}) {
     // region"'s country -> state picker. Loaded eagerly (unlike `states`
     // above, which only loads once the picker's country dropdown is used).
     quickStates: [],
+
+    // Scientific names (lowercased) the user has pinned — see
+    // Components/MissingBird.js's pin button. A Set, not the raw pin list,
+    // since every lookup here is just "is this species pinned?".
+    pinnedNames: new Set(),
+    pinError: null,
   };
 
   render();
   loadChecklist();
   loadQuickStates();
+  loadPins();
 
   async function loadChecklist() {
     state.loading = true;
@@ -146,6 +154,7 @@ export function mount(container, props = {}) {
         ${onNavigate ? '<button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="back-to-home" style="align-self:flex-start;">← Back to home</button>' : ''}
         <h1>Life List</h1>
         ${state.error ? `<div class="ob-alert ob-alert--danger">${escapeHtml(state.error)}</div>` : ''}
+        ${state.pinError ? `<div class="ob-alert ob-alert--danger">${escapeHtml(state.pinError)}</div>` : ''}
         ${state.loading ? renderLoading() : renderLoaded()}
       </div>
     `;
@@ -289,7 +298,9 @@ export function mount(container, props = {}) {
   function renderSpeciesList(matches) {
     const visibleSpecies = matches.slice(0, state.limit);
     const cards = visibleSpecies
-      .map((sp) => (sp.seen ? renderSpeciesCard(sp) : renderMissingBird(sp)))
+      .map((sp) => (sp.seen
+        ? renderSpeciesCard(sp)
+        : renderMissingBird(sp, { pinned: state.pinnedNames.has(sp.scientific_name.toLowerCase()) })))
       .join('');
     return state.view === 'grid'
       ? `<div class="ob-grid" style="--ob-grid-min: 220px;">${cards}</div>`
@@ -362,6 +373,15 @@ export function mount(container, props = {}) {
 
     wireSpeciesCards();
     wireRegionPicker();
+    wirePinButtons();
+  }
+
+  function wirePinButtons() {
+    container.querySelectorAll('[data-action="toggle-pin"]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        togglePin(btn.dataset.pinScientificName, btn.dataset.pinCommonName);
+      });
+    });
   }
 
   // Seen-species cards open that species' observation log. Missing-bird
@@ -395,6 +415,36 @@ export function mount(container, props = {}) {
     } catch (err) {
       // Leave it empty — the quick filter just won't have state options.
     }
+  }
+
+  async function loadPins() {
+    try {
+      const pins = await pinsService.list(userId);
+      state.pinnedNames = new Set(pins.map((p) => p.scientific_name.toLowerCase()));
+      render();
+    } catch (err) {
+      // Leave it empty — pin buttons just show as unpinned until this loads.
+    }
+  }
+
+  // Pinning/unpinning is a discrete click, not live-as-you-type, so a full
+  // render() (same as every other button handler in this file) is fine —
+  // no focus to preserve.
+  async function togglePin(scientificName, commonName) {
+    state.pinError = null;
+    const key = scientificName.toLowerCase();
+    try {
+      if (state.pinnedNames.has(key)) {
+        await pinsService.unpin(userId, scientificName);
+        state.pinnedNames.delete(key);
+      } else {
+        await pinsService.pin(userId, { scientificName, commonName });
+        state.pinnedNames.add(key);
+      }
+    } catch (err) {
+      state.pinError = err.message || 'Could not update that pin. Try again in a moment.';
+    }
+    render();
   }
 
   function changeRegion(code, label) {
