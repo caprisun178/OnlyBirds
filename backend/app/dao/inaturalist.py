@@ -77,6 +77,43 @@ async def get_nearby_observations(
         return resp.json().get("results", [])
 
 
+async def get_species_counts(
+    lat: float,
+    lng: float,
+    radius_km: int = 25,
+    d1: str | None = None,
+    d2: str | None = None,
+    per_page: int = 20,
+) -> list[dict]:
+    """Species seen near a point, ranked by observation count — iNaturalist's
+    own `/observations/species_counts` aggregation, not raw observations
+    fetched one at a time and deduped by hand. Backs
+    docs/features/plan-a-trip.md's "likely species" list: eBird has no
+    equivalent reachable through the public API — its frequency/abundance
+    data lives behind the separate Status & Trends product (special access,
+    not the regular API key), and its `/historic` endpoint is per-day and
+    keyed by eBird region code, not point+radius — so this is
+    iNaturalist-only. `d1`/`d2` (`YYYY-MM-DD`) narrow to a date window in
+    any year; omitted, iNaturalist doesn't filter by date at all.
+    """
+    params: dict[str, float | int | str] = {
+        "lat": lat,
+        "lng": lng,
+        "radius": radius_km,
+        "taxon_id": _AVES_TAXON_ID,
+        "quality_grade": "research",
+        "per_page": per_page,
+    }
+    if d1:
+        params["d1"] = d1
+    if d2:
+        params["d2"] = d2
+    async with _client() as client:
+        resp = await client.get("/observations/species_counts", params=params)
+        resp.raise_for_status()
+        return resp.json().get("results", [])
+
+
 # --- Not implemented yet — stub for a planned feature. ---------------------
 
 

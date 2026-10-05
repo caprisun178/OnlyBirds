@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 
 from app.models.observation import Observation, Source
 from app.models.species import SpeciesRef
+from app.models.trip import Hotspot, LikelySpecies
 
 
 def _parse_dt(value: str | None) -> datetime:
@@ -108,3 +109,40 @@ def _inat_coords(record: dict) -> tuple[float, float]:
         except ValueError:
             pass
     return 0.0, 0.0
+
+
+def from_inat_species_count(record: dict) -> LikelySpecies:
+    """One element of iNaturalist's `/observations/species_counts`
+    response — a distinct species, not a sighting event.
+    `taxon.default_photo` here is a different field than `from_inaturalist`'s
+    observation-level `photos[]`: iNaturalist already hands back a
+    properly-sized `medium_url` directly (no `/square.jpg` thumbnail to
+    upgrade, so `_upgrade_inat_photo_size()` doesn't apply here).
+    """
+    taxon = record.get("taxon") or {}
+    source_ids: dict[str, str] = {}
+    if taxon.get("id") is not None:
+        source_ids["inat"] = str(taxon["id"])
+    species = SpeciesRef(
+        scientific_name=taxon.get("name"),
+        common_name=taxon.get("preferred_common_name"),
+        taxon_group=taxon.get("iconic_taxon_name"),
+        source_ids=source_ids,
+    )
+    photo = taxon.get("default_photo") or {}
+    return LikelySpecies(
+        species=species,
+        observation_count=record.get("count", 0),
+        photo_url=photo.get("medium_url"),
+    )
+
+
+def from_ebird_hotspot(record: dict) -> Hotspot:
+    """One element of eBird's `GET /ref/hotspot/geo` response."""
+    return Hotspot(
+        loc_id=record["locId"],
+        name=record.get("locName", "Unnamed location"),
+        lat=record["lat"],
+        lng=record["lng"],
+        species_all_time=record.get("numSpeciesAllTime", 0),
+    )

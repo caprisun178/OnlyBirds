@@ -49,6 +49,23 @@ async def get_nearby_bird_sightings(
         return resp.json()
 
 
+async def get_hotspots_near(lat: float, lng: float, dist_km: int = 25) -> list[dict]:
+    """Real, named, eBird-curated birding locations within `dist_km` of a
+    point — each row includes `numSpeciesAllTime`, usable as a popularity
+    signal. `GET /ref/hotspot/geo` (`dist` in km, 0-500; `fmt=json` since
+    some `ref/` endpoints default to CSV otherwise). Needed by
+    docs/features/plan-a-trip.md's hotspot suggestions — deliberately not
+    Explore Map's location-name grouping, which only surfaces a place if
+    sightings happen to already share its exact name; this is real, curated
+    locations regardless of recent activity.
+    """
+    params = {"lat": lat, "lng": lng, "dist": dist_km, "fmt": "json"}
+    async with _client() as client:
+        resp = await client.get("/ref/hotspot/geo", params=params)
+        resp.raise_for_status()
+        return resp.json()
+
+
 # --- Not implemented yet — stubs for planned features. ---------------------
 # Each raises NotImplementedError; the endpoint and params are documented so
 # filling one in is a matter of copying the httpx call shape above. See
