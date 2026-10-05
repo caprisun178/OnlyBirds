@@ -14,9 +14,10 @@ from __future__ import annotations
 
 import uuid
 
-from app.models.life_list import LifeListEntry
+from app.dao import bird_photos, ebird, region_repo
+from app.models.life_list import ChecklistSpecies, LifeListEntry, RegionChecklistResponse, RegionOption
 from app.models.observation import Observation
-from app.services.observation import list_observations
+from app.services.observation import get_observation, list_observations
 
 
 def _species_key(obs: Observation) -> str:
@@ -52,3 +53,63 @@ async def get_life_list(user_id: str) -> list[LifeListEntry]:
     ]
     entries.sort(key=lambda e: e.first_observed_at, reverse=True)
     return entries
+
+
+async def get_region_children(parent_code: str, region_type: str) -> list[RegionOption]:
+    raw = await ebird.get_region_children(parent_code, region_type)
+    return [RegionOption(code=r["code"], name=r["name"]) for r in raw]
+
+
+async def get_region_checklist(region_code: str, user_id: str | None) -> RegionChecklistResponse:
+    """The region's full species checklist, each row marked seen or not for
+    `user_id` (by scientific name — the same fallback `_species_key` above
+    uses when nothing better is available). Without a `user_id`, every row
+    comes back unseen — still useful as a plain species catalog.
+    """
+    checklist = await region_repo.get_checklist(region_code)
+
+    seen_by_name: dict[str, LifeListEntry] = {}
+    if user_id:
+        entries = await get_life_list(user_id)
+        seen_by_name = {
+            e.species.scientific_name.lower(): e
+            for e in entries
+            if e.species.scientific_name
+        }
+
+    rows: list[ChecklistSpecies] = []
+    seen_count = 0
+    for sp in checklist:
+        entry = seen_by_name.get(sp["scientific_name"].lower())
+        photo_url = None
+        photo_attribution = None
+        if entry and entry.observation_id:
+            obs = await get_observation(entry.observation_id)
+            photo_url = obs.photo_url if obs else None
+        if entry and not photo_url:
+            # The user logged this species but didn't attach their own
+            # photo — fall back to a real Commons photo (or, failing that,
+            # a generated placeholder — get_stock_photo() always returns
+            # one or the other) rather than showing a blank card for a bird
+            # they've actually seen.
+            stock = await bird_photos.get_stock_photo(sp["scientific_name"], sp["common_name"])
+            photo_url = stock["photo_url"]
+            photo_attribution = stock["attribution"]
+        if entry:
+            seen_count += 1
+        rows.append(
+            ChecklistSpecies(
+                code=sp["code"],
+                common_name=sp["common_name"],
+                scientific_name=sp["scientific_name"],
+                seen=entry is not None,
+                first_observed_at=entry.first_observed_at if entry else None,
+                photo_url=photo_url,
+                photo_attribution=photo_attribution,
+                family_common_name=sp.get("family_common_name") or "",
+            )
+        )
+
+    return RegionChecklistResponse(
+        region_code=region_code, total=len(rows), seen=seen_count, species=rows
+    )

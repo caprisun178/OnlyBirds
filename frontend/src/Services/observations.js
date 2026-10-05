@@ -18,4 +18,60 @@ export const observationService = {
       (a, b) => new Date(b.observed_at) - new Date(a.observed_at),
     );
   },
+
+  // A single observation by id — e.g. the one a pin_hit notification's
+  // payload points at (see Presenters/ExploreMap.js#focusOnObservation).
+  async getById(id) {
+    return observationDAO.getById(id);
+  },
+
+  // Confirmed-species + field-notes step of the Add Observation wizard.
+  // `species` is `{ commonName, scientificName }`; `sense` is 'sight' | 'sound'
+  // (from the describe step's "saw it" / "heard it" choice); `fieldNotes` is
+  // `{ observedAt, locationName, lat, lng, photoUrl, sex, lifeStage, notes }`.
+  // `identificationId` only matters mid-wizard (grading the candidate pick,
+  // via identifyService) — the logged observation itself doesn't keep it.
+  async createFromWizard(userId, { species, sense, fieldNotes }) {
+    const priorLifeList = await lifeListDAO.getAll(userId);
+    const alreadySeen = priorLifeList.some(
+      (e) => e.species?.scientific_name === species.scientificName,
+    );
+
+    const created = await observationDAO.create({
+      user_id: userId,
+      species: {
+        common_name: species.commonName,
+        scientific_name: species.scientificName,
+      },
+      observed_at: fieldNotes.observedAt,
+      location_name: fieldNotes.locationName || null,
+      lat: fieldNotes.lat ?? null,
+      lng: fieldNotes.lng ?? null,
+      photo_url: fieldNotes.photoUrl || null,
+      sex: fieldNotes.sex || null,
+      life_stage: fieldNotes.lifeStage || null,
+      detection_type: sense || null,
+      notes: fieldNotes.notes || null,
+      source: 'manual',
+      status: 'logged',
+    });
+
+    return { observation: created, isNewSpecies: !alreadySeen };
+  },
+
+  // Edits an already-logged observation. `fieldNotes` uses the same shape as
+  // `createFromWizard` above (only the keys present get sent — see
+  // `Dao/apiClient.js#patch` / `ObservationUpdate` on the backend, which
+  // only touches fields actually included in the request).
+  async updateObservation(observationId, fieldNotes) {
+    const payload = {};
+    if (fieldNotes.observedAt !== undefined) payload.observed_at = fieldNotes.observedAt;
+    if (fieldNotes.locationName !== undefined) payload.location_name = fieldNotes.locationName || null;
+    if (fieldNotes.notes !== undefined) payload.notes = fieldNotes.notes || null;
+    if (fieldNotes.sex !== undefined) payload.sex = fieldNotes.sex || null;
+    if (fieldNotes.lifeStage !== undefined) payload.life_stage = fieldNotes.lifeStage || null;
+    if (fieldNotes.detectionType !== undefined) payload.detection_type = fieldNotes.detectionType || null;
+    if (fieldNotes.photoUrl !== undefined) payload.photo_url = fieldNotes.photoUrl || null;
+    return observationDAO.update(observationId, payload);
+  },
 };

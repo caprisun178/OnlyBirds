@@ -1,0 +1,202 @@
+import asyncio
+import json
+
+from app.dao import bird_photos, commons
+
+# Captured before conftest's autouse fixture monkeypatches _save_cache_file
+# to a no-op for every test (so tests don't spam the real cache file on
+# disk) — the one test below that specifically exercises persistence needs
+# the real implementation back.
+_real_save_cache_file = bird_photos._save_cache_file
+
+BIRD = {
+    "code": "blujay",
+    "common_name": "Blue Jay",
+    "scientific_name": "Cyanocitta cristata",
+    "photo_url": "https://placehold.co/320x220/3aa0ff/ffffff?text=Blue+Jay",
+}
+
+
+def test_uses_commons_result_when_found(monkeypatch):
+    async def fake_search(query):
+        assert query == "Cyanocitta cristata"
+        return {
+            "media_url": "https://upload.wikimedia.org/real-blue-jay.jpg",
+            "artist": "Jane Birder",
+            "license": "CC BY-SA 3.0",
+        }
+
+    monkeypatch.setattr(commons, "search_photo", fake_search)
+    monkeypatch.setattr(bird_photos, "_cache", {})
+
+    photo = asyncio.run(bird_photos.get_photo(BIRD))
+    assert photo["photo_url"] == "https://upload.wikimedia.org/real-blue-jay.jpg"
+    assert photo["attribution"] == "Jane Birder / Wikimedia Commons (CC BY-SA 3.0)"
+
+
+def test_falls_back_to_placeholder_when_commons_has_nothing(monkeypatch):
+    async def fake_search(query):
+        return None
+
+    monkeypatch.setattr(commons, "search_photo", fake_search)
+    monkeypatch.setattr(bird_photos, "_cache", {})
+
+    photo = asyncio.run(bird_photos.get_photo(BIRD))
+    assert photo["photo_url"] == BIRD["photo_url"]
+    assert photo["attribution"] is None
+
+
+def test_caches_after_first_lookup(monkeypatch):
+    calls = []
+
+    async def fake_search(query):
+        calls.append(query)
+        return {"media_url": "https://upload.wikimedia.org/real-blue-jay.jpg"}
+
+    monkeypatch.setattr(commons, "search_photo", fake_search)
+    monkeypatch.setattr(bird_photos, "_cache", {})
+
+    async def _lookup_twice():
+        await bird_photos.get_photo(BIRD)
+        await bird_photos.get_photo(BIRD)
+
+    asyncio.run(_lookup_twice())
+
+    assert calls == ["Cyanocitta cristata"]  # second call was served from cache
+
+
+def test_get_stock_photo_uses_commons_result_when_found(monkeypatch):
+    async def fake_search(query):
+        assert query == "Turdus migratorius"
+        return {"media_url": "https://upload.wikimedia.org/real-robin.jpg", "artist": "Jane Birder"}
+
+    monkeypatch.setattr(commons, "search_photo", fake_search)
+    monkeypatch.setattr(bird_photos, "_cache", {})
+
+    photo = asyncio.run(bird_photos.get_stock_photo("Turdus migratorius", "American Robin"))
+    assert photo["photo_url"] == "https://upload.wikimedia.org/real-robin.jpg"
+    assert photo["attribution"] == "Jane Birder / Wikimedia Commons"
+
+
+def test_get_stock_photo_falls_back_to_a_generated_placeholder(monkeypatch):
+    # Unlike get_photo(), there's no birds.py entry to fall back to — the
+    # whole point is this never returns nothing, so a Life List card never
+    # renders with no image at all.
+    async def fake_search(query):
+        return None
+
+    monkeypatch.setattr(commons, "search_photo", fake_search)
+    monkeypatch.setattr(bird_photos, "_cache", {})
+
+    photo = asyncio.run(bird_photos.get_stock_photo("Turdus migratorius", "American Robin"))
+    assert photo["photo_url"] == "https://placehold.co/320x220/5b7a99/ffffff?text=American%20Robin"
+    assert photo["attribution"] is None
+
+
+def test_transient_commons_failure_falls_back_but_is_not_cached(monkeypatch):
+    # A rate limit or network blip shouldn't permanently deny a species a
+    # real photo — only a genuine "nothing found" (Commons returning None)
+    # gets cached; CommonsUnavailable should let the next call retry.
+    calls = {"n": 0}
+
+    async def flaky_search(query):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise commons.CommonsUnavailable("429 Too Many Requests")
+        return {"media_url": "https://upload.wikimedia.org/real-robin.jpg"}
+
+    monkeypatch.setattr(commons, "search_photo", flaky_search)
+    monkeypatch.setattr(bird_photos, "_cache", {})
+
+    first = asyncio.run(bird_photos.get_stock_photo("Turdus migratorius", "American Robin"))
+    assert first["photo_url"] == "https://placehold.co/320x220/5b7a99/ffffff?text=American%20Robin"
+
+    second = asyncio.run(bird_photos.get_stock_photo("Turdus migratorius", "American Robin"))
+    assert second["photo_url"] == "https://upload.wikimedia.org/real-robin.jpg"
+    assert calls["n"] == 2  # not cached after the failure, so it retried
+
+
+def test_a_new_lookup_writes_through_to_the_cache_file(monkeypatch, tmp_path):
+    # Regression: the cache used to be in-memory only — a species resolved
+    # once still had to be re-fetched from Commons after every server
+    # restart, which is slow (a real, reported "it took a while to load"
+    # complaint). A genuine cache miss should now also persist to disk.
+    cache_file = tmp_path / "species_photo_cache.json"
+    monkeypatch.setattr(bird_photos, "_CACHE_FILE", cache_file)
+    monkeypatch.setattr(bird_photos, "_cache", {})
+    monkeypatch.setattr(bird_photos, "_save_cache_file", _real_save_cache_file)
+
+    async def fake_search(query):
+        return {"media_url": "https://upload.wikimedia.org/real-robin.jpg", "artist": "Jane Birder"}
+
+    monkeypatch.setattr(commons, "search_photo", fake_search)
+
+    asyncio.run(bird_photos.get_stock_photo("Turdus migratorius", "American Robin"))
+
+    assert cache_file.exists()
+    saved = json.loads(cache_file.read_text(encoding="utf-8"))
+    assert saved["Turdus migratorius"]["media_url"] == "https://upload.wikimedia.org/real-robin.jpg"
+
+
+def test_save_merges_with_disk_instead_of_overwriting(monkeypatch, tmp_path):
+    # Regression — a real incident, not a hypothetical: two server
+    # processes alive at once (the dev `--reload` watcher's old worker not
+    # actually dying before a new one starts — a known issue in this
+    # environment), each with their own in-memory `_cache` loaded from disk
+    # at different times. The one loaded earlier (fewer entries) writing
+    # last used to silently erase everything a *different* process had
+    # since saved — confirmed live: a cache that had grown to 62 species
+    # dropped back to 16 after exactly this. A save must never destroy an
+    # entry it doesn't know about.
+    cache_file = tmp_path / "species_photo_cache.json"
+    # Simulates another process having already saved a species this one's
+    # own (smaller) in-memory `_cache` has never heard of.
+    cache_file.write_text(
+        json.dumps({"Cyanocitta cristata": {"media_url": "https://upload.wikimedia.org/real-bluejay.jpg"}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(bird_photos, "_CACHE_FILE", cache_file)
+    monkeypatch.setattr(bird_photos, "_cache", {"Turdus migratorius": {"media_url": "https://upload.wikimedia.org/real-robin.jpg"}})
+    monkeypatch.setattr(bird_photos, "_save_cache_file", _real_save_cache_file)
+
+    bird_photos._save_cache_file()
+
+    saved = json.loads(cache_file.read_text(encoding="utf-8"))
+    assert saved["Cyanocitta cristata"]["media_url"] == "https://upload.wikimedia.org/real-bluejay.jpg"  # not lost
+    assert saved["Turdus migratorius"]["media_url"] == "https://upload.wikimedia.org/real-robin.jpg"  # this process's own entry
+    # The merge result is also reflected back into this process's own
+    # in-memory cache, so a later lookup in the same process benefits too.
+    assert bird_photos._cache["Cyanocitta cristata"]["media_url"] == "https://upload.wikimedia.org/real-bluejay.jpg"
+
+
+def test_cache_file_is_loaded_back_on_a_fresh_lookup(monkeypatch, tmp_path):
+    # The other half of the round trip: an entry already on disk should be
+    # served without ever calling Commons again — this is the whole point
+    # (survives a restart, not just repeat calls within one process).
+    cache_file = tmp_path / "species_photo_cache.json"
+    cache_file.write_text(
+        json.dumps({"Turdus migratorius": {"media_url": "https://upload.wikimedia.org/real-robin.jpg"}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(bird_photos, "_CACHE_FILE", cache_file)
+    monkeypatch.setattr(bird_photos, "_cache", bird_photos._load_cache_file())
+
+    async def fail_if_called(query):
+        raise AssertionError("should have been served from the loaded cache, not Commons")
+
+    monkeypatch.setattr(commons, "search_photo", fail_if_called)
+
+    photo = asyncio.run(bird_photos.get_stock_photo("Turdus migratorius", "American Robin"))
+    assert photo["photo_url"] == "https://upload.wikimedia.org/real-robin.jpg"
+
+
+def test_load_cache_file_handles_a_missing_file(tmp_path, monkeypatch):
+    monkeypatch.setattr(bird_photos, "_CACHE_FILE", tmp_path / "does-not-exist.json")
+    assert bird_photos._load_cache_file() == {}
+
+
+def test_load_cache_file_handles_a_corrupt_file(tmp_path, monkeypatch):
+    cache_file = tmp_path / "species_photo_cache.json"
+    cache_file.write_text("not valid json{{{", encoding="utf-8")
+    monkeypatch.setattr(bird_photos, "_CACHE_FILE", cache_file)
+    assert bird_photos._load_cache_file() == {}

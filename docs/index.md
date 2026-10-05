@@ -13,18 +13,24 @@ OnlyBirds/
 │   ├── scripts/    migrate.sh
 │   └── tests/      pytest, no network
 ├── frontend/
-│   ├── home/       landing page (static HTML/CSS)
+│   ├── index.html  redirects to src/preview.html (the app's entry point)
 │   ├── styles/     shared design system — base.css + its guide
-│   └── src/        app screens — plain JS/HTML, no build step — dao / services / presenters / components
+│   └── src/        every screen — plain JS/HTML, no build step —
+│                    dao / services / presenters / components
 ├── docs/           this MkDocs site
 ├── render.yaml     Render deployment blueprint
 └── mkdocs.yml
 ```
 
-The backend runs and is deployed. The frontend has a static landing page
-(`frontend/home/`), the shared design system (`frontend/styles/`), and a plain
-JS app skeleton (`frontend/src/`) that the screens are built in — no framework,
-no build step. Layer rules are in [Contributing](contributing.md#frontend-layering).
+The backend runs and is deployed. The frontend is a single plain JS/HTML app
+under `frontend/src/` (no framework, no build step) sharing one design system
+(`frontend/styles/`). There's no separate landing/marketing page — `Home`
+(`Presenters/Home.js`) is the app's front door, and it's just a header
+(Life List, Add Observation, Login) with [Explore
+map](features/explore-map.md) (`Presenters/ExploreMap.js`) embedded directly
+below it, so you can start filtering sightings the moment the app loads —
+no click-through welcome screen first. Layer rules are in
+[Contributing](contributing.md#frontend-layering).
 
 ## Prerequisites
 
@@ -112,28 +118,21 @@ offline and without any API key.
 
 ## 5. Front-end
 
-Two separate things live under `frontend/` — both plain HTML/CSS/JS, no
-framework, no build step:
+Plain HTML/CSS/JS, no framework, no build step. Serve `frontend/` itself (not
+`frontend/src/`) — screens load their stylesheet relative to their own path
+(`../styles/base.css`), which only resolves if `frontend/styles/` is reachable
+from wherever you served:
 
-- **The landing page** (`frontend/home/`). Open `frontend/home/index.html`, or
-  serve it:
+```bash
+cd frontend
+python -m http.server 4174
+```
 
-    ```bash
-    cd frontend/home
-    python -m http.server 4173      # http://localhost:4173
-    ```
-
-- **App screens** (`frontend/src/`). Served the same way, but from `frontend/`
-  so root-relative paths resolve:
-
-    ```bash
-    cd frontend
-    python -m http.server 4174
-    ```
-
-    Then open <http://localhost:4174/src/preview.html> — see
-    [Building a screen → Preview your screen](frontend-screens.md#preview-your-screen)
-    for how to point it at the screen you're building.
+Open <http://localhost:4174/> — it redirects to
+<http://localhost:4174/src/preview.html>, which opens on `Home` (no separate
+landing page). See
+[Building a screen → Preview your screen](frontend-screens.md#preview-your-screen)
+for the route switcher and how to preview a screen still being built.
 
 Shared styles and the `.ob-*` component classes live in `frontend/styles/`; the
 rules are in [Contributing](contributing.md#styling-standard). App logic under
@@ -147,7 +146,7 @@ Set in `backend/.env` (copied from `backend/.env.example`):
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
 | `EBIRD_API_KEY` | for eBird data | _unset_ | see [eBird API](ebird-api.md) |
-| `CORS_ORIGINS` | no | `http://localhost:3000,http://localhost:5173,http://localhost:8081` | comma-separated allowed web origins |
+| `CORS_ORIGINS` | no | `http://localhost:3000,http://127.0.0.1:3000,http://localhost:4174,http://127.0.0.1:4174,http://localhost:5173,http://127.0.0.1:5173,http://localhost:8081,http://127.0.0.1:8081` | comma-separated allowed web origins — both `localhost` and `127.0.0.1` per port, since browsers treat them as different origins; a frontend opened at one when only the other is whitelisted fails every API call with a bare "Failed to fetch" (no CORS-specific message) |
 | `DATABASE_URL` | for migrations | _unset_ | Postgres connection string (Supabase). Used by `scripts/migrate.sh`; the base server still runs without it. See [Deployment](deployment.md). |
 
 `.env` is git-ignored. Never commit real keys.

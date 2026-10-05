@@ -212,6 +212,29 @@ Owners** — that's the production gate.
 - Add a test under `backend/tests/` for every endpoint or adapter change. Tests
   must stay offline — use canned payloads, not live calls.
 
+### `dao/` file header
+
+Every file under `app/dao/` starts with this header instead of a plain
+docstring — a description plus a running changeLog, so a file's history is
+visible without leaving the editor. When you create a new `dao/` file, add
+one; when you meaningfully change an existing one, append a new changeLog
+line (don't edit or remove earlier ones).
+
+```python
+"""
+==============================
+<Name> script library
+Description:
+<what this file does, and anything a reader needs to know before touching it>
+
+=============================
+changeLog
+=============================
+MM/DD/YYYY ... <your initials> ... <what changed>
+=============================
+"""
+```
+
 Run before pushing:
 
 ```bash
