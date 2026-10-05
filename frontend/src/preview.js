@@ -31,8 +31,13 @@ import { mount as mountObservationList } from './Presenters/ObservationList.js';
 import { mount as mountPlanATrip } from './Presenters/PlanATrip.js';
 import { mount as mountNotificationsFeed } from './Presenters/NotificationsFeed.js';
 import { mount as mountTestYourSkill } from './Presenters/TestYourSkill.js';
+import { mount as mountReportButton } from './Components/ReportButton.js';
 
 const app = document.getElementById('app');
+
+// Beta-only — present on every screen regardless of route, see
+// Components/ReportButton.js for why this lives outside #app.
+const reportWidget = mountReportButton();
 
 const SCREENS = {
   home: (container, params) => mountHome(container, { onNavigate: navigate, ...params }),
@@ -55,6 +60,7 @@ function navigate(route, params) {
   }
   app.innerHTML = '';
   mountScreen(app, params);
+  reportWidget.setScreen(route);
 }
 
 navigate('home');
