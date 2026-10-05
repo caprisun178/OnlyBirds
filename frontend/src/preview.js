@@ -8,11 +8,17 @@
 // (`Presenters/Home.js` mounts `ExploreMap` in a sub-container with
 // `embedded: true`) — so the app still opens straight into "start filtering
 // birds," without a separate landing/marketing page, no route change
-// needed to get there. `explore-map` stays in `SCREENS` too, so it's still
-// reachable as its own standalone route (with its own `<h1>` and "← Back to
-// home"), same as before. Routes with no screen yet just log, same as each
-// screen's own default behavior. Auth/login is separate in-progress work —
-// not wired in here yet.
+// needed to get there. Explore Map is deliberately NOT in `SCREENS` as its
+// own route — Home *is* the Explore Map screen; a standalone `explore-map`
+// route used to exist here too, reachable in parallel to Home, which read
+// as two different home pages (a real "why did clicking a notification
+// send me somewhere that isn't the app I was just using" report). Anything
+// that wants to show the map — including a specific sighting from a
+// notification — navigates to `home` and passes params through
+// (`ExploreMap.js`'s own `focusObservationId` handling, forwarded by
+// `Home.js`'s embedded mount). Routes with no screen yet just log, same as
+// each screen's own default behavior. Auth/login is separate in-progress
+// work — not wired in here yet.
 //
 // Building a screen that isn't wired in below? Preview it on its own the old
 // way — import its `mount` and call it directly instead of going through
@@ -22,7 +28,8 @@ import { mount as mountHome } from './Presenters/Home.js';
 import { mount as mountAddObservation } from './Presenters/AddObservation.js';
 import { mount as mountLifeList } from './Presenters/LifeList.js';
 import { mount as mountObservationList } from './Presenters/ObservationList.js';
-import { mount as mountExploreMap } from './Presenters/ExploreMap.js';
+import { mount as mountPlanATrip } from './Presenters/PlanATrip.js';
+import { mount as mountNotificationsFeed } from './Presenters/NotificationsFeed.js';
 
 const app = document.getElementById('app');
 
@@ -31,7 +38,8 @@ const SCREENS = {
   'add-observation': (container, params) => mountAddObservation(container, { onNavigate: navigate, ...params }),
   'life-list': (container, params) => mountLifeList(container, { onNavigate: navigate, ...params }),
   'observation-log': (container, params) => mountObservationList(container, { onNavigate: navigate, ...params }),
-  'explore-map': (container, params) => mountExploreMap(container, { onNavigate: navigate, ...params }),
+  'plan-a-trip': (container, params) => mountPlanATrip(container, { onNavigate: navigate, ...params }),
+  notifications: (container, params) => mountNotificationsFeed(container, { onNavigate: navigate, ...params }),
 };
 
 // `params` is an optional plain object spread onto the target screen's

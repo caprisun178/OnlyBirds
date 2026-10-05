@@ -75,3 +75,58 @@ def test_upgrade_inat_photo_size_leaves_non_square_urls_alone():
 
 def test_upgrade_inat_photo_size_handles_none():
     assert adapters._upgrade_inat_photo_size(None) is None
+
+
+SPECIES_COUNT_RECORD = {
+    "count": 42,
+    "taxon": {
+        "id": 4444,
+        "name": "Phalaenoptilus nuttallii",
+        "preferred_common_name": "Common Poorwill",
+        "iconic_taxon_name": "Aves",
+        "default_photo": {"medium_url": "https://static.inaturalist.org/photos/1/medium.jpg"},
+    },
+}
+
+
+def test_from_inat_species_count():
+    result = adapters.from_inat_species_count(SPECIES_COUNT_RECORD)
+    assert result.species.scientific_name == "Phalaenoptilus nuttallii"
+    assert result.species.common_name == "Common Poorwill"
+    assert result.species.source_ids == {"inat": "4444"}
+    assert result.observation_count == 42
+    # default_photo.medium_url is already the right size — must NOT go
+    # through _upgrade_inat_photo_size() (that only applies to the
+    # observation-level photos[].url field, stuck at a 75x75 thumbnail).
+    assert result.photo_url == "https://static.inaturalist.org/photos/1/medium.jpg"
+
+
+def test_from_inat_species_count_handles_missing_photo():
+    record = {"count": 3, "taxon": {"id": 1, "name": "Corvus corax", "iconic_taxon_name": "Aves"}}
+    result = adapters.from_inat_species_count(record)
+    assert result.photo_url is None
+
+
+EBIRD_HOTSPOT_RECORD = {
+    "locId": "L1021141",
+    "locName": "Bethania--Black Walnut Bottom",
+    "lat": 36.1780162,
+    "lng": -80.3390694,
+    "numSpeciesAllTime": 160,
+}
+
+
+def test_from_ebird_hotspot():
+    result = adapters.from_ebird_hotspot(EBIRD_HOTSPOT_RECORD)
+    assert result.loc_id == "L1021141"
+    assert result.name == "Bethania--Black Walnut Bottom"
+    assert result.lat == 36.1780162
+    assert result.lng == -80.3390694
+    assert result.species_all_time == 160
+
+
+def test_from_ebird_hotspot_handles_missing_name_and_count():
+    record = {"locId": "L2", "lat": 36.1, "lng": -80.3}
+    result = adapters.from_ebird_hotspot(record)
+    assert result.name == "Unnamed location"
+    assert result.species_all_time == 0

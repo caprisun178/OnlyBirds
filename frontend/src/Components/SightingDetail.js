@@ -17,7 +17,7 @@ export function renderSightingDetail(sighting) {
     ? new Date(sighting.observed_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
     : '';
   const sourceLabel = SOURCE_LABELS[sighting.source] || sighting.source;
-  const detectionLabel = sighting.detection_type === 'sound' ? '🔊 Heard' : sighting.detection_type === 'sight' ? '👀 Seen' : '';
+  const detectionLabel = sighting.detection_type === 'sound' ? 'Heard' : sighting.detection_type === 'sight' ? 'Seen' : '';
   const tags = [SEX_LABELS[sighting.sex], LIFE_STAGE_LABELS[sighting.life_stage]].filter(Boolean);
 
   return `
@@ -37,7 +37,7 @@ export function renderSightingDetail(sighting) {
     ${date || detectionLabel
       ? `<p class="ob-text-sm ob-text-muted" style="margin:var(--ob-space-2) 0 0;">${escapeHtml(date)}${date && detectionLabel ? ' — ' : ''}${escapeHtml(detectionLabel)}</p>`
       : ''}
-    ${sighting.location_name ? `<p class="ob-text-sm" style="margin:var(--ob-space-1) 0 0;">📍 ${escapeHtml(sighting.location_name)}</p>` : ''}
+    ${sighting.location_name ? `<p class="ob-text-sm" style="margin:var(--ob-space-1) 0 0;">${escapeHtml(sighting.location_name)}</p>` : ''}
     ${sighting.notes ? `<p class="ob-text-sm" style="font-style:italic;margin:var(--ob-space-2) 0 0;">“${escapeHtml(sighting.notes)}”</p>` : ''}
     ${tags.length > 0 ? `<p class="ob-text-sm" style="margin:var(--ob-space-2) 0 0;">${tags.map(escapeHtml).join(' · ')}</p>` : ''}
     <span class="ob-tag ob-tag--info" style="margin-top:var(--ob-space-2);display:inline-block;">${escapeHtml(sourceLabel)}</span>

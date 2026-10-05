@@ -21,16 +21,24 @@
 // wrong. See docs/features/explore-map.md.
 //
 // `embedded: true` (set by `Presenters/Home.js`, which mounts this directly
-// below its own header instead of sending you to a separate route) drops
-// the "← Back to home" button (meaningless nested inside Home itself) and
-// renders the section title as an `<h2>` instead of an `<h1>`, since Home
-// already has its own page-level `<h1>`. Still reachable standalone at the
-// `explore-map` route with the full `<h1>` + back button.
+// below its own header) drops the "← Back to home" button (meaningless
+// nested inside Home itself) and renders the section title as an `<h2>`
+// instead of an `<h1>`, since Home already has its own page-level `<h1>`.
+// Home is the *only* way this screen is reached through the app's real
+// navigation — there used to also be a standalone `explore-map` route,
+// reachable in parallel to Home, which read as two different home pages (a
+// real "why did clicking a notification send me somewhere that isn't the
+// app I was just using" report); it's gone from `preview.js`'s `SCREENS`
+// now. The non-embedded code path above still works if you mount this file
+// directly yourself (`embedded` left at its default `false`) for isolated
+// dev preview — see preview.js's own header comment — just not through
+// `onNavigate()` from anywhere in the app.
 
 import { sightingsService } from '../Services/sightings.js';
 import { geocodingService } from '../Services/geocoding.js';
 import { lifeListService } from '../Services/lifeList.js';
 import { speciesService } from '../Services/species.js';
+import { observationService } from '../Services/observations.js';
 import { mountSightingsMap } from '../Components/SightingsMap.js';
 import { renderSightingDetail } from '../Components/SightingDetail.js';
 import { escapeHtml } from '../Components/htmlUtils.js';
@@ -129,7 +137,16 @@ export function mount(container, props = {}) {
   let pendingPhotoKeys = new Set(); // scientific names currently being fetched — avoids duplicate overlapping requests
 
   render();
-  attemptSilentGeolocation();
+  // `focusObservationId` (set by Home.js/NotificationsFeed.js when a
+  // pin_hit notification is clicked — see focusOnObservation() below) picks
+  // an explicit location for the map; silent geolocation would otherwise
+  // race it and clobber it the moment the browser's permission prompt (or
+  // cached answer) resolves.
+  if (props.focusObservationId) {
+    focusOnObservation(props.focusObservationId);
+  } else {
+    attemptSilentGeolocation();
+  }
   loadSeenSpecies();
 
   // ---- Data ---------------------------------------------------------------
@@ -179,6 +196,9 @@ export function mount(container, props = {}) {
     );
   }
 
+  // Returns loadSightings()'s promise (existing callers all ignore it —
+  // fire-and-forget) so focusOnObservation() below can await the full
+  // location-change-to-sightings-loaded cycle before selecting a pin.
   function setLocation(lat, lng, label) {
     state.lat = lat;
     state.lng = lng;
@@ -189,7 +209,41 @@ export function mount(container, props = {}) {
     locationJustChanged = true;
     preservedView = NOT_CAPTURED; // irrelevant here (locationJustChanged forces a jump regardless), kept for consistency with applyFilters()/setDistanceUnit()
     render();
-    loadSightings();
+    return loadSightings();
+  }
+
+  // Jumps the map to one specific observation (by id) and opens its detail
+  // panel — reached by clicking a pin_hit notification (NotificationsFeed.js,
+  // Home.js's bell dropdown), whose payload only carries an observation_id,
+  // not a ready-to-use lat/lng/species. Fetches that one observation
+  // directly via GET /observations/{id} rather than hoping it turns up in
+  // the normal "last N days, within this radius" nearby query — a
+  // notification can be opened long after it arrived, by which point the
+  // sighting it points at may be well outside `state.daysBack`'s default
+  // window, so it's added into `state.sightings` explicitly if the regular
+  // load didn't happen to include it.
+  async function focusOnObservation(observationId) {
+    let obs;
+    try {
+      obs = await observationService.getById(observationId);
+    } catch (err) {
+      state.error = 'Could not load that sighting.';
+      render();
+      return;
+    }
+    if (obs.lat == null || obs.lng == null) {
+      state.error = 'That sighting has no location to show on the map.';
+      render();
+      return;
+    }
+    await setLocation(obs.lat, obs.lng, obs.location_name || 'Selected sighting');
+    if (!state.sightings.some((s) => s.id === obs.id)) {
+      state.sightings = [...state.sightings, obs];
+    }
+    // selectSighting() refreshes the map's pins itself (including picking
+    // up the just-appended sighting above), so no separate setSightings()
+    // call is needed here.
+    selectSighting(obs);
   }
 
   async function loadSightings() {
@@ -237,6 +291,38 @@ export function mount(container, props = {}) {
 
   function isOwnSighting(sighting) {
     return sighting.user_id === userId;
+  }
+
+  // A sighting's unique identity across all three sources. `id` alone isn't
+  // enough: eBird/iNaturalist sightings aren't rows in our own database —
+  // they're fetched live on every request — so they always come back with
+  // `id: null` (only a manually-logged, persisted observation gets a real
+  // one). Comparing by `id` directly meant every eBird/iNaturalist pin
+  // shared the same `null` "identity" as whichever one was selected, so
+  // selecting one marked *all* of them selected too (confirmed live: every
+  // pin on the map turned red the moment one iNaturalist sighting was
+  // picked).
+  //
+  // `source_observation_id` (both adapters set this — app/services/adapters.py)
+  // isn't a safe identity on its own either: confirmed live, eBird's is
+  // actually the *checklist* id (`subId`), shared by every species on that
+  // same checklist — four different species from one outing all came back
+  // with the identical `S399279214`. Species is folded into the key too, so
+  // those still get distinguished from each other. `id` still wins when
+  // present, since that's the real primary key; the last-resort fallback
+  // only matters if a future source ever omits both.
+  function sightingKey(sighting) {
+    if (sighting.id) return `id:${sighting.id}`;
+    const species = sighting.species?.scientific_name || sighting.species?.common_name || '';
+    if (sighting.source_observation_id) return `src:${sighting.source}:${sighting.source_observation_id}:${species}`;
+    return `fallback:${sighting.source}:${sighting.lat}:${sighting.lng}:${sighting.observed_at}:${species}`;
+  }
+
+  // Read live by SightingsMap.setSightings() on every call (see
+  // mountSightingsMap's isSelected doc) — not a snapshot, so it always
+  // reflects whichever pin selectSighting()/clearSelection() most recently set.
+  function isSelected(sighting) {
+    return state.selectedSighting != null && sightingKey(sighting) === sightingKey(state.selectedSighting);
   }
 
   // `get_stock_photo()` on the backend always returns *a* URL — a real
@@ -438,21 +524,26 @@ export function mount(container, props = {}) {
     return `${km} km`;
   }
 
-  // Selecting a pin only ever touches the detail panel — never the map
-  // itself — so this deliberately bypasses render()/wireMap() (see that
-  // function's comment) and patches the panel's DOM directly, the same
-  // "targeted update" pattern used elsewhere in this codebase (e.g.
-  // AddObservation's photo-upload status) to avoid disrupting something
-  // live for an unrelated state change. A full render() here would remount
-  // the whole Leaflet map (tiles and all) just from clicking a pin.
+  // Selecting a pin never remounts the map — this deliberately bypasses
+  // render()/wireMap() (see that function's comment) and patches the detail
+  // panel's DOM directly, the same "targeted update" pattern used elsewhere
+  // in this codebase (e.g. AddObservation's photo-upload status), to avoid
+  // disrupting something live for an unrelated state change. It does still
+  // refresh the map's own pins in place (mapController.setSightings(), not
+  // a remount) so the selected one actually shows as selected (see
+  // SightingsMap.js's isSelected) — without this, there was no visual way
+  // to tell which pin the detail panel was describing among a cluster of
+  // identical ones (a real "not clear which observation is selected" report).
   function selectSighting(sighting) {
     state.selectedSighting = sighting;
     updateDetailPanelDom();
+    mapController?.setSightings(filteredSightings());
   }
 
   function clearSelection() {
     state.selectedSighting = null;
     updateDetailPanelDom();
+    mapController?.setSightings(filteredSightings());
   }
 
   function toggleDetailPanel() {
@@ -659,7 +750,7 @@ export function mount(container, props = {}) {
           >
             ${sp.photoUrl && !isGeneratedPlaceholder(sp.photoUrl)
               ? `<img src="${escapeHtml(sp.photoUrl)}" alt="" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`
-              : `<span style="display: inline-flex; width: 32px; height: 32px; border-radius: 50%; background: var(--ob-color-surface-alt); align-items: center; justify-content: center; flex-shrink: 0;">🐦</span>`}
+              : `<span style="display: inline-block; width: 32px; height: 32px; border-radius: 50%; background: var(--ob-color-surface-alt); flex-shrink: 0;"></span>`}
             <span style="text-align: left;">
               <div class="ob-text-sm">${escapeHtml(sp.commonName)}</div>
               ${sp.scientificName ? `<div class="ob-text-muted" style="font-style: italic; font-size: 0.85em;">${escapeHtml(sp.scientificName)}</div>` : ''}
@@ -756,7 +847,7 @@ export function mount(container, props = {}) {
       <div class="ob-card">
         <div class="ob-cluster" style="justify-content: space-between; align-items: center;">
           <div>
-            <h3 class="ob-card__title" style="margin: 0;">🗺️ Trip planning</h3>
+            <h3 class="ob-card__title" style="margin: 0;">Trip planning</h3>
             <p class="ob-text-muted ob-text-sm" style="margin: 2px 0 0;">Based on the last ${state.daysBack} days within ${formatDistance(state.radiusKm)} of ${escapeHtml(state.placeLabel || 'this area')}</p>
           </div>
           <button
@@ -771,8 +862,6 @@ export function mount(container, props = {}) {
     `;
   }
 
-  const AREA_RANK_ICONS = ['🥇', '🥈', '🥉'];
-
   function renderRegionSummaryBody() {
     if (state.loading) {
       return `<p class="ob-text-muted ob-text-sm" style="margin: var(--ob-space-3) 0 0;"><span class="ob-spinner" style="width:1em;height:1em;vertical-align:middle;margin-right:6px;"></span>Gathering area info…</p>`;
@@ -782,17 +871,17 @@ export function mount(container, props = {}) {
       <div class="ob-cluster" style="gap: var(--ob-space-3); margin-top: var(--ob-space-3);">
         <div class="ob-card ob-card--flat" style="flex: 1 1 140px; text-align: center; padding: var(--ob-space-3); background: var(--ob-color-info-bg);">
           <div style="font-size: 2rem; line-height: 1; font-weight: 700; color: var(--ob-color-info-text);">${speciesCount}</div>
-          <div class="ob-text-sm" style="margin-top: var(--ob-space-1);">🦅 species spotted</div>
+          <div class="ob-text-sm" style="margin-top: var(--ob-space-1);">species spotted</div>
         </div>
         ${state.seenSpeciesLoaded ? `
           <div class="ob-card ob-card--flat" style="flex: 1 1 140px; text-align: center; padding: var(--ob-space-3); background: var(--ob-color-success-bg);">
             <div style="font-size: 2rem; line-height: 1; font-weight: 700; color: var(--ob-color-success-text);">${newSpeciesCount}</div>
-            <div class="ob-text-sm" style="margin-top: var(--ob-space-1);">✨ new for you</div>
+            <div class="ob-text-sm" style="margin-top: var(--ob-space-1);">new for you</div>
           </div>
         ` : ''}
       </div>
       <div style="margin-top: var(--ob-space-4);">
-        <p class="ob-text-sm" style="margin: 0 0 var(--ob-space-2); font-weight: 600;">📍 Top spots to check out</p>
+        <p class="ob-text-sm" style="margin: 0 0 var(--ob-space-2); font-weight: 600;">Top spots to check out</p>
         ${topAreas.length > 0 ? `
           <ol class="ob-stack" style="--ob-stack-gap: var(--ob-space-2); margin: 0; padding: 0; list-style: none;">
             ${topAreas.map((a, i) => {
@@ -807,7 +896,7 @@ export function mount(container, props = {}) {
                   class="ob-cluster"
                   style="justify-content: space-between; align-items: center; padding: var(--ob-space-2) var(--ob-space-3); background: var(--ob-color-surface-alt); border-radius: var(--ob-radius-sm); ${a.bounds ? 'cursor: pointer;' : ''}"${focusAttrs}
                 >
-                  <span class="ob-text-sm"><strong>${AREA_RANK_ICONS[i] || `${i + 1}.`}</strong> ${escapeHtml(a.name)}</span>
+                  <span class="ob-text-sm"><strong>${i + 1}.</strong> ${escapeHtml(a.name)}</span>
                   <span class="ob-tag ob-tag--info">${a.count} sighting${a.count === 1 ? '' : 's'}</span>
                 </li>
               `;
@@ -908,7 +997,7 @@ export function mount(container, props = {}) {
           class="ob-btn ob-btn--ghost ob-btn--sm"
           data-action="close-lightbox"
           style="position:fixed; top: var(--ob-space-5); right: var(--ob-space-5);"
-        >Close ✕</button>
+        >Close</button>
       </div>
     `;
   }
@@ -1047,6 +1136,7 @@ export function mount(container, props = {}) {
       initialLatLng,
       onSelectSighting: selectSighting,
       isOwnSighting,
+      isSelected,
       searchArea,
       fitSearchArea: jumpToSearchArea,
     })

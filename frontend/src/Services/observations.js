@@ -19,6 +19,12 @@ export const observationService = {
     );
   },
 
+  // A single observation by id — e.g. the one a pin_hit notification's
+  // payload points at (see Presenters/ExploreMap.js#focusOnObservation).
+  async getById(id) {
+    return observationDAO.getById(id);
+  },
+
   // Confirmed-species + field-notes step of the Add Observation wizard.
   // `species` is `{ commonName, scientificName }`; `sense` is 'sight' | 'sound'
   // (from the describe step's "saw it" / "heard it" choice); `fieldNotes` is

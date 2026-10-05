@@ -15,6 +15,9 @@ changeLog
 =============================
 """
 
+from datetime import date
+from math import atan2, cos, radians, sin, sqrt
+
 import httpx
 
 from app.config import get_settings
@@ -45,6 +48,45 @@ async def get_nearby_bird_sightings(
     params = {"lat": lat, "lng": lng, "dist": dist_km, "back": days_back}
     async with _client() as client:
         resp = await client.get("/data/obs/geo/recent", params=params)
+        resp.raise_for_status()
+        return resp.json()
+
+
+async def get_hotspots_near(lat: float, lng: float, dist_km: int = 25) -> list[dict]:
+    """Real, named, eBird-curated birding locations within `dist_km` of a
+    point — each row includes `numSpeciesAllTime`, usable as a popularity
+    signal. `GET /ref/hotspot/geo` (`dist` in km, 0-500; `fmt=json` since
+    some `ref/` endpoints default to CSV otherwise). Needed by
+    docs/features/plan-a-trip.md's hotspot suggestions — deliberately not
+    Explore Map's location-name grouping, which only surfaces a place if
+    sightings happen to already share its exact name; this is real, curated
+    locations regardless of recent activity.
+    """
+    params = {"lat": lat, "lng": lng, "dist": dist_km, "fmt": "json"}
+    async with _client() as client:
+        resp = await client.get("/ref/hotspot/geo", params=params)
+        resp.raise_for_status()
+        return resp.json()
+
+
+async def get_historic_checklist(region_code: str, d: date) -> list[dict]:
+    """Every species reported in a region on one specific past calendar
+    day — eBird's only way to reach back further than the 30-day cap on its
+    "recent" endpoints (`get_nearby_bird_sightings()`/`recent_obs_in_region()`
+    above). `GET /data/obs/{region_code}/historic/{y}/{m}/{d}`. No
+    date-range param — one call per day.
+
+    `region_code` can be a real eBird region (`US-NC-067`) or — confirmed
+    live against a real hotspot (`L385792`, Salem Lake, NC: real per-day
+    checklist rows came back, same shape `adapters.from_ebird()` already
+    parses) — a hotspot's own `locId`. That's what lets
+    docs/features/plan-a-trip.md's hotspot drill-down use this without
+    needing the lat/lng→region-code lookup `region_for_point()` below still
+    doesn't have: a hotspot's `locId` already comes straight out of
+    `get_hotspots_near()`.
+    """
+    async with _client() as client:
+        resp = await client.get(f"/data/obs/{region_code}/historic/{d.year}/{d.month}/{d.day}")
         resp.raise_for_status()
         return resp.json()
 
@@ -143,14 +185,52 @@ async def notable_obs(region_code: str, days_back: int = 7) -> list[dict]:
     raise NotImplementedError
 
 
+_REGION_LOOKUP_RADII_KM = [10, 50, 200, 500]  # 500 is eBird's own `dist` max — the widest this can search
+
+
+def _distance_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """Great-circle distance — same formula `dao/observation_repo.py`'s
+    `_haversine_km()` uses; kept as its own small copy here rather than a
+    shared import, since the dao layer otherwise never reaches into the
+    persistence layer (or vice versa) — see contributing.md's layering rule.
+    """
+    r = 6371.0
+    phi1, phi2 = radians(lat1), radians(lat2)
+    dphi = radians(lat2 - lat1)
+    dlambda = radians(lng2 - lng1)
+    a = sin(dphi / 2) ** 2 + cos(phi1) * cos(phi2) * sin(dlambda / 2) ** 2
+    return 2 * r * atan2(sqrt(a), sqrt(1 - a))
+
+
 async def region_for_point(lat: float, lng: float) -> str:
     """The eBird region code (e.g. `US-WA-033`) a lat/lng point falls in.
 
-    Needed by Add Observation to fill `observations.region` on every insert.
-    eBird has no direct "region for point" endpoint — the feature page leaves
-    the approach open: either find a reverse-geocode workaround via
-    `GET /ref/region/list/...` (fetch candidate regions and test containment)
-    or do a local point-in-polygon check against a region-boundary dataset.
-    Decide the approach when implementing this.
+    Needed by Add Observation to fill `observations.region` on every insert,
+    and by Pinned Birds to match a new sighting's region against a user's
+    watched region (`docs/features/pinned-birds.md`).
+
+    eBird has no direct "region for point" endpoint — confirmed live:
+    `GET /ref/region/list/{type}/{parent}` only returns `{code, name}`, no
+    geometry, so "fetch candidate regions and test containment" isn't
+    literally possible with that data alone. What *does* work: a hotspot
+    record (`get_hotspots_near()`, already built) carries its own
+    `subnational2Code`/`subnational1Code`/`countryCode` directly — so this
+    finds the nearest real hotspot to the point and reads its region off
+    that, expanding the search radius (up to eBird's own 500km `dist` cap)
+    until one turns up. Falls back to `"world"` if nothing is found even at
+    500km (extremely remote point) or if eBird isn't reachable — a failed
+    region lookup should never block logging an observation.
     """
-    raise NotImplementedError
+    try:
+        for radius_km in _REGION_LOOKUP_RADII_KM:
+            hotspots = await get_hotspots_near(lat, lng, radius_km)
+            if not hotspots:
+                continue
+            nearest = min(hotspots, key=lambda h: _distance_km(lat, lng, h["lat"], h["lng"]))
+            for key in ("subnational2Code", "subnational1Code", "countryCode"):
+                code = nearest.get(key)
+                if code:
+                    return code
+    except (EBirdConfigError, httpx.HTTPError):
+        pass
+    return "world"

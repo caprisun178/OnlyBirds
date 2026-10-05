@@ -146,8 +146,8 @@ export function mount(container, props = {}) {
         <div class="ob-field">
           <label class="ob-label">Did you see it or hear it?</label>
           <div class="ob-cluster" role="radiogroup" aria-label="Did you see it or hear it?">
-            <button type="button" class="ob-btn ob-btn--sm ${state.sense === 'sight' ? 'ob-btn--primary' : 'ob-btn--ghost'}" data-sense="sight" role="radio" aria-checked="${state.sense === 'sight'}">👀 I saw it</button>
-            <button type="button" class="ob-btn ob-btn--sm ${state.sense === 'sound' ? 'ob-btn--primary' : 'ob-btn--ghost'}" data-sense="sound" role="radio" aria-checked="${state.sense === 'sound'}">🔊 I heard it</button>
+            <button type="button" class="ob-btn ob-btn--sm ${state.sense === 'sight' ? 'ob-btn--primary' : 'ob-btn--ghost'}" data-sense="sight" role="radio" aria-checked="${state.sense === 'sight'}">I saw it</button>
+            <button type="button" class="ob-btn ob-btn--sm ${state.sense === 'sound' ? 'ob-btn--primary' : 'ob-btn--ghost'}" data-sense="sound" role="radio" aria-checked="${state.sense === 'sound'}">I heard it</button>
           </div>
         </div>
         <div class="ob-field">
@@ -390,7 +390,7 @@ export function mount(container, props = {}) {
       <form class="ob-card ob-stack" data-form="field-notes">
         <div class="ob-alert ob-alert--success">
           Confirmed: ${escapeHtml(state.confirmedSpecies.commonName)}
-          <span class="ob-tag" style="margin-left: var(--ob-space-2);">${state.sense === 'sound' ? '🔊 Heard' : '👀 Seen'}</span>
+          <span class="ob-tag" style="margin-left: var(--ob-space-2);">${state.sense === 'sound' ? 'Heard' : 'Seen'}</span>
         </div>
 
         <div class="ob-field">
@@ -687,7 +687,7 @@ export function mount(container, props = {}) {
       <div class="ob-card ob-stack ob-text-center">
         <h2>Observation logged!</h2>
         <p class="ob-card__body">
-          ${observation.detection_type === 'sound' ? '🔊' : '👀'} ${escapeHtml(observation.species.common_name)} — ${escapeHtml(observation.location_name || 'location not set')}
+          ${escapeHtml(observation.species.common_name)} — ${escapeHtml(observation.location_name || 'location not set')}
         </p>
         ${isNewSpecies
           ? '<span class="ob-tag ob-tag--success">New life list species!</span>'
