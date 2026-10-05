@@ -112,6 +112,7 @@ export function mount(container, props = {}) {
     // came for, or the trip-planning box once you've already picked a spot.
     tripPlanningCollapsed: false,
     detailPanelCollapsed: false,
+    focusedAreaIndex: null, // index into topAreas whose rectangle is drawn on the map; re-clicking it clears the highlight (see focusOnArea())
   };
 
   // The live Leaflet instance lives outside `state` and survives across
@@ -206,6 +207,7 @@ export function mount(container, props = {}) {
     state.searchResults = [];
     state.searchQuery = '';
     state.selectedSighting = null; // the old selection won't be on the map near this new area
+    state.focusedAreaIndex = null; // the old top-spots list won't apply to this new area either
     locationJustChanged = true;
     preservedView = NOT_CAPTURED; // irrelevant here (locationJustChanged forces a jump regardless), kept for consistency with applyFilters()/setDistanceUnit()
     render();
@@ -479,8 +481,17 @@ export function mount(container, props = {}) {
   // Clicking a "top spot" in the trip-planning list — zooms the map to that
   // area and draws a rectangle around it (SightingsMap#focusArea()) so the
   // user can see exactly which pins it covers, same filters still applied.
-  function focusOnArea(bounds) {
-    mapController?.focusArea(bounds);
+  // A toggle, not a one-way action: clicking the same spot again clears the
+  // highlight (bug — there was previously no way to deselect it once drawn).
+  function focusOnArea(bounds, index) {
+    if (state.focusedAreaIndex === index) {
+      state.focusedAreaIndex = null;
+      mapController?.focusArea(null);
+    } else {
+      state.focusedAreaIndex = index;
+      mapController?.focusArea(bounds);
+    }
+    updateRegionSummaryDom();
   }
 
   function applyFilters({ daysBack, radiusKm, source } = {}) {
@@ -491,6 +502,7 @@ export function mount(container, props = {}) {
     }
     if (source !== undefined) state.source = source;
     state.selectedSighting = null; // the selected pin might not match the new filters
+    state.focusedAreaIndex = null; // top spots/counts are about to be recomputed under the new filters
     preservedView = mapController?.getView?.(); // capture before render() nulls out mapController — see wireMap()'s comment
     render();
     loadSightings();
@@ -889,12 +901,13 @@ export function mount(container, props = {}) {
               // JSON.stringify-ing an array of numbers), safe to drop
               // straight into the attribute without escaping.
               const focusAttrs = a.bounds
-                ? ` data-action="focus-area" data-bounds="${JSON.stringify(a.bounds)}" role="button" tabindex="0"`
+                ? ` data-action="focus-area" data-bounds="${JSON.stringify(a.bounds)}" data-index="${i}" role="button" tabindex="0" aria-pressed="${state.focusedAreaIndex === i}"`
                 : '';
+              const selected = state.focusedAreaIndex === i;
               return `
                 <li
                   class="ob-cluster"
-                  style="justify-content: space-between; align-items: center; padding: var(--ob-space-2) var(--ob-space-3); background: var(--ob-color-surface-alt); border-radius: var(--ob-radius-sm); ${a.bounds ? 'cursor: pointer;' : ''}"${focusAttrs}
+                  style="justify-content: space-between; align-items: center; padding: var(--ob-space-2) var(--ob-space-3); background: ${selected ? 'var(--ob-color-info-bg)' : 'var(--ob-color-surface-alt)'}; border: 1px solid ${selected ? '#ff6a00' : 'transparent'}; border-radius: var(--ob-radius-sm); ${a.bounds ? 'cursor: pointer;' : ''}"${focusAttrs}
                 >
                   <span class="ob-text-sm"><strong>${i + 1}.</strong> ${escapeHtml(a.name)}</span>
                   <span class="ob-tag ob-tag--info">${a.count} sighting${a.count === 1 ? '' : 's'}</span>
@@ -902,7 +915,7 @@ export function mount(container, props = {}) {
               `;
             }).join('')}
           </ol>
-          ${topAreas.some((a) => a.bounds) ? '<p class="ob-text-muted ob-text-sm" style="margin: var(--ob-space-2) 0 0;">Click a spot to zoom in and see its sightings outlined on the map.</p>' : ''}
+          ${topAreas.some((a) => a.bounds) ? `<p class="ob-text-muted ob-text-sm" style="margin: var(--ob-space-2) 0 0;">Click a spot to zoom in and see its sightings outlined on the map${state.focusedAreaIndex != null ? ' — click it again to clear the highlight' : ''}.</p>` : ''}
         ` : `<p class="ob-text-muted ob-text-sm" style="margin: 0;">None of these sightings have a specific location name yet.</p>`}
       </div>
     `;
@@ -922,7 +935,7 @@ export function mount(container, props = {}) {
     el?.querySelectorAll('[data-action="focus-area"]').forEach((li) => {
       const focus = () => {
         try {
-          focusOnArea(JSON.parse(li.dataset.bounds));
+          focusOnArea(JSON.parse(li.dataset.bounds), Number(li.dataset.index));
         } catch {
           // Malformed/missing bounds — nothing to zoom to, just ignore the click.
         }

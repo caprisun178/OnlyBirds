@@ -377,6 +377,12 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f5/Limosa_lapponica_2_-_Taren_Point.jpg/330px-Limosa_lapponica_2_-_Taren_Point.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Limosa_lapponica_2_-_Taren_Point.jpg"
   },
+  "Limosa limosa": {
+    "artist": "Charles J. Sharp",
+    "license": "CC BY-SA 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/95/Black-tailed_godwit_%28Limosa_limosa_limosa%29_in_flight_Marken.jpg/330px-Black-tailed_godwit_%28Limosa_limosa_limosa%29_in_flight_Marken.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Black-tailed_godwit_(Limosa_limosa_limosa)_in_flight_Marken.jpg"
+  },
   "Lophornis ornatus": {
     "artist": "Biodiversity Heritage Library",
     "license": "CC BY 2.0",
@@ -438,6 +444,12 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ae/Nomonyx_dominicus_Pato_enmascarado_Masked_Duck_%2810715924796%29.jpg/330px-Nomonyx_dominicus_Pato_enmascarado_Masked_Duck_%2810715924796%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Nomonyx_dominicus_Pato_enmascarado_Masked_Duck_(10715924796).jpg"
   },
+  "Numenius americanus": {
+    "artist": "Michael \"Mike\" L. Baird from Morro Bay, USA",
+    "license": "CC BY 2.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a9/Long-billed_Curlew_%28Numenius_americanus%29_birds_on_Morro_Strand_State_Beach_during_a_golden_sunset.jpg/330px-Long-billed_Curlew_%28Numenius_americanus%29_birds_on_Morro_Strand_State_Beach_during_a_golden_sunset.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Long-billed_Curlew_(Numenius_americanus)_birds_on_Morro_Strand_State_Beach_during_a_golden_sunset.jpg"
+  },
   "Pachyptila desolata": {
     "artist": "Stefan Brending (2eight)",
     "license": "CC BY-SA 3.0 de",
@@ -473,6 +485,12 @@
     "license": "Public domain",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9f/Hybrid_Hirundo_rustica_erythrogaster%C3%97_Petrochelidon_pyrrhonota_swainsoni_1894.jpg/330px-Hybrid_Hirundo_rustica_erythrogaster%C3%97_Petrochelidon_pyrrhonota_swainsoni_1894.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Hybrid_Hirundo_rustica_erythrogaster%C3%97_Petrochelidon_pyrrhonota_swainsoni_1894.jpg"
+  },
+  "Peucaea cassinii": {
+    "artist": "Dominic Sherony",
+    "license": "CC BY-SA 2.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/Cassins_Sparrow_Peucaea_cassinii_%286908216340%29.jpg/330px-Cassins_Sparrow_Peucaea_cassinii_%286908216340%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Cassins_Sparrow_Peucaea_cassinii_(6908216340).jpg"
   },
   "Pheugopedius felix": {
     "artist": "Dominic Sherony",
@@ -529,6 +547,7 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a2/Psaltriparus_minimus_604166884.jpg/330px-Psaltriparus_minimus_604166884.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Psaltriparus_minimus_604166884.jpg"
   },
+  "Pseudobulweria rostrata": null,
   "Psilopogon oorti": null,
   "Quiscalus quiscula": {
     "artist": "Mdf",
@@ -715,5 +734,11 @@
     "license": "CC BY-SA 4.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7c/Zenaida_macroura_5zz.jpg/330px-Zenaida_macroura_5zz.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Zenaida_macroura_5zz.jpg"
+  },
+  "Zonotrichia leucophrys": {
+    "artist": "Cephas",
+    "license": "CC BY-SA 3.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9f/Zonotrichia_leucophrys_CT2.jpg/330px-Zonotrichia_leucophrys_CT2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Zonotrichia_leucophrys_CT2.jpg"
   }
 }
