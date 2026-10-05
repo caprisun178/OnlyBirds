@@ -112,6 +112,17 @@ export function mount(container, props = {}) {
   let mapGeneration = 0; // guards against a stale remount resolving after a newer one started
   let locationJustChanged = false; // true for the one render right after setLocation() — jump there instead of preserving pan/zoom
   let radiusJustChanged = false; // true for the one render right after a radius filter change — the search-area circle's size changed, so re-fit to it instead of preserving pan/zoom
+  // Captured once per action (applyFilters()/setDistanceUnit()), before the
+  // first render() in that action nulls out mapController — see wireMap()'s
+  // comment for why a fresh mapController?.getView?.() on every individual
+  // wireMap() call isn't safe. NOT_CAPTURED (not `undefined` — a getView()
+  // result can legitimately be `undefined` too, when there's no map yet)
+  // means "this render wasn't part of one of those actions," so wireMap()
+  // falls back to a live query — needed for single-render() paths like
+  // useMyLocation()'s error branches, which have no action around them to
+  // do the capturing.
+  const NOT_CAPTURED = Symbol('not-captured');
+  let preservedView = NOT_CAPTURED;
   let searchDebounceTimer = null;
   let searchRequestId = 0;
   let stockPhotoCache = new Map(); // scientific_name -> photo_url, persists for this mount's lifetime
@@ -176,6 +187,7 @@ export function mount(container, props = {}) {
     state.searchQuery = '';
     state.selectedSighting = null; // the old selection won't be on the map near this new area
     locationJustChanged = true;
+    preservedView = NOT_CAPTURED; // irrelevant here (locationJustChanged forces a jump regardless), kept for consistency with applyFilters()/setDistanceUnit()
     render();
     loadSightings();
   }
@@ -204,6 +216,7 @@ export function mount(container, props = {}) {
       // they can't just be reset inside wireMap() itself.
       locationJustChanged = false;
       radiusJustChanged = false;
+      preservedView = NOT_CAPTURED;
     }
   }
 
@@ -392,6 +405,7 @@ export function mount(container, props = {}) {
     }
     if (source !== undefined) state.source = source;
     state.selectedSighting = null; // the selected pin might not match the new filters
+    preservedView = mapController?.getView?.(); // capture before render() nulls out mapController — see wireMap()'s comment
     render();
     loadSightings();
   }
@@ -410,6 +424,7 @@ export function mount(container, props = {}) {
       state.radiusKm = newRadiusKm;
       radiusJustChanged = true; // re-fit the search-area circle to the new default radius
     }
+    preservedView = mapController?.getView?.(); // capture before render() nulls out mapController — see wireMap()'s comment
     render();
     loadSightings();
   }
@@ -996,13 +1011,28 @@ export function mount(container, props = {}) {
   // fell back to the plain fixed zoom — a real "I changed the radius and
   // the map didn't zoom at all" report. loadSightings()'s `finally` block
   // clears both flags instead, once its own last render() has already run.
+  //
+  // Same back-to-back-calls problem hit the preserved pan/zoom itself, not
+  // just these flags: `mapController` gets nulled a few lines below, so the
+  // *second* wireMap() call in that same cascade (loadSightings()'s own
+  // render()) used to read a `mapController` that the *first* call had
+  // already nulled out — losing the preserved view and silently falling
+  // back to the default zoom (a real "changing the date range zooms the
+  // map out" report, same root cause, different symptom from the one
+  // above). `preservedView` is captured once, up front, by
+  // applyFilters()/setDistanceUnit() themselves, before their first
+  // render() — see those functions and the `NOT_CAPTURED` comment above.
   function wireMap() {
     const mapEl = container.querySelector('[data-role="sightings-map"]');
     if (!mapEl) return;
 
     const generation = ++mapGeneration;
     const jumpToSearchArea = locationJustChanged || radiusJustChanged;
-    const priorView = jumpToSearchArea ? null : mapController?.getView?.();
+    const priorView = jumpToSearchArea
+      ? null
+      : preservedView !== NOT_CAPTURED
+        ? preservedView
+        : mapController?.getView?.();
     mapController?.destroy();
     mapController = null;
 

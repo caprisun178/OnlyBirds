@@ -302,6 +302,28 @@ multi-session project once it's time to build it for real.
     block, after its own last `render()` has already run — so the flag
     stays true across every remount in one logical action and is only
     cleared once that action's data load is fully done.
+
+!!! note "Same bug, different symptom — changing the date range zoomed the map out"
+    The back-to-back-`render()`-calls problem above hit the *preserved*
+    pan/zoom itself too, not just the fit-search-area flags — a separate,
+    later report ("when we change the date range the map zooms out").
+    `wireMap()` reads `mapController?.getView?.()` to know what to preserve,
+    then immediately nulls `mapController` out a few lines later so the new
+    map can take over. The *second* `wireMap()` call in the same cascade
+    (`loadSightings()`'s own `render()`) ran before the first call's async
+    mount had resolved and reassigned `mapController` — so it read a
+    `mapController` the first call had *already* nulled, got nothing to
+    preserve, and silently fell back to the default zoom. Changing the
+    radius happened to dodge this (`radiusJustChanged` forces a re-fit
+    anyway, so there was nothing to preserve in the first place) — changing
+    *just* the date range, with nothing else, was the one action that
+    actually exposed it. Fixed the same way as the flags: `applyFilters()`/
+    `setDistanceUnit()` now capture the view into `preservedView` once,
+    before their own first `render()` — a `NOT_CAPTURED` sentinel (not
+    `undefined`, which a real "no map yet" view legitimately is) tells
+    `wireMap()` whether an action captured one for it to reuse, or whether
+    this is a standalone render (e.g. `useMyLocation()`'s error branches)
+    that should just query `mapController` fresh as before.
 - **Detail panel**: clicking a pin doesn't open a small map popup — it opens
   a docked panel to the right of the map (`Components/SightingDetail.js`,
   shared markup so it isn't duplicated anywhere else this gets shown),

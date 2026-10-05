@@ -32,7 +32,7 @@ Geocoding (`/geocode/search`, `/geocode/reverse`), identification
 | `lat` | float | — | required, −90…90 |
 | `lng` | float | — | required, −180…180 |
 | `radius_km` | int | 25 | 1…200 |
-| `days_back` | int | 7 | 1…30 (eBird + our own; iNaturalist ignores this) |
+| `days_back` | int | 7 | 1…30 — applies to eBird, our own, **and** iNaturalist (see note below) |
 | `source` | enum | `all` | `all` \| `ebird` \| `inat` \| `manual` (our own logged observations) |
 
 With no `EBIRD_API_KEY` configured, eBird results are silently omitted — see
@@ -42,6 +42,19 @@ external call, no key needed — filtered by radius via
 `dao/observation_repo.py#list_near` (haversine in Python; there's no
 PostGIS geom column yet, see [Explore map](features/explore-map.md)), and
 scoped to `status = 'logged'` rows from any user, not just the caller.
+
+!!! note "iNaturalist results had no date filtering at all — a real bug"
+    `dao/inaturalist.py#get_nearby_observations()` sorted results
+    newest-first (`order_by=observed_on&order=desc`) but never actually
+    excluded anything by date — so a "Since: Last 7 days" request could
+    still surface an iNaturalist sighting from 8 months ago, as long as it
+    ranked within the first page of results (a real report: a February
+    sighting showing up with "Last 7 days" selected in October). Fixed by
+    passing `days_back` through as iNaturalist's own `d1` date-range param —
+    `app/services/sightings.py#_safe_inat()` now forwards it instead of
+    dropping it. Verified live: the same area/radius returns iNat sightings
+    for `days_back=30` that correctly disappear at `days_back=7`.
+    `tests/test_inaturalist.py` and `tests/test_sightings.py` cover it.
 
 ## Examples
 
