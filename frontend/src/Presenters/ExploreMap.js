@@ -644,7 +644,7 @@ export function mount(container, props = {}) {
           >
             ${sp.photoUrl && !isGeneratedPlaceholder(sp.photoUrl)
               ? `<img src="${escapeHtml(sp.photoUrl)}" alt="" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`
-              : `<span style="display: inline-flex; width: 32px; height: 32px; border-radius: 50%; background: var(--ob-color-surface-alt); align-items: center; justify-content: center; flex-shrink: 0;">🐦</span>`}
+              : `<span style="display: inline-block; width: 32px; height: 32px; border-radius: 50%; background: var(--ob-color-surface-alt); flex-shrink: 0;"></span>`}
             <span style="text-align: left;">
               <div class="ob-text-sm">${escapeHtml(sp.commonName)}</div>
               ${sp.scientificName ? `<div class="ob-text-muted" style="font-style: italic; font-size: 0.85em;">${escapeHtml(sp.scientificName)}</div>` : ''}
@@ -741,7 +741,7 @@ export function mount(container, props = {}) {
       <div class="ob-card">
         <div class="ob-cluster" style="justify-content: space-between; align-items: center;">
           <div>
-            <h3 class="ob-card__title" style="margin: 0;">🗺️ Trip planning</h3>
+            <h3 class="ob-card__title" style="margin: 0;">Trip planning</h3>
             <p class="ob-text-muted ob-text-sm" style="margin: 2px 0 0;">Based on the last ${state.daysBack} days within ${formatDistance(state.radiusKm)} of ${escapeHtml(state.placeLabel || 'this area')}</p>
           </div>
           <button
@@ -756,8 +756,6 @@ export function mount(container, props = {}) {
     `;
   }
 
-  const AREA_RANK_ICONS = ['🥇', '🥈', '🥉'];
-
   function renderRegionSummaryBody() {
     if (state.loading) {
       return `<p class="ob-text-muted ob-text-sm" style="margin: var(--ob-space-3) 0 0;"><span class="ob-spinner" style="width:1em;height:1em;vertical-align:middle;margin-right:6px;"></span>Gathering area info…</p>`;
@@ -767,17 +765,17 @@ export function mount(container, props = {}) {
       <div class="ob-cluster" style="gap: var(--ob-space-3); margin-top: var(--ob-space-3);">
         <div class="ob-card ob-card--flat" style="flex: 1 1 140px; text-align: center; padding: var(--ob-space-3); background: var(--ob-color-info-bg);">
           <div style="font-size: 2rem; line-height: 1; font-weight: 700; color: var(--ob-color-info-text);">${speciesCount}</div>
-          <div class="ob-text-sm" style="margin-top: var(--ob-space-1);">🦅 species spotted</div>
+          <div class="ob-text-sm" style="margin-top: var(--ob-space-1);">species spotted</div>
         </div>
         ${state.seenSpeciesLoaded ? `
           <div class="ob-card ob-card--flat" style="flex: 1 1 140px; text-align: center; padding: var(--ob-space-3); background: var(--ob-color-success-bg);">
             <div style="font-size: 2rem; line-height: 1; font-weight: 700; color: var(--ob-color-success-text);">${newSpeciesCount}</div>
-            <div class="ob-text-sm" style="margin-top: var(--ob-space-1);">✨ new for you</div>
+            <div class="ob-text-sm" style="margin-top: var(--ob-space-1);">new for you</div>
           </div>
         ` : ''}
       </div>
       <div style="margin-top: var(--ob-space-4);">
-        <p class="ob-text-sm" style="margin: 0 0 var(--ob-space-2); font-weight: 600;">📍 Top spots to check out</p>
+        <p class="ob-text-sm" style="margin: 0 0 var(--ob-space-2); font-weight: 600;">Top spots to check out</p>
         ${topAreas.length > 0 ? `
           <ol class="ob-stack" style="--ob-stack-gap: var(--ob-space-2); margin: 0; padding: 0; list-style: none;">
             ${topAreas.map((a, i) => {
@@ -792,7 +790,7 @@ export function mount(container, props = {}) {
                   class="ob-cluster"
                   style="justify-content: space-between; align-items: center; padding: var(--ob-space-2) var(--ob-space-3); background: var(--ob-color-surface-alt); border-radius: var(--ob-radius-sm); ${a.bounds ? 'cursor: pointer;' : ''}"${focusAttrs}
                 >
-                  <span class="ob-text-sm"><strong>${AREA_RANK_ICONS[i] || `${i + 1}.`}</strong> ${escapeHtml(a.name)}</span>
+                  <span class="ob-text-sm"><strong>${i + 1}.</strong> ${escapeHtml(a.name)}</span>
                   <span class="ob-tag ob-tag--info">${a.count} sighting${a.count === 1 ? '' : 's'}</span>
                 </li>
               `;
@@ -893,7 +891,7 @@ export function mount(container, props = {}) {
           class="ob-btn ob-btn--ghost ob-btn--sm"
           data-action="close-lightbox"
           style="position:fixed; top: var(--ob-space-5); right: var(--ob-space-5);"
-        >Close ✕</button>
+        >Close</button>
       </div>
     `;
   }

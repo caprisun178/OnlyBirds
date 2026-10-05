@@ -15,6 +15,8 @@ changeLog
 =============================
 """
 
+from datetime import date
+
 import httpx
 
 from app.config import get_settings
@@ -62,6 +64,28 @@ async def get_hotspots_near(lat: float, lng: float, dist_km: int = 25) -> list[d
     params = {"lat": lat, "lng": lng, "dist": dist_km, "fmt": "json"}
     async with _client() as client:
         resp = await client.get("/ref/hotspot/geo", params=params)
+        resp.raise_for_status()
+        return resp.json()
+
+
+async def get_historic_checklist(region_code: str, d: date) -> list[dict]:
+    """Every species reported in a region on one specific past calendar
+    day — eBird's only way to reach back further than the 30-day cap on its
+    "recent" endpoints (`get_nearby_bird_sightings()`/`recent_obs_in_region()`
+    above). `GET /data/obs/{region_code}/historic/{y}/{m}/{d}`. No
+    date-range param — one call per day.
+
+    `region_code` can be a real eBird region (`US-NC-067`) or — confirmed
+    live against a real hotspot (`L385792`, Salem Lake, NC: real per-day
+    checklist rows came back, same shape `adapters.from_ebird()` already
+    parses) — a hotspot's own `locId`. That's what lets
+    docs/features/plan-a-trip.md's hotspot drill-down use this without
+    needing the lat/lng→region-code lookup `region_for_point()` below still
+    doesn't have: a hotspot's `locId` already comes straight out of
+    `get_hotspots_near()`.
+    """
+    async with _client() as client:
+        resp = await client.get(f"/data/obs/{region_code}/historic/{d.year}/{d.month}/{d.day}")
         resp.raise_for_status()
         return resp.json()
 

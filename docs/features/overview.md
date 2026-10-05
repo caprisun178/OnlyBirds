@@ -13,7 +13,7 @@ sources, the API, the SQL, and the code layout.
 | [Pinned birds](pinned-birds.md) | Planned | after Add Observation + profiles |
 | [Bird information page](bird-info.md) | Planned | any time (independent) |
 | [Explore map](explore-map.md) | Partial — MVP live and well beyond bare point+radius now (place search with live suggestions, species-photo filter, trip-planning box with top spots, a mi/km toggle); full spec (viewport-driven bbox fetch, clustering, `observations.geom`) still not started | after baseline for the MVP; after Add Observation for the rest |
-| [Plan a trip](plan-a-trip.md) | Planned — destination + date-range input, eBird hotspot suggestions, iNaturalist-based "likely species," life-list gap | after baseline |
+| [Plan a trip](plan-a-trip.md) | Partial — destination + date-range input, eBird hotspot suggestions (tap one for a last-year sightings map), iNaturalist-based "likely species," life-list gap | after baseline |
 
 Nothing here is fully built yet. *Partial* means some API already exists.
 

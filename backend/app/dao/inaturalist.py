@@ -52,16 +52,24 @@ async def get_nearby_observations(
     lng: float,
     radius_km: int = 25,
     per_page: int = 30,
+    d1: str | None = None,
+    d2: str | None = None,
 ) -> list[dict]:
-    """Recent research-grade **bird** observations near a point.
+    """Research-grade **bird** observations near a point, most recent first.
 
     Regression: this used to omit `taxon_id`/`quality_grade` entirely, so it
     returned iNaturalist's full firehose near a point — mammals, insects,
     plants, unverified "casual" grade sightings, not just birds — which
     showed up as non-bird pins on the Explore Map. `taxon_id=3` (Aves) plus
     `quality_grade=research` narrows it to what this app is actually about.
+
+    `d1`/`d2` (`YYYY-MM-DD`) narrow to a date window in any year, same as
+    `get_species_counts()` — omitted (Explore Map's normal "recent nearby"
+    use), iNaturalist doesn't filter by date at all. Added for
+    docs/features/plan-a-trip.md's hotspot drill-down: the actual sightings
+    behind a hotspot's "likely species" window, not just the aggregate count.
     """
-    params = {
+    params: dict[str, float | int | str] = {
         "lat": lat,
         "lng": lng,
         "radius": radius_km,
@@ -71,6 +79,10 @@ async def get_nearby_observations(
         "order_by": "observed_on",
         "order": "desc",
     }
+    if d1:
+        params["d1"] = d1
+    if d2:
+        params["d2"] = d2
     async with _client() as client:
         resp = await client.get("/observations", params=params)
         resp.raise_for_status()

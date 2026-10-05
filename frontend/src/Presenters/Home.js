@@ -24,7 +24,7 @@ export function mount(container, props = {}) {
   container.innerHTML = `
     <div class="ob-stack" style="padding-inline: 0.5in;">
       <header class="ob-cluster" style="justify-content: space-between; align-items: center;">
-        <h1 style="margin: 0;">Only Birds 🐤</h1>
+        <h1 style="margin: 0;">Only Birds</h1>
         <nav class="ob-cluster" aria-label="Main">
           <button type="button" class="ob-btn ob-btn--ghost" data-route="life-list">Life List</button>
           <button type="button" class="ob-btn ob-btn--ghost" data-route="add-observation">Add Observation</button>

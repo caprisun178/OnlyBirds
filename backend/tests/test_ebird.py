@@ -6,6 +6,7 @@ locId, locName, lat, lng, numSpeciesAllTime, among others.)
 """
 
 import asyncio
+from datetime import date
 
 import httpx
 
@@ -67,3 +68,55 @@ def test_get_hotspots_near_sends_the_right_params(monkeypatch):
     assert captured["params"]["dist"] == "15"
     assert captured["params"]["fmt"] == "json"
     assert result == [RAW_HOTSPOT]
+
+
+RAW_HISTORIC_OBS = {
+    "speciesCode": "cangoo",
+    "comName": "Canada Goose",
+    "sciName": "Branta canadensis",
+    "locId": "L385792",
+    "locName": "Salem Lake",
+    "obsDt": "2026-10-04 08:00",
+    "howMany": 24,
+    "lat": 36.096551,
+    "lng": -80.1878357,
+    "subId": "S399064232",
+}
+
+
+def test_get_historic_checklist_sends_the_right_path(monkeypatch):
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    get_settings.cache_clear()
+
+    captured = {}
+
+    def handler(request):
+        captured["path"] = request.url.path
+        return httpx.Response(200, json=[RAW_HISTORIC_OBS])
+
+    real_async_client = httpx.AsyncClient
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            self._client = real_async_client(
+                base_url=kwargs.get("base_url", ""), transport=httpx.MockTransport(handler)
+            )
+
+        async def __aenter__(self):
+            return self._client
+
+        async def __aexit__(self, *args):
+            await self._client.aclose()
+
+    monkeypatch.setattr(ebird.httpx, "AsyncClient", FakeAsyncClient)
+
+    try:
+        # A hotspot locId works here too, not just a region code (US-NC-067,
+        # etc.) — confirmed live against the real API; see
+        # get_historic_checklist()'s docstring.
+        result = asyncio.run(ebird.get_historic_checklist("L385792", date(2026, 10, 4)))
+    finally:
+        get_settings.cache_clear()
+
+    assert captured["path"].endswith("/data/obs/L385792/historic/2026/10/4")
+    assert result == [RAW_HISTORIC_OBS]
