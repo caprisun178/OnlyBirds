@@ -11,7 +11,7 @@ sources, the API, the SQL, and the code layout.
 | [User profiles](user-profiles.md) | Partial — backend done (`POST /users`, `GET /users/{username}`, `PATCH /users/{id}`); frontend screens planned | after baseline |
 | [Stickers](stickers.md) | Planned | after Add Observation |
 | [Pinned birds](pinned-birds.md) | **Completed** — region tagging, pin + notification API, match/dedupe engine, migrations applied to the live database; frontend `PinButton` on Life List cards, `NotificationBell` with an unread preview dropdown, full `NotificationsFeed` screen, click-through to the exact sighting on the map (highlighted, not just centered) — all built and verified live end to end | after Add Observation + profiles |
-| [Bird information page](bird-info.md) | Planned | any time (independent) |
+| [Bird information page](bird-info.md) | Planned, but fully scoped — every data source confirmed buildable (Wikipedia for About text, reuses the existing Commons-backed photo/audio caches, no Cornell licensing needed); see the page for the exact entry-point-by-entry-point click wiring | any time (independent) |
 | [Explore map](explore-map.md) | Partial — MVP live and well beyond bare point+radius now (place search with live suggestions, species-photo filter, trip-planning box with top spots, a mi/km toggle); full spec (viewport-driven bbox fetch, clustering, `observations.geom`) still not started | after baseline for the MVP; after Add Observation for the rest |
 | [Plan a trip](plan-a-trip.md) | **Completed** — destination + date-range input, eBird hotspot suggestions with a per-hotspot last-year sightings map (eBird + iNaturalist merged, cached, degrades gracefully), iNaturalist-based "likely species," life-list gap — built and verified live end to end | after baseline |
 
@@ -85,7 +85,7 @@ Full SQL is on each feature page; this is the map.
 | `region_checklists` | [Life List page](life-list.md) | **new** (cache) — species list for an eBird region |
 | `stickers`, `user_stickers`, `groups` | [Stickers](stickers.md) | **new** — catalog, award ledger, group definitions |
 | `pinned_birds`, `notifications` | [Pinned birds](pinned-birds.md) | **new** — want-to-see list + the notification feed |
-| `species_content` | [Bird information page](bird-info.md) | **new** (cache) — description, migration, media for a species |
+| `species_content` | [Bird information page](bird-info.md) | **new** (cache) — About text only (photos/audio reuse `bird_photos.py`/`bird_audio.py`'s own existing caches; no migration/range map in v1 — see that page) |
 | `sighting_cache` | [Explore map](explore-map.md) | **new** (cache) — eBird / iNat sightings for a map tile |
 
 ## End-to-end flow
