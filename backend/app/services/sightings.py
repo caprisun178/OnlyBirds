@@ -28,7 +28,7 @@ async def nearby(
 ) -> list[Observation]:
     tasks: list = []
     tasks.append(_safe_ebird(lat, lng, radius_km, days_back) if include_ebird else _noop())
-    tasks.append(_safe_inat(lat, lng, radius_km) if include_inat else _noop())
+    tasks.append(_safe_inat(lat, lng, radius_km, days_back) if include_inat else _noop())
     tasks.append(_own_nearby(lat, lng, radius_km, days_back) if include_own else _noop())
 
     ebird_obs, inat_obs, own_obs = await asyncio.gather(*tasks)
@@ -50,8 +50,8 @@ async def _safe_ebird(lat, lng, radius_km, days_back) -> list[Observation]:
     return [adapters.from_ebird(r) for r in raw]
 
 
-async def _safe_inat(lat, lng, radius_km) -> list[Observation]:
-    raw = await inaturalist.get_nearby_observations(lat, lng, radius_km)
+async def _safe_inat(lat, lng, radius_km, days_back) -> list[Observation]:
+    raw = await inaturalist.get_nearby_observations(lat, lng, radius_km, days_back=days_back)
     return [adapters.from_inaturalist(r) for r in raw]
 
 

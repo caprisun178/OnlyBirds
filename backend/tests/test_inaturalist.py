@@ -6,6 +6,7 @@ a mock transport, per docs/ebird-api.md's "no test hits a live API" rule
 """
 
 import asyncio
+from datetime import date, timedelta
 
 import httpx
 
@@ -70,3 +71,66 @@ def test_get_nearby_observations_sends_the_date_window_when_given(monkeypatch):
 
     assert captured["params"]["d1"] == "2025-10-15"
     assert captured["params"]["d2"] == "2025-10-20"
+
+
+def test_get_nearby_observations_applies_days_back_as_a_date_floor(monkeypatch):
+    # Regression: this used to have no date filtering at all —
+    # order_by=observed_on&order=desc only sorts newest-first, it doesn't
+    # exclude anything — so an "Since: Last 7 days" request could still
+    # surface an iNaturalist sighting from 8 months ago (a real report).
+    captured = {}
+
+    def handler(request):
+        captured["params"] = dict(request.url.params)
+        return httpx.Response(200, json={"results": []})
+
+    real_async_client = httpx.AsyncClient
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            self._client = real_async_client(base_url=kwargs.get("base_url", ""), transport=httpx.MockTransport(handler))
+
+        async def __aenter__(self):
+            return self._client
+
+        async def __aexit__(self, *args):
+            await self._client.aclose()
+
+    monkeypatch.setattr(inaturalist.httpx, "AsyncClient", FakeAsyncClient)
+
+    asyncio.run(inaturalist.get_nearby_observations(36.13, -80.47, radius_km=25, days_back=7))
+
+    expected_d1 = (date.today() - timedelta(days=7)).isoformat()
+    assert captured["params"]["d1"] == expected_d1
+
+
+def test_get_nearby_observations_prefers_explicit_d1_over_days_back(monkeypatch):
+    # The two date-window callers (Explore Map's days_back, Plan a Trip's
+    # explicit d1/d2 — see get_nearby_observations()'s docstring) aren't
+    # expected to overlap in practice, but an explicit d1 should still win
+    # over a computed one rather than silently clobbering it.
+    captured = {}
+
+    def handler(request):
+        captured["params"] = dict(request.url.params)
+        return httpx.Response(200, json={"results": []})
+
+    real_async_client = httpx.AsyncClient
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            self._client = real_async_client(base_url=kwargs.get("base_url", ""), transport=httpx.MockTransport(handler))
+
+        async def __aenter__(self):
+            return self._client
+
+        async def __aexit__(self, *args):
+            await self._client.aclose()
+
+    monkeypatch.setattr(inaturalist.httpx, "AsyncClient", FakeAsyncClient)
+
+    asyncio.run(
+        inaturalist.get_nearby_observations(36.13, -80.47, radius_km=25, d1="2025-10-15", days_back=7)
+    )
+
+    assert captured["params"]["d1"] == "2025-10-15"

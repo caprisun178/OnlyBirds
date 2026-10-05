@@ -14,6 +14,8 @@ changeLog
 =============================
 """
 
+from datetime import date, timedelta
+
 import httpx
 
 from app.config import get_settings
@@ -54,6 +56,7 @@ async def get_nearby_observations(
     per_page: int = 30,
     d1: str | None = None,
     d2: str | None = None,
+    days_back: int | None = None,
 ) -> list[dict]:
     """Research-grade **bird** observations near a point, most recent first.
 
@@ -63,11 +66,21 @@ async def get_nearby_observations(
     showed up as non-bird pins on the Explore Map. `taxon_id=3` (Aves) plus
     `quality_grade=research` narrows it to what this app is actually about.
 
-    `d1`/`d2` (`YYYY-MM-DD`) narrow to a date window in any year, same as
-    `get_species_counts()` — omitted (Explore Map's normal "recent nearby"
-    use), iNaturalist doesn't filter by date at all. Added for
-    docs/features/plan-a-trip.md's hotspot drill-down: the actual sightings
-    behind a hotspot's "likely species" window, not just the aggregate count.
+    Second regression, found later: this had no date filtering at all —
+    `order_by=observed_on&order=desc` only sorts newest-first, it doesn't
+    exclude anything, so an "only show the last 7 days" request could still
+    return a sighting from 8 months ago as long as it ranked within the
+    first `per_page` results (a real "Since: Last 7 days doesn't filter"
+    report, since iNat results get merged in alongside eBird's, which *does*
+    filter correctly). Two ways to narrow the date window, for two different
+    callers: `days_back`, used by Explore Map's "last N days" filter, turns
+    into `d1 = today - days_back`. `d1`/`d2` (`YYYY-MM-DD`), same as
+    `get_species_counts()`, give an explicit date range in any year —
+    needed by docs/features/plan-a-trip.md's hotspot drill-down, where
+    "today minus N days" can't express "this window, last year". An
+    explicit `d1` wins over `days_back`'s computed value if both are somehow
+    given; passing both isn't expected in practice. Omitted entirely,
+    iNaturalist doesn't filter by date at all.
     """
     params: dict[str, float | int | str] = {
         "lat": lat,
@@ -79,6 +92,8 @@ async def get_nearby_observations(
         "order_by": "observed_on",
         "order": "desc",
     }
+    if d1 is None and days_back is not None:
+        d1 = (date.today() - timedelta(days=days_back)).isoformat()
     if d1:
         params["d1"] = d1
     if d2:
