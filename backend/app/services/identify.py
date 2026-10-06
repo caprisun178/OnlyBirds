@@ -1,7 +1,10 @@
-"""Business logic for the describe & guess identification flow."""
+"""Business logic for the describe & guess / photo identification flows."""
 
 from __future__ import annotations
 
+import asyncio
+
+from app.dao import bird_classifier, bird_photos
 from app.dao import identify as identify_dao
 from app.dao.identification_repo import identification_repo
 from app.models.identification import (
@@ -38,6 +41,44 @@ async def describe_bird(payload: IdentifyRequest) -> IdentifyResponse:
         target_species_code=target_code,
     )
     return IdentifyResponse(identification_id=record.id, sense=payload.sense, candidates=candidates)
+
+
+async def identify_photo(image_bytes: bytes) -> IdentifyResponse:
+    """Photo-based identification (`docs/features/bird-id.md`) — classifies
+    locally (`app/dao/bird_classifier.py`, no network call), then hydrates
+    each prediction with a real photo exactly like describe-flow candidates
+    get (`bird_photos.get_stock_photo()` — same call `species.py`'s search
+    uses for non-canned-reference-set species). No audio: a photo upload is
+    inherently "sight," never "sound," so `sense` is always "sight" and
+    there's nothing to attach the way describe's "I heard it" path does.
+    """
+    predictions = bird_classifier.classify(image_bytes)
+    photos = await asyncio.gather(
+        *(bird_photos.get_stock_photo(p["scientific_name"], p["common_name"]) for p in predictions)
+    )
+
+    candidates = [
+        Candidate(
+            species_code=p["species_code"],
+            common_name=p["common_name"],
+            scientific_name=p["scientific_name"],
+            confidence=p["confidence"],
+            photo_url=photo["photo_url"],
+            photo_attribution=photo["attribution"],
+            audio_url=None,
+            audio_attribution=None,
+        )
+        for p, photo in zip(predictions, photos)
+    ]
+
+    record = await identification_repo.add(
+        method="photo",
+        sense="sight",
+        input_data={},
+        candidates=candidates,
+        target_species_code=None,
+    )
+    return IdentifyResponse(identification_id=record.id, method="photo", sense="sight", candidates=candidates)
 
 
 async def select_candidate(

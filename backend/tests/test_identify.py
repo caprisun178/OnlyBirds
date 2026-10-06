@@ -1,3 +1,6 @@
+import io
+
+
 def test_describe_names_a_species_and_ranks_it_first(client):
     resp = client.post("/identify/describe", json={"text": "I saw a Blue Jay in my backyard"})
     assert resp.status_code == 200
@@ -146,6 +149,78 @@ def test_sound_sense_candidate_with_no_recording_has_null_audio(client, monkeypa
     resp = client.post("/identify/describe", json={"text": "I heard a Blue Jay", "sense": "sound"})
     body = resp.json()
     assert all(c["audio_url"] is None for c in body["candidates"])
+
+
+def _fake_classification():
+    return [
+        {"scientific_name": "Cardinalis cardinalis", "common_name": "Northern Cardinal", "species_code": "norcar", "confidence": 0.79},
+        {"scientific_name": "Cardinalis sinuatus", "common_name": "Pyrrhuloxia", "species_code": "pyrrhu", "confidence": 0.20},
+    ]
+
+
+def test_photo_identify_returns_ranked_candidates(client, monkeypatch):
+    # Never run real ONNX inference in a test — offline-tests rule
+    # (docs/ebird-api.md), and a real model load/run is slow besides.
+    from app.dao import bird_classifier
+
+    monkeypatch.setattr(bird_classifier, "classify", lambda image_bytes, top_k=6: _fake_classification())
+
+    resp = client.post(
+        "/identify/photo",
+        files={"file": ("bird.jpg", io.BytesIO(b"fake-image-bytes"), "image/jpeg")},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["method"] == "photo"
+    assert body["sense"] == "sight"
+    candidates = body["candidates"]
+    assert len(candidates) == 2
+    assert candidates[0]["species_code"] == "norcar"
+    assert candidates[0]["confidence"] == 0.79
+    assert all(c["audio_url"] is None for c in candidates)  # a photo is never "sound"
+
+
+def test_photo_identify_rejects_unsupported_content_type(client):
+    resp = client.post(
+        "/identify/photo",
+        files={"file": ("notes.txt", io.BytesIO(b"hello"), "text/plain")},
+    )
+    assert resp.status_code == 400
+
+
+def test_photo_identify_rejects_oversized_file(client, monkeypatch):
+    from app.services import uploads as upload_service
+
+    monkeypatch.setattr(upload_service, "MAX_BYTES", 10)
+    resp = client.post(
+        "/identify/photo",
+        files={"file": ("bird.jpg", io.BytesIO(b"x" * 100), "image/jpeg")},
+    )
+    assert resp.status_code == 400
+
+
+def test_photo_identify_candidate_can_be_selected(client, monkeypatch):
+    from app.dao import bird_classifier
+
+    monkeypatch.setattr(bird_classifier, "classify", lambda image_bytes, top_k=6: _fake_classification())
+
+    identified = client.post(
+        "/identify/photo",
+        files={"file": ("bird.jpg", io.BytesIO(b"fake-image-bytes"), "image/jpeg")},
+    ).json()
+
+    resp = client.post(
+        f"/identify/{identified['identification_id']}/select",
+        json={"species_code": "norcar"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    # No named target for a photo (unlike describe's "named" path) — grading
+    # just trusts whichever candidate the user recognized, same as a generic
+    # text description.
+    assert body["outcome"] == "unconfirmed"
+    assert body["is_match"] is None
+    assert body["chosen_species"]["species_code"] == "norcar"
 
 
 def test_full_wizard_confirms_species_and_logs_field_notes(client):

@@ -151,6 +151,12 @@ export function mount(container, props = {}) {
           </div>
         </div>
         <div class="ob-field">
+          <label class="ob-label">Or upload a photo</label>
+          <input type="file" id="identify-photo-input" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none;" />
+          <button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="upload-photo" style="align-self:flex-start;">Upload a photo</button>
+          <p class="ob-hint">Skips straight to picking a match — best for common North American species; an uncommon bird may not get a confident match.</p>
+        </div>
+        <div class="ob-field">
           <label class="ob-label" for="description">${state.sense === 'sound' ? 'What did you hear?' : 'What did you see?'}</label>
           <textarea id="description" class="ob-textarea" placeholder="${state.sense === 'sound'
             ? "e.g. a loud harsh call from a tree near the water, or straight up 'a blue jay'"
@@ -193,6 +199,31 @@ export function mount(container, props = {}) {
         state.descriptionText = form.querySelector('#description').value; // preserve what they'd typed
         render();
       });
+    });
+
+    const photoInput = form.querySelector('#identify-photo-input');
+    form.querySelector('[data-action="upload-photo"]')?.addEventListener('click', () => photoInput.click());
+    photoInput.addEventListener('change', async () => {
+      const file = photoInput.files[0];
+      if (!file) return;
+
+      state.error = null;
+      state.loading = true;
+      render();
+      try {
+        const response = await identifyService.identifyPhoto(file);
+        state.identificationId = response.identification_id;
+        state.candidates = response.candidates;
+        state.sense = 'sight'; // a photo is always "sight" — the candidates step's audio UI only shows for 'sound'
+        state.selectedCode = null;
+        state.feedback = null;
+        state.step = STEP.CANDIDATES;
+      } catch (err) {
+        state.error = err.message || 'Could not identify that photo. Try again or describe it instead.';
+      } finally {
+        state.loading = false;
+        render();
+      }
     });
 
     form.addEventListener('submit', async (e) => {

@@ -41,7 +41,7 @@ class Candidate(BaseModel):
 
 class IdentifyResponse(BaseModel):
     identification_id: str
-    method: Literal["describe"] = "describe"
+    method: Literal["describe", "photo"] = "describe"
     sense: Sense = "sight"
     candidates: list[Candidate]
 
@@ -63,7 +63,7 @@ class Identification(BaseModel):
     """Persisted record — mirrors the `identifications` table in database.md."""
 
     id: str
-    method: Literal["describe"] = "describe"
+    method: Literal["describe", "photo"] = "describe"
     sense: Sense = "sight"
     input: dict = Field(default_factory=dict)
     candidates: list[Candidate] = Field(default_factory=list)

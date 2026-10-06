@@ -7,6 +7,9 @@ python-dotenv>=1.0
 python-multipart>=0.0.12   # FastAPI file uploads (POST /uploads/photo)
 psycopg[binary]>=3.2       # Postgres (Neon) — observations/life-list persistence
 psycopg-pool>=3.2
+onnxruntime>=1.30          # self-hosted photo-ID model (POST /identify/photo) — see docs/features/bird-id.md
+pillow>=11.0                # image preprocessing for the photo-ID model
+numpy>=2.0                  # same
 
 # dev / test
 pytest>=8.3
