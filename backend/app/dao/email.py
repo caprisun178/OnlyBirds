@@ -17,6 +17,13 @@ class EmailNotConfigured(RuntimeError):
     """Raised when SMTP_HOST / SMTP_USER / SMTP_PASSWORD / REPORT_EMAIL_TO aren't set."""
 
 
+class EmailSendFailed(RuntimeError):
+    """Raised when the vars are set but the actual SMTP send fails (bad
+    credentials, wrong host/port, the provider rejecting the login, ...).
+    Wraps the real smtplib/socket exception's message so it reaches the
+    router as a clean error instead of leaking out as an unhandled 500."""
+
+
 def is_configured() -> bool:
     settings = get_settings()
     return bool(
@@ -42,7 +49,10 @@ async def send_email(subject: str, body: str) -> None:
 
     # smtplib is blocking — off the event loop so one slow send doesn't
     # stall every other request this worker is handling.
-    await asyncio.to_thread(_send_sync, message)
+    try:
+        await asyncio.to_thread(_send_sync, message)
+    except (smtplib.SMTPException, OSError) as exc:
+        raise EmailSendFailed(f"Could not send email via {settings.smtp_host}: {exc}") from exc
 
 
 def _send_sync(message: EmailMessage) -> None:
