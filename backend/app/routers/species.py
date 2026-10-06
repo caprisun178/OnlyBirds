@@ -3,10 +3,25 @@
 import httpx
 from fastapi import APIRouter, HTTPException, Query
 
-from app.models.species import SpeciesPhoto, SpeciesRef
+from app.dao.wikipedia import WikipediaUnavailable
+from app.models.species import SpeciesPhoto, SpeciesProfile, SpeciesRef
 from app.services import species as species_service
 
 router = APIRouter(prefix="/species", tags=["species"])
+
+
+@router.get("/profile", response_model=SpeciesProfile)
+async def get_species_profile(
+    scientific_name: str = Query(min_length=1, description="e.g. 'Poecile atricapillus'"),
+):
+    """The Bird Info page — see docs/features/bird-info.md. Query-param, not
+    a path segment (`/species/{code}`), since most of this app's real entry
+    points only ever have a scientific name on hand, never an eBird code.
+    """
+    try:
+        return await species_service.get_profile(scientific_name)
+    except WikipediaUnavailable as exc:
+        raise HTTPException(status_code=502, detail=f"Wikipedia error: {exc}") from exc
 
 
 @router.get("/search", response_model=list[SpeciesRef])

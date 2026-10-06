@@ -374,18 +374,47 @@ export function mount(container, props = {}) {
     wireSpeciesCards();
     wireRegionPicker();
     wirePinButtons();
+    wireMissingBirdProfileCards();
   }
 
   function wirePinButtons() {
     container.querySelectorAll('[data-action="toggle-pin"]').forEach((btn) => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
+        // The whole MissingBird card is now its own click target (Bird
+        // Info — see wireMissingBirdProfileCards() below); without this,
+        // clicking "Pin" would bubble up and also open the profile page.
+        e.stopPropagation();
         togglePin(btn.dataset.pinScientificName, btn.dataset.pinCommonName);
       });
     });
   }
 
+  // MissingBird.js's whole card (not seen yet) opens the Bird Info page —
+  // docs/features/bird-info.md §1, row 2. `data-profile-scientific-name` is
+  // its own attribute, distinct from `data-scientific-name` (seen cards,
+  // just below) and `data-pin-scientific-name` (the pin button inside this
+  // same card) — see that component's own comment for why reusing either
+  // of those names here would double-wire the click.
+  function wireMissingBirdProfileCards() {
+    if (!onNavigate) return;
+    container.querySelectorAll('[data-profile-scientific-name]').forEach((el) => {
+      const open = () => onNavigate('species-profile', {
+        scientificName: el.dataset.profileScientificName,
+        commonName: el.dataset.profileCommonName,
+      });
+      el.addEventListener('click', open);
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          open();
+        }
+      });
+    });
+  }
+
   // Seen-species cards open that species' observation log. Missing-bird
-  // placeholders aren't clickable yet (see Components/MissingBird.js).
+  // placeholders aren't clickable here — they open the Bird Info page
+  // instead (wireMissingBirdProfileCards() above).
   function wireSpeciesCards() {
     if (!onNavigate) return;
     container.querySelectorAll('[data-scientific-name]').forEach((el) => {
@@ -403,6 +432,31 @@ export function mount(container, props = {}) {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           open();
+        }
+      });
+    });
+    wireSpeciesNameProfileLinks();
+  }
+
+  // The species name inside a seen card is its own, separate click target
+  // (Bird Info — docs/features/bird-info.md §1, row 1) — `stopPropagation()`
+  // so clicking the name doesn't *also* fire the whole card's
+  // navigate-to-observation-log handler wired just above.
+  function wireSpeciesNameProfileLinks() {
+    if (!onNavigate) return;
+    container.querySelectorAll('[data-action="view-profile"]').forEach((el) => {
+      const open = (e) => {
+        e.stopPropagation();
+        onNavigate('species-profile', {
+          scientificName: el.dataset.profileScientificName,
+          commonName: el.dataset.profileCommonName,
+        });
+      };
+      el.addEventListener('click', open);
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          open(e);
         }
       });
     });

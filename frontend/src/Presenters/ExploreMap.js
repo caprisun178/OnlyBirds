@@ -1199,6 +1199,24 @@ export function mount(container, props = {}) {
         }
       });
     }
+
+    // The species name — opens the Bird Info page (docs/features/bird-info.md
+    // §1, row 4). SightingDetail.js is shared with PlanATrip.js's own
+    // hotspot drill-down, which wires this same attribute separately.
+    const nameEl = el?.querySelector('[data-action="view-profile"]');
+    if (nameEl && onNavigate) {
+      const openProfile = () => onNavigate('species-profile', {
+        scientificName: nameEl.dataset.profileScientificName,
+        commonName: nameEl.dataset.profileCommonName,
+      });
+      nameEl.addEventListener('click', openProfile);
+      nameEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openProfile();
+        }
+      });
+    }
   }
 
   // Same "targeted update, skip render()" reasoning as updateDetailPanelDom().

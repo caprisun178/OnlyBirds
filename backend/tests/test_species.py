@@ -43,6 +43,87 @@ def test_photos_endpoint_skips_entries_with_no_scientific_name(client, monkeypat
     assert resp.json() == []
 
 
+def test_profile_assembles_taxonomy_media_and_wikipedia_text(client, monkeypatch):
+    from app.dao import species_repo, wikipedia
+
+    species_repo.species_repo._seed_taxonomy("Poecile atricapillus", "Black-capped Chickadee")
+
+    async def fake_summary(title):
+        assert title == "Black-capped_Chickadee"  # common name tried first
+        return {"extract": "A small chickadee.", "source_url": "https://en.wikipedia.org/wiki/X"}
+
+    async def fake_sections(title):
+        return {"sex_differences": "Sexes look alike.", "habitat": "Forests.", "migration": "Non-migratory."}
+
+    monkeypatch.setattr(wikipedia, "get_summary", fake_summary)
+    monkeypatch.setattr(wikipedia, "get_sections", fake_sections)
+
+    resp = client.get("/species/profile", params={"scientific_name": "Poecile atricapillus"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["common_name"] == "Black-capped Chickadee"
+    assert body["about"] == "A small chickadee."
+    assert body["about_source_url"] == "https://en.wikipedia.org/wiki/X"
+    assert body["sex_differences"] == "Sexes look alike."
+    assert body["habitat"] == "Forests."
+    assert body["migration"] == "Non-migratory."
+    assert body["photo_url"].startswith("https://placehold.co/")  # no Commons mock configured here
+
+
+def test_profile_gracefully_omits_taxonomy_for_an_unknown_species(client):
+    # Default test settings have no Wikipedia mock override beyond the
+    # autouse "nothing found" default — this exercises a species that was
+    # never logged via eBird (e.g. iNaturalist-only), so get_taxonomy()
+    # finds nothing. Should not error.
+    resp = client.get("/species/profile", params={"scientific_name": "Imaginarius birdus"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["common_name"] is None
+    assert body["family"] is None
+    assert body["about"] is None
+    assert body["sex_differences"] is None
+
+
+def test_profile_falls_back_to_scientific_name_when_common_name_article_missing(client, monkeypatch):
+    from app.dao import species_repo, wikipedia
+
+    species_repo.species_repo._seed_taxonomy("Nonexistarius articlus", "Not A Real Wikipedia Page")
+
+    calls = []
+
+    async def fake_summary(title):
+        calls.append(title)
+        if title == "Nonexistarius_articlus":
+            return {"extract": "Found via scientific name.", "source_url": "https://en.wikipedia.org/wiki/Y"}
+        return None  # the common-name title 404s
+
+    monkeypatch.setattr(wikipedia, "get_summary", fake_summary)
+
+    resp = client.get("/species/profile", params={"scientific_name": "Nonexistarius articlus"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["about"] == "Found via scientific name."
+    assert calls == ["Not_A_Real_Wikipedia_Page", "Nonexistarius_articlus"]
+
+
+def test_profile_caches_content_and_does_not_refetch_wikipedia_when_fresh(client, monkeypatch):
+    from app.dao import wikipedia
+
+    calls = []
+
+    async def fake_summary(title):
+        calls.append(title)
+        return {"extract": "Fetched once.", "source_url": "https://en.wikipedia.org/wiki/Z"}
+
+    monkeypatch.setattr(wikipedia, "get_summary", fake_summary)
+
+    first = client.get("/species/profile", params={"scientific_name": "Cardinalis cardinalis"})
+    second = client.get("/species/profile", params={"scientific_name": "Cardinalis cardinalis"})
+    assert first.json()["about"] == "Fetched once."
+    assert second.json()["about"] == "Fetched once."
+    assert len(calls) == 1  # the second request used the cache, not a second Wikipedia call
+
+
 def test_get_stock_photos_looks_up_each_species_concurrently(monkeypatch):
     calls = []
 
