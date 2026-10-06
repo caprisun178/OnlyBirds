@@ -14,6 +14,7 @@ sources, the API, the SQL, and the code layout.
 | [Bird information page](bird-info.md) | Planned, but fully scoped — every data source confirmed buildable (Wikipedia for About text, reuses the existing Commons-backed photo/audio caches, no Cornell licensing needed); see the page for the exact entry-point-by-entry-point click wiring | any time (independent) |
 | [Explore map](explore-map.md) | Partial — MVP live and well beyond bare point+radius now (place search with live suggestions, species-photo filter, trip-planning box with top spots, a mi/km toggle); full spec (viewport-driven bbox fetch, clustering, `observations.geom`) still not started | after baseline for the MVP; after Add Observation for the rest |
 | [Plan a trip](plan-a-trip.md) | **Completed** — destination + date-range input, eBird hotspot suggestions with a per-hotspot last-year sightings map (eBird + iNaturalist merged, cached, degrades gracefully), iNaturalist-based "likely species," life-list gap — built and verified live end to end | after baseline |
+| [Test your skill](test-your-skill.md) | **Completed** — a no-persistence photo/sound quiz over the full eBird taxonomy, filterable by taxonomic type (warblers, corvids, owls, ...) and by region, reusing Life List's checklist/region-picker infrastructure and Add Observation's Commons-backed media lookups. No database change at all; see the page for why | after Add Observation + Life List |
 
 *Partial* means some API already exists but the feature isn't done end to end. **Completed** means the backend and frontend are both built and verified live — see that page's own Status line for specifics.
 
@@ -35,6 +36,7 @@ before starting.
 | [Bird information page](bird-info.md) | _unassigned_ | | not started | |
 | [Explore map](explore-map.md) | Sarah Parisi | | in progress (MVP done, full spec not started) | |
 | [Plan a trip](plan-a-trip.md) | Sarah Parisi | `working/sparisi/Feature-plan-a-trip` | done | |
+| [Test your skill](test-your-skill.md) | Sarah Parisi | `working/sparisi/Feature-test-your-skill` | done | |
 
 *Status* is one of: `not started` · `in progress` · `in review` · `done`.
 

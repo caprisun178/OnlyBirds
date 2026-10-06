@@ -30,8 +30,14 @@ import { mount as mountLifeList } from './Presenters/LifeList.js';
 import { mount as mountObservationList } from './Presenters/ObservationList.js';
 import { mount as mountPlanATrip } from './Presenters/PlanATrip.js';
 import { mount as mountNotificationsFeed } from './Presenters/NotificationsFeed.js';
+import { mount as mountTestYourSkill } from './Presenters/TestYourSkill.js';
+import { mount as mountReportButton } from './Components/ReportButton.js';
 
 const app = document.getElementById('app');
+
+// Beta-only — present on every screen regardless of route, see
+// Components/ReportButton.js for why this lives outside #app.
+const reportWidget = mountReportButton();
 
 const SCREENS = {
   home: (container, params) => mountHome(container, { onNavigate: navigate, ...params }),
@@ -40,6 +46,7 @@ const SCREENS = {
   'observation-log': (container, params) => mountObservationList(container, { onNavigate: navigate, ...params }),
   'plan-a-trip': (container, params) => mountPlanATrip(container, { onNavigate: navigate, ...params }),
   notifications: (container, params) => mountNotificationsFeed(container, { onNavigate: navigate, ...params }),
+  'test-your-skill': (container, params) => mountTestYourSkill(container, { onNavigate: navigate, ...params }),
 };
 
 // `params` is an optional plain object spread onto the target screen's
@@ -53,6 +60,7 @@ function navigate(route, params) {
   }
   app.innerHTML = '';
   mountScreen(app, params);
+  reportWidget.setScreen(route);
 }
 
 navigate('home');
