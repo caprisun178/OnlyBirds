@@ -20,7 +20,21 @@ services:
         value: "3.13.14"
       - key: EBIRD_API_KEY           # set in dashboard — https://ebird.org/api/keygen
         sync: false
-      - key: DATABASE_URL            # set in dashboard — Supabase > Settings > Database > URI
+      - key: DATABASE_URL            # set in dashboard — Neon > Dashboard > Connection string
         sync: false
       - key: CORS_ORIGINS            # add the deployed web app origin once it exists
         value: http://localhost:5173,http://localhost:3000
+      - key: SUPABASE_URL             # set in dashboard — Supabase project > Settings > API
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY   # set in dashboard — same page, service_role/secret key
+        sync: false
+      - key: SMTP_HOST                # set in dashboard — see backend/.env.example
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: REPORT_EMAIL_TO
+        sync: false
