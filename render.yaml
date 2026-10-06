@@ -22,8 +22,8 @@ services:
         sync: false
       - key: DATABASE_URL            # set in dashboard — Neon > Dashboard > Connection string
         sync: false
-      - key: CORS_ORIGINS            # add the deployed web app origin once it exists
-        value: http://localhost:5173,http://localhost:3000
+      - key: CORS_ORIGINS
+        value: http://localhost:5173,http://localhost:3000,https://caprisun178.github.io
       - key: SUPABASE_URL             # set in dashboard — Supabase project > Settings > API
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY   # set in dashboard — same page, service_role/secret key
