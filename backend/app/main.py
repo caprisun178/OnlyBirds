@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import __version__
 from app.config import get_settings
 from app.routers import (
+    admin,
     feedback,
     geocoding,
     health,
@@ -60,6 +61,7 @@ def create_app() -> FastAPI:
     app.include_router(pins.router)
     app.include_router(notifications.router)
     app.include_router(feedback.router)
+    app.include_router(admin.router)
 
     @app.get("/", tags=["health"])
     async def root() -> dict:

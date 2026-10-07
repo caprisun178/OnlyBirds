@@ -1,6 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from app.dao.bug_report_repo import InMemoryBugReportRepo
 from app.dao.notification_repo import InMemoryNotificationRepo
 from app.dao.observation_repo import InMemoryObservationRepo
 from app.dao.pin_repo import InMemoryPinRepo
@@ -66,5 +67,8 @@ def client(monkeypatch):
     monkeypatch.setattr("app.dao.notification_repo.notification_repo", fresh_notifications)
     monkeypatch.setattr("app.services.pins.notification_repo", fresh_notifications)
     monkeypatch.setattr("app.services.notifications.notification_repo", fresh_notifications)
+    fresh_bug_reports = InMemoryBugReportRepo()
+    monkeypatch.setattr("app.dao.bug_report_repo.bug_report_repo", fresh_bug_reports)
+    monkeypatch.setattr("app.services.feedback.bug_report_repo", fresh_bug_reports)
     with TestClient(app) as c:
         yield c
