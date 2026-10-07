@@ -31,6 +31,7 @@ import { mount as mountObservationList } from './Presenters/ObservationList.js';
 import { mount as mountPlanATrip } from './Presenters/PlanATrip.js';
 import { mount as mountNotificationsFeed } from './Presenters/NotificationsFeed.js';
 import { mount as mountTestYourSkill } from './Presenters/TestYourSkill.js';
+import { mount as mountBugBacklog } from './Presenters/BugBacklog.js';
 import { mount as mountReportButton } from './Components/ReportButton.js';
 
 const app = document.getElementById('app');
@@ -47,6 +48,7 @@ const SCREENS = {
   'plan-a-trip': (container, params) => mountPlanATrip(container, { onNavigate: navigate, ...params }),
   notifications: (container, params) => mountNotificationsFeed(container, { onNavigate: navigate, ...params }),
   'test-your-skill': (container, params) => mountTestYourSkill(container, { onNavigate: navigate, ...params }),
+  'admin-bug-backlog': (container, params) => mountBugBacklog(container, { onNavigate: navigate, ...params }),
 };
 
 // `params` is an optional plain object spread onto the target screen's

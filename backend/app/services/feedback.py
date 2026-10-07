@@ -1,23 +1,22 @@
-"""Turns a beta report into one email to the maintainer — see
-app/dao/email.py and docs/features/report-a-problem.md. No database table:
-a report that's read a day late is still useful once it's landed in an
-inbox, and this whole feature is meant to come back out after the beta.
+"""Turns a beta report into a `bug_reports` row instead of an email — see
+app/dao/bug_report_repo.py and migrations/0007_bug_reports.sql. Used to be
+one email per report (app/dao/email.py); that only ever reached one inbox
+and nothing tracked whether a reported problem actually got fixed. This
+persists every report so the admin bug-backlog screen
+(Presenters/BugBacklog.js) can triage them instead.
 """
 
-from app.dao import email as email_dao
-from app.models.report import ReportCreate
+from app.dao.bug_report_repo import bug_report_repo
+from app.models.report import BugReport, BugReportUpdate, ReportCreate
 
 
-async def send_report(report: ReportCreate) -> None:
-    lines = [report.message.strip(), ""]
-    if report.screen:
-        lines.append(f"Screen: {report.screen}")
-    if report.url:
-        lines.append(f"URL: {report.url}")
-    if report.user_id:
-        lines.append(f"User: {report.user_id}")
-    if report.user_agent:
-        lines.append(f"Browser: {report.user_agent}")
+async def create_report(report: ReportCreate) -> BugReport:
+    return await bug_report_repo.create(report)
 
-    subject = f"[Only Birds beta] {report.screen or 'Report'}"
-    await email_dao.send_email(subject, "\n".join(lines))
+
+async def list_reports() -> list[BugReport]:
+    return await bug_report_repo.list_all()
+
+
+async def update_report(report_id: str, payload: BugReportUpdate) -> BugReport | None:
+    return await bug_report_repo.update(report_id, payload)

@@ -325,6 +325,29 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .ob-card__body  { color: var(--ob-color-text-muted); margin: 0; }
 
 /* ----------------------------------------------------------------------
+   TABLE   .ob-table — plain data table (header row + bottom-bordered rows).
+   First real use: Presenters/BugBacklog.js. No variants yet.
+   ---------------------------------------------------------------------- */
+.ob-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--ob-text-sm);
+}
+.ob-table th,
+.ob-table td {
+  text-align: left;
+  padding: var(--ob-space-3);
+  border-bottom: 1px solid var(--ob-color-border);
+  vertical-align: top;
+}
+.ob-table th {
+  font-weight: 600;
+  color: var(--ob-color-text-muted);
+  white-space: nowrap;
+}
+.ob-table tbody tr:last-child td { border-bottom: none; }
+
+/* ----------------------------------------------------------------------
    TAGS & BADGES
    .ob-tag  +  --info | --progress | --success | --warning | --danger
    .ob-badge  = small round count bubble

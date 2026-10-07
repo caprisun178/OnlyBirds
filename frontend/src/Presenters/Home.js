@@ -40,6 +40,7 @@ export function mount(container, props = {}) {
           <button type="button" class="ob-btn ob-btn--ghost" data-route="add-observation">Add Observation</button>
           <button type="button" class="ob-btn ob-btn--ghost" data-route="plan-a-trip">Plan a Trip</button>
           <button type="button" class="ob-btn ob-btn--ghost" data-route="test-your-skill">Test Your Skill</button>
+          <button type="button" class="ob-btn ob-btn--ghost" data-route="admin-bug-backlog">Bug Backlog</button>
           <span data-role="notification-bell">${renderNotificationBell(bell)}</span>
           <button type="button" class="ob-btn ob-btn--primary" data-route="login">Log in</button>
         </nav>
