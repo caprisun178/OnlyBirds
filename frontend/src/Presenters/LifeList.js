@@ -14,6 +14,7 @@ import { renderSpeciesCard } from '../Components/SpeciesCard.js';
 import { renderMissingBird } from '../Components/MissingBird.js';
 import { renderProgressBar } from '../Components/ProgressBar.js';
 import { escapeHtml } from '../Components/htmlUtils.js';
+import { mount as mountObservationList } from './ObservationList.js';
 
 // Default view shows only the top DEFAULT_LIMIT species (taxonomic order,
 // i.e. eBird's own regional frequency ordering) rather than the whole
@@ -29,6 +30,7 @@ export function mount(container, props = {}) {
   const state = {
     loading: true,
     error: null,
+    activeTab: 'checklist', // 'checklist' | 'observations' — see renderTabs()
     view: 'grid', // 'grid' | 'list'
     sort: 'taxonomic', // 'taxonomic' | 'recent' | 'alphabetical'
     limit: DEFAULT_LIMIT, // how many of the (already-filtered) species are visible; grows via "Show more"
@@ -153,15 +155,44 @@ export function mount(container, props = {}) {
       <div class="ob-container ob-stack">
         ${onNavigate ? '<button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="back-to-home" style="align-self:flex-start;">← Back to home</button>' : ''}
         <h1>Life List</h1>
-        ${state.error ? `<div class="ob-alert ob-alert--danger">${escapeHtml(state.error)}</div>` : ''}
-        ${state.pinError ? `<div class="ob-alert ob-alert--danger">${escapeHtml(state.pinError)}</div>` : ''}
-        ${state.loading ? renderLoading() : renderLoaded()}
+        ${renderTabs()}
+        ${state.activeTab === 'checklist' ? `
+          ${state.error ? `<div class="ob-alert ob-alert--danger">${escapeHtml(state.error)}</div>` : ''}
+          ${state.pinError ? `<div class="ob-alert ob-alert--danger">${escapeHtml(state.pinError)}</div>` : ''}
+          ${state.loading ? renderLoading() : renderLoaded()}
+        ` : '<div data-role="observations-tab"></div>'}
       </div>
     `;
     if (onNavigate) {
       container.querySelector('[data-action="back-to-home"]').addEventListener('click', () => onNavigate('home'));
     }
     wire();
+
+    // ObservationList owns its own fetch/state/re-renders from here on,
+    // entirely independent of this presenter's render() — same "mount a
+    // sub-container, let it run itself" pattern Home.js uses for ExploreMap.
+    // Unlike Home, this presenter's render() *does* get called again after
+    // mount (loadPins()/loadQuickStates() resolving in the background), so
+    // this remounts ObservationList fresh each time — a real tradeoff (an
+    // in-progress edit there would be lost if one of those resolves at an
+    // unlucky moment), accepted because that window is brief (one-time,
+    // right after initial load) and the alternative (teaching this
+    // presenter targeted DOM patches everywhere, like Home.js's bell) is a
+    // bigger refactor than this feature needs.
+    if (state.activeTab === 'observations') {
+      mountObservationList(container.querySelector('[data-role="observations-tab"]'), {
+        userId, embedded: true, onNavigate,
+      });
+    }
+  }
+
+  function renderTabs() {
+    return `
+      <div class="ob-cluster" role="tablist" aria-label="Life List sections">
+        <button type="button" class="ob-btn ${state.activeTab === 'checklist' ? 'ob-btn--primary' : 'ob-btn--ghost'}" role="tab" aria-selected="${state.activeTab === 'checklist'}" data-tab="checklist">Checklist</button>
+        <button type="button" class="ob-btn ${state.activeTab === 'observations' ? 'ob-btn--primary' : 'ob-btn--ghost'}" role="tab" aria-selected="${state.activeTab === 'observations'}" data-tab="observations">My Observations</button>
+      </div>
+    `;
   }
 
   function renderLoading() {
@@ -324,6 +355,14 @@ export function mount(container, props = {}) {
   // ---- Wiring -------------------------------------------------------------
 
   function wire() {
+    container.querySelectorAll('[data-tab]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (state.activeTab === btn.dataset.tab) return;
+        state.activeTab = btn.dataset.tab;
+        render();
+      });
+    });
+
     const toggleBtn = container.querySelector('[data-action="toggle-picker"]');
     if (toggleBtn) {
       toggleBtn.addEventListener('click', () => {

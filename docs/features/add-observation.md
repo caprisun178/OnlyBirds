@@ -23,17 +23,16 @@ Both paths end with a confirmed species and a new `Observation`
 ### Flow
 
 ```text
-when & where: date/time + location (optional)
+Step 1 — Describe:
+  date/time + location (optional)
+  did you see it or hear it?
+  upload a photo, OR describe the bird in words
                 │
                 ▼
-describe the bird (free text + optional size/color/habitat)
-                │
-                ▼
-      POST /identify/describe
-     (lat/lng/date, if set, reorder
-      candidates toward what's been
-      recorded in that region/day —
-      see bird-id.md §7)
+   POST /identify/photo  or  POST /identify/describe
+  (lat/lng/date, if set, widen/reorder candidates
+   toward what's been recorded in that region/day —
+   see bird-id.md §7/§9)
                 │
                 ▼
       six candidate photos
@@ -54,10 +53,10 @@ describe the bird (free text + optional size/color/habitat)
        │        │         │
        └────────┴────┬────┘
                       ▼
-      field notes: sex, life stage,
-      photo, notes (date/time + location
-      already set in step 1, shown as a
-      summary with an "Edit" link back)
+Step 3 — Confirm: date/time + location
+  again (editable, carried over from
+  step 1 — correct it here if needed),
+  sex, life stage, photo, notes
                       │
                       ▼
              POST /observations
@@ -66,25 +65,34 @@ describe the bird (free text + optional size/color/habitat)
         is it a new life-list species?
 ```
 
+The stepper shows four steps: **Describe** (1), **Identify** (2, the
+candidate grid above), **Confirm** (3), **Done** (4). "None of these match"
+drops into a manual name-search sub-step, not shown in the stepper, which
+also lands on Confirm once a species is picked there.
+
 ### When & where
 
-The first step, before identification — not an afterthought collected once
-the species is already confirmed. Asks for date/time (required, defaults to
-"now") and an optional location, using the same address-search-plus-map
-widget described under "Location" below. Moved to the front specifically so
-`POST /identify/describe` and `POST /identify/photo` can use it: when lat/lng
-and a date are given, the backend reorders (never filters — see
-[Photo-based bird ID](bird-id.md)'s §7) candidates toward species eBird
-actually recorded in that region on that day, instead of ranking on
-text/visual similarity alone. Confirmed live against the real eBird API: a
-species essentially impossible in the given region (e.g. a game bird with no
-wild US range) gets outranked by regionally-confirmed species that scored
-lower on raw similarity, without dropping anything.
+Collected at the top of the **Describe** step — the same screen as the
+sight/sound choice and the photo-upload/description fields, not a step of
+its own — so it's known *before* identification happens. Asks for date/time
+(required, defaults to "now") and an optional location, using the same
+address-search-plus-map widget described under "Location" below. Collected
+this early specifically so `POST /identify/describe` and `POST
+/identify/photo` can use it: when lat/lng and a date are given, the backend
+widens/reorders (never drops — see [Photo-based bird ID](bird-id.md)'s
+§7/§9) candidates toward species eBird actually recorded in that region on
+that day, instead of ranking on text/visual similarity alone. Confirmed live
+against the real eBird API: a species essentially impossible in the given
+region (e.g. a game bird with no wild US range) gets outranked by
+regionally-confirmed species that scored lower on raw similarity.
 
-The values carry forward automatically — both this step and Field Notes
-read/write the same `fieldNotes.observedAt`/`locationName`/`lat`/`lng`
-state, so Field Notes shows them as a read-only summary with an "Edit" link
-back to this step, rather than asking again.
+The values carry forward automatically into **Confirm** (step 3) — both
+steps read/write the same `fieldNotes.observedAt`/`locationName`/`lat`/`lng`
+state — and show up there again as the same editable date/time field and
+map, pre-filled, not a read-only summary. The point of showing them a
+second time is to let the user correct them (e.g. the pin was slightly off)
+right before the final submit, not just to redisplay what was already
+collected.
 
 ### Describe & guess
 
@@ -174,15 +182,15 @@ back to this step, rather than asking again.
 
 ### Field notes
 
-Once a species is confirmed, the wizard asks for: sex (male/female/unknown),
-life stage (adult/juvenile/fledgling/unknown), an optional photo, and
-free-text notes — date/time and location were already collected in the
-When & where step above and just show as a read-only summary here.
-Submitting this calls `POST /observations`, which the frontend also uses to
-check the user's existing life list first, so it can tell them whether this
-is a new species.
+Once a species is confirmed, the wizard shows the **Confirm** step: the
+same editable date/time field and location map from the Describe step
+(pre-filled with whatever was entered there — correct it here if needed),
+plus sex (male/female/unknown), life stage (adult/juvenile/fledgling/unknown),
+an optional photo, and free-text notes. Submitting this calls
+`POST /observations`, which the frontend also uses to check the user's
+existing life list first, so it can tell them whether this is a new species.
 
-**Location** (collected in the When & where step) works like iNaturalist's: type an address or place name and
+**Location** (first collected in the Describe step, editable again here) works like iNaturalist's: type an address or place name and
 suggestions appear live as you type (`GET /geocode/search`, proxying
 OpenStreetMap's Nominatim — debounced 350ms, same pattern and reasoning as
 Explore Map's place search, see that page; Enter searches immediately,
@@ -201,16 +209,18 @@ country-wide default view.
     state change (`container.innerHTML = ...`). A live map can't work that
     way — recreating it on every keystroke elsewhere in the form would reset
     its pan/zoom/pin every time. `Components/LocationPicker.js` owns its own
-    Leaflet instance outside of `state`, mounted only on the When & where
-    step (`mapController` in `AddObservation.js`) and destroyed when that
-    step is left — Field Notes, several steps later, shows a static summary
-    instead of a second live map. Field Notes' own photo-upload status
-    updates still patch just their own DOM subtree rather than doing a full
-    re-render, same general reasoning (don't blow away in-progress async UI
-    state on every keystroke elsewhere on the same screen), independent of
-    the map now living on an earlier step. `fieldNotes.lat`/`lng` stay in
-    `state` regardless, so re-entering the When & where step (via its "Edit"
-    link) remounts the map with the pin already in place.
+    Leaflet instance outside of `state`; `AddObservation.js`'s single
+    `mapController` variable gets mounted fresh on **both** the Describe
+    step and the Confirm step (never both at once — only one step is ever
+    rendered), explicitly destroyed before navigating away from whichever
+    one currently has it (to Identify after describing/uploading a photo, or
+    after a successful final submit from Confirm). `fieldNotes.lat`/`lng`
+    stay in `state` regardless of which step's map last touched them, so
+    Confirm's map opens with the same pin Describe's map had, not reset.
+    Field Notes' own photo-upload status updates still patch just their own
+    DOM subtree rather than doing a full re-render, so an in-progress upload
+    survives other edits on the same screen without the map being torn down
+    mid-upload.
 
 Choosing a photo uploads it immediately (`POST /uploads/photo`, to a Supabase
 Storage bucket) rather than waiting for the final submit — the wizard shows a
@@ -362,7 +372,7 @@ no placeholder fallback for audio the way there is for photos.
 | `dao/` | `app/dao/observation_repo.py` | persists `location_name`, `sex`, `life_stage`, `status`; Postgres (Neon) when `DATABASE_URL` is set, in-memory otherwise (`app/dao/db.py`) |
 | `dao/` | `app/dao/storage.py` | raw Supabase Storage HTTP calls — upload bytes, return the public URL |
 | `dao/` | `app/dao/nominatim.py` | raw OpenStreetMap Nominatim calls — address search, reverse-geocode |
-| `services/` | `app/services/identify.py` | describe → candidates (reordered toward regional plausibility when lat/lng/date are given — see [Photo-based bird ID](bird-id.md) §7); select → grade against a known target, if any |
+| `services/` | `app/services/identify.py` | describe/photo → candidates (widened/reordered toward regional plausibility when lat/lng/date are given — see [Photo-based bird ID](bird-id.md) §7/§9); select → grade against a known target, if any |
 | `services/` | `app/services/uploads.py` | validates content type / size before handing bytes to `storage.py` |
 | `services/` | `app/services/geocoding.py` | normalizes Nominatim's raw JSON into `PlaceResult` |
 | `routers/` | `app/routers/identify.py` | `POST /identify/describe`, `POST /identify/{id}/select` |
@@ -373,7 +383,7 @@ no placeholder fallback for audio the way there is for photos.
 | `Services/` | `frontend/src/Services/uploads.js` | validates type/size client-side before uploading |
 | `Services/` | `frontend/src/Services/geocoding.js` | skips the search API call for a too-short query; no debounce needed since search is button/Enter-triggered, not per-keystroke |
 | `Services/` | `frontend/src/Services/observations.js` | `createFromWizard()` — builds the payload, checks the life list first so `isNewSpecies` is accurate |
-| `Presenters/` | `frontend/src/Presenters/AddObservation.js` | the whole wizard: when & where (map, address search) → describe → candidates → (manual search fallback) → field notes (summary + photo upload) → done |
+| `Presenters/` | `frontend/src/Presenters/AddObservation.js` | the whole wizard: describe (when/where + map/address search + sight-or-sound + photo-or-text) → identify (candidates, manual search fallback) → confirm (when/where again, editable + photo upload + other field notes) → done |
 | `Components/` | `frontend/src/Components/CandidateList.js` | presentational candidate grid; shows `photo_attribution` as a caption, and (sound mode) an `<audio controls>` player per candidate — see the accessibility note below |
 | `Components/` | `frontend/src/Components/LocationPicker.js` | owns a live Leaflet map + marker; loads Leaflet from a CDN at runtime; reports position changes via a callback rather than importing Dao/Services itself |
 | `testData/` | `frontend/src/testData/testProfile.js` | stand-in "current user" until `user-profiles.md` ships |

@@ -17,6 +17,18 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/97/Spotted_sandpiper_%28Actitis_macularius%29.jpg/330px-Spotted_sandpiper_%28Actitis_macularius%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Spotted_sandpiper_(Actitis_macularius).jpg"
   },
+  "Agelaius phoeniceus": {
+    "artist": "Chuck Homler, Focus On Wildlife",
+    "license": "CC BY-SA 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9a/Male_Red-winged_blackbird_%28Agelaius_phoeniceus%29_John_Heinz_National_Wildlife_Refuge%2C_Philadelphia%2C_Pennsylvania%2C_United_States.jpg/330px-Male_Red-winged_blackbird_%28Agelaius_phoeniceus%29_John_Heinz_National_Wildlife_Refuge%2C_Philadelphia%2C_Pennsylvania%2C_United_States.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Male_Red-winged_blackbird_(Agelaius_phoeniceus)_John_Heinz_National_Wildlife_Refuge,_Philadelphia,_Pennsylvania,_United_States.jpg"
+  },
+  "Aix sponsa": {
+    "artist": "Francis C. Franklin",
+    "license": "CC BY-SA 3.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b4/Male_Aix_sponsa_portrait.jpg/330px-Male_Aix_sponsa_portrait.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Male_Aix_sponsa_portrait.jpg"
+  },
   "Alopochen aegyptiaca": {
     "artist": "Alexis Lours",
     "license": "CC BY 4.0",
@@ -357,6 +369,12 @@
     "source_url": "https://commons.wikimedia.org/wiki/File:Cyanocitta_stelleri_Big_Sur_May_2011.jpg"
   },
   "Cyanocorax colliei": null,
+  "Dryobates pubescens": {
+    "artist": "The Cosmonaut",
+    "license": "CC BY-SA 2.5 ca",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/Dryobates_pubescens.jpg/330px-Dryobates_pubescens.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Dryobates_pubescens.jpg"
+  },
   "Dryocopus pileatus": {
     "artist": "Cephas",
     "license": "CC BY-SA 3.0",
@@ -462,6 +480,18 @@
     "source_url": "https://commons.wikimedia.org/wiki/File:Geranospiza_caerulescens_flexipes_641054583.jpg"
   },
   "Glaucidium nubicola": null,
+  "Goura victoria": {
+    "artist": "H. Zell",
+    "license": "CC BY-SA 3.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ac/Goura_victoria_-_Karlsruhe_Zoo_01.jpg/330px-Goura_victoria_-_Karlsruhe_Zoo_01.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Goura_victoria_-_Karlsruhe_Zoo_01.jpg"
+  },
+  "Gymnogyps californianus": {
+    "artist": null,
+    "license": "Public domain",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d9/Gymnogyps_californianus_us_fish.jpg/330px-Gymnogyps_californianus_us_fish.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Gymnogyps_californianus_us_fish.jpg"
+  },
   "Haemorhous mexicanus": {
     "artist": "Ryan Hodnett",
     "license": "CC BY-SA 4.0",
@@ -485,6 +515,12 @@
     "license": "CC BY-SA 2.0 de",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ee/Hirundo_rustica_LC0073.jpg/330px-Hirundo_rustica_LC0073.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Hirundo_rustica_LC0073.jpg"
+  },
+  "Histrionicus histrionicus": {
+    "artist": "Charles Homler d/b/a FocusOnWildlife",
+    "license": "CC BY-SA 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2a/Hen_Harlequin_duck_%28Histrionicus_histrionicus%29_sitting_on_a_rock_in_the_Barnegat_Inlet%2C_New_Jersey%2C_USA.jpg/330px-Hen_Harlequin_duck_%28Histrionicus_histrionicus%29_sitting_on_a_rock_in_the_Barnegat_Inlet%2C_New_Jersey%2C_USA.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Hen_Harlequin_duck_(Histrionicus_histrionicus)_sitting_on_a_rock_in_the_Barnegat_Inlet,_New_Jersey,_USA.jpg"
   },
   "Ibidorhyncha struthersii": {
     "artist": "Birds of Gilgit-Baltistan from Aliabad, Hunza, Pakistan",
@@ -565,6 +601,12 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/95/Black-tailed_godwit_%28Limosa_limosa_limosa%29_in_flight_Marken.jpg/330px-Black-tailed_godwit_%28Limosa_limosa_limosa%29_in_flight_Marken.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Black-tailed_godwit_(Limosa_limosa_limosa)_in_flight_Marken.jpg"
   },
+  "Lophodytes cucullatus": {
+    "artist": "Olaf Oliviero Riemer",
+    "license": "CC BY-SA 3.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2d/Lophodytes_cucullatus_%28Hooded_Merganser_-_Kappens%C3%A4ger%29_-_Weltvogelpark_Walsrode_2012-03.jpg/330px-Lophodytes_cucullatus_%28Hooded_Merganser_-_Kappens%C3%A4ger%29_-_Weltvogelpark_Walsrode_2012-03.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Lophodytes_cucullatus_(Hooded_Merganser_-_Kappens%C3%A4ger)_-_Weltvogelpark_Walsrode_2012-03.jpg"
+  },
   "Lophornis ornatus": {
     "artist": "Biodiversity Heritage Library",
     "license": "CC BY 2.0",
@@ -594,6 +636,18 @@
     "license": "CC BY-SA 3.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a9/Melanerpes_carolinus_James_Gardens_Toronto.jpg/330px-Melanerpes_carolinus_James_Gardens_Toronto.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Melanerpes_carolinus_James_Gardens_Toronto.jpg"
+  },
+  "Melanerpes erythrocephalus": {
+    "artist": "Mdf",
+    "license": "CC BY-SA 3.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/94/Melanerpes-erythrocephalus-003.jpg/330px-Melanerpes-erythrocephalus-003.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Melanerpes-erythrocephalus-003.jpg"
+  },
+  "Melanerpes uropygialis": {
+    "artist": "Larry Page",
+    "license": "CC BY 2.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/20/Gila_Woodpecker_%28Melanerpes_uropygialis%29_%28female%29.jpg/330px-Gila_Woodpecker_%28Melanerpes_uropygialis%29_%28female%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Gila_Woodpecker_(Melanerpes_uropygialis)_(female).jpg"
   },
   "Melopyrrha violacea": null,
   "Melospiza melodia": {
@@ -703,6 +757,12 @@
     "license": "CC BY-SA 2.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/Cassins_Sparrow_Peucaea_cassinii_%286908216340%29.jpg/330px-Cassins_Sparrow_Peucaea_cassinii_%286908216340%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Cassins_Sparrow_Peucaea_cassinii_(6908216340).jpg"
+  },
+  "Phasianus colchicus": {
+    "artist": "Charles J. Sharp",
+    "license": "CC BY-SA 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/34/Common_pheasant_%28Phasianus_colchicus%29_immature_male.jpg/330px-Common_pheasant_%28Phasianus_colchicus%29_immature_male.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Common_pheasant_(Phasianus_colchicus)_immature_male.jpg"
   },
   "Pheugopedius felix": {
     "artist": "Dominic Sherony",
@@ -946,6 +1006,12 @@
     "license": "CC0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Sypheotides_indicus_-_James_Eaton_-_337784608.jpeg/330px-Sypheotides_indicus_-_James_Eaton_-_337784608.jpeg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Sypheotides_indicus_-_James_Eaton_-_337784608.jpeg"
+  },
+  "Syrmaticus mikado": {
+    "artist": "Cataloging Nature",
+    "license": "CC BY 2.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/af/2014-03-30_Syrmaticus_mikado_%28Mikado_Pheasant%29_02.jpg/330px-2014-03-30_Syrmaticus_mikado_%28Mikado_Pheasant%29_02.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:2014-03-30_Syrmaticus_mikado_(Mikado_Pheasant)_02.jpg"
   },
   "Tachycineta bicolor": {
     "artist": "Cephas",
