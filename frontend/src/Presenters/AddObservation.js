@@ -1,8 +1,15 @@
 // Presenters/AddObservation.js — the Add Observation wizard.
 //
-// Order (per the current build): describe the bird -> pick which of 6 photos
-// matches what you saw -> confirm -> field notes (date, location, sex, life
-// stage, photo, notes) -> submit. See docs/features/add-observation.md.
+// Order (per the current build): when & where (date/time + location) ->
+// describe the bird -> pick which of 6 photos matches what you saw ->
+// confirm -> field notes (sex, life stage, photo, notes; date/location
+// already carried over from step 1) -> submit. See
+// docs/features/add-observation.md.
+//
+// Date/location moved to the front (docs/features/bird-id.md §7) so the
+// backend can reorder identify candidates toward what's actually been
+// recorded in that region/day — see Services/identify.js's `location` param
+// — instead of discovering them only after the bird is already confirmed.
 //
 //   import { mount } from './Presenters/AddObservation.js';
 //   mount(document.getElementById('app'), { userId: 'u1' });
@@ -21,6 +28,7 @@ import { renderCandidateList, escapeHtml } from '../Components/CandidateList.js'
 import { mountLocationPicker } from '../Components/LocationPicker.js';
 
 const STEP = {
+  WHEN_WHERE: 'whenWhere',
   DESCRIBE: 'describe',
   CANDIDATES: 'candidates',
   MANUAL_SEARCH: 'manualSearch',
@@ -30,6 +38,12 @@ const STEP = {
 
 const SEARCH_DEBOUNCE_MS = 350;
 const MIN_SEARCH_LENGTH = 3; // matches geocodingService's own no-op threshold (Services/geocoding.js)
+
+function nowForDatetimeLocal() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 export function mount(container, props = {}) {
   const userId = props.userId || getCurrentUser().id;
@@ -44,9 +58,14 @@ export function mount(container, props = {}) {
   let positionRequestId = 0;
 
   const state = {
-    step: STEP.DESCRIBE,
+    step: STEP.WHEN_WHERE,
     loading: false,
     error: null,
+
+    // Where the when/where step returns to on "Continue" — forward into the
+    // wizard normally, or back to Field Notes when reached via its "Edit"
+    // link after the species is already confirmed.
+    whenWhereReturnStep: STEP.DESCRIBE,
 
     descriptionText: '',
     hints: { size: '', color: '', habitat: '' },
@@ -56,6 +75,7 @@ export function mount(container, props = {}) {
     candidates: [],
     selectedCode: null,
     feedback: null, // { tone: 'success'|'warning'|'info', message }
+    method: null, // 'describe' | 'photo' — which flow produced `candidates`; photo gets its own caution banner below
 
     manualQuery: '',
     manualResults: [],
@@ -63,7 +83,7 @@ export function mount(container, props = {}) {
     confirmedSpecies: null, // { commonName, scientificName }
 
     fieldNotes: {
-      observedAt: '',
+      observedAt: nowForDatetimeLocal(),
       locationName: '',
       lat: null,
       lng: null,
@@ -103,6 +123,7 @@ export function mount(container, props = {}) {
 
   function renderStepper() {
     const labels = [
+      [STEP.WHEN_WHERE, 'When & where'],
       [STEP.DESCRIBE, 'Describe'],
       [STEP.CANDIDATES, 'Pick a match'],
       [STEP.FIELD_NOTES, 'Field notes'],
@@ -123,6 +144,8 @@ export function mount(container, props = {}) {
       return '<div class="ob-card ob-text-center"><div class="ob-spinner" style="margin-inline:auto"></div></div>';
     }
     switch (state.step) {
+      case STEP.WHEN_WHERE:
+        return renderWhenWhereStep();
       case STEP.DESCRIBE:
         return renderDescribeStep();
       case STEP.CANDIDATES:
@@ -138,11 +161,93 @@ export function mount(container, props = {}) {
     }
   }
 
-  // ---- Step 1: describe -----------------------------------------------
+  // ---- Step 1: when & where ----------------------------------------------
+  // Collected first (not in Field Notes, where it used to live) so the
+  // identify step below can use it to reorder candidates toward what's
+  // regionally plausible — see Services/identify.js and
+  // docs/features/bird-id.md §7. Carried forward into Field Notes
+  // automatically, since both steps read/write the same `state.fieldNotes`
+  // fields — see `renderWhenWhereSummary()`.
+
+  function renderWhenWhereStep() {
+    const fn = state.fieldNotes;
+    return `
+      <form class="ob-card ob-stack" data-form="when-where">
+        <div class="ob-field">
+          <label class="ob-label" for="observed-at">Date &amp; time</label>
+          <input id="observed-at" type="datetime-local" class="ob-input" value="${escapeHtml(fn.observedAt)}" required />
+        </div>
+        <div class="ob-field">
+          <label class="ob-label" for="address-search">Location (optional)</label>
+          <input id="address-search" class="ob-input" autocomplete="off" placeholder="Search for an address or place" />
+          <div data-role="address-results" class="ob-stack" style="--ob-stack-gap: var(--ob-space-1);"></div>
+          <div data-role="location-map" style="height: 320px; border-radius: var(--ob-radius-md); overflow: hidden;"></div>
+          <p class="ob-hint" data-role="pin-status">${renderPinStatusText(fn)}</p>
+          <input id="location-name" class="ob-input" placeholder='Label for this sighting, e.g. "Discovery Park, Seattle"' value="${escapeHtml(fn.locationName)}" />
+          <p class="ob-hint">Map tiles &copy; <a href="https://www.esri.com" target="_blank" rel="noopener">Esri</a>. Address search data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.</p>
+        </div>
+        <p class="ob-hint">Knowing roughly where and when helps narrow the next step's match suggestions to birds actually recorded in your area around this time of year.</p>
+        <button type="submit" class="ob-btn ob-btn--primary ob-btn--block">${state.whenWhereReturnStep === STEP.FIELD_NOTES ? 'Save' : 'Continue'}</button>
+      </form>
+    `;
+  }
+
+  function wireWhenWhereStep() {
+    const form = container.querySelector('[data-form="when-where"]');
+    if (!form) return;
+
+    wireLocationPicker(form);
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      state.fieldNotes.observedAt = form.querySelector('#observed-at').value;
+      state.fieldNotes.locationName = form.querySelector('#location-name').value;
+      mapController?.destroy();
+      mapController = null;
+      state.step = state.whenWhereReturnStep;
+      state.whenWhereReturnStep = STEP.DESCRIBE; // reset so a later "Edit" elsewhere isn't sticky
+      render();
+    });
+  }
+
+  // A compact read-only recap shown on later steps, with a way back to
+  // step 1 — avoids mounting a second live map alongside the one above.
+  function renderWhenWhereSummary() {
+    const fn = state.fieldNotes;
+    const when = fn.observedAt
+      ? new Date(fn.observedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+      : 'No date set';
+    const where = fn.locationName || (fn.lat != null ? `${fn.lat.toFixed(3)}, ${fn.lng.toFixed(3)}` : 'No location set');
+    return `
+      <div class="ob-cluster ob-text-sm" style="justify-content: space-between; align-items: center;">
+        <span>📍 ${escapeHtml(where)} &middot; 🕒 ${escapeHtml(when)}</span>
+        <button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="edit-when-where">Change</button>
+      </div>
+    `;
+  }
+
+  function wireWhenWhereSummary(form) {
+    form.querySelector('[data-action="edit-when-where"]')?.addEventListener('click', () => {
+      state.whenWhereReturnStep = state.step; // bounce back here, not forward through the whole wizard
+      state.step = STEP.WHEN_WHERE;
+      render();
+    });
+  }
+
+  // `observedAt` truncated to a plain date — eBird's regional checklist is
+  // per calendar day, and the datetime-local value carries minutes the
+  // backend has no use for (see Services/identify.js's `toRegional()`).
+  function currentLocation() {
+    const { lat, lng, observedAt } = state.fieldNotes;
+    return { lat, lng, observedAt: observedAt ? observedAt.slice(0, 10) : undefined };
+  }
+
+  // ---- Step 2: describe -----------------------------------------------
 
   function renderDescribeStep() {
     return `
       <form class="ob-card ob-stack" data-form="describe">
+        ${renderWhenWhereSummary()}
         <div class="ob-field">
           <label class="ob-label">Did you see it or hear it?</label>
           <div class="ob-cluster" role="radiogroup" aria-label="Did you see it or hear it?">
@@ -154,7 +259,7 @@ export function mount(container, props = {}) {
           <label class="ob-label">Or upload a photo</label>
           <input type="file" id="identify-photo-input" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none;" />
           <button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="upload-photo" style="align-self:flex-start;">Upload a photo</button>
-          <p class="ob-hint">Skips straight to picking a match — best for common North American species; an uncommon bird may not get a confident match.</p>
+          <p class="ob-hint">Skips straight to picking a match — only covers common North American species, so an uncommon or regional bird may come back as a confident-looking but wrong match.</p>
         </div>
         <div class="ob-field">
           <label class="ob-label" for="description">${state.sense === 'sound' ? 'What did you hear?' : 'What did you see?'}</label>
@@ -193,6 +298,8 @@ export function mount(container, props = {}) {
     const form = container.querySelector('[data-form="describe"]');
     if (!form) return;
 
+    wireWhenWhereSummary(form);
+
     form.querySelectorAll('[data-sense]').forEach((btn) => {
       btn.addEventListener('click', () => {
         state.sense = btn.dataset.sense;
@@ -211,9 +318,10 @@ export function mount(container, props = {}) {
       state.loading = true;
       render();
       try {
-        const response = await identifyService.identifyPhoto(file);
+        const response = await identifyService.identifyPhoto(file, currentLocation());
         state.identificationId = response.identification_id;
         state.candidates = response.candidates;
+        state.method = 'photo';
         state.sense = 'sight'; // a photo is always "sight" — the candidates step's audio UI only shows for 'sound'
         state.selectedCode = null;
         state.feedback = null;
@@ -239,9 +347,10 @@ export function mount(container, props = {}) {
       state.loading = true;
       render();
       try {
-        const response = await identifyService.describe(state.descriptionText, state.hints, state.sense);
+        const response = await identifyService.describe(state.descriptionText, state.hints, state.sense, currentLocation());
         state.identificationId = response.identification_id;
         state.candidates = response.candidates;
+        state.method = 'describe';
         state.selectedCode = null;
         state.feedback = null;
         state.step = STEP.CANDIDATES;
@@ -254,7 +363,7 @@ export function mount(container, props = {}) {
     });
   }
 
-  // ---- Step 2: candidates ----------------------------------------------
+  // ---- Step 3: candidates ----------------------------------------------
 
   function renderCandidatesStep() {
     return `
@@ -263,6 +372,14 @@ export function mount(container, props = {}) {
           <p class="ob-card__body">${state.sense === 'sound' ? 'Which one did you hear?' : 'Which one did you see?'}</p>
         </div>
         ${state.feedback ? `<div class="ob-alert ob-alert--${state.feedback.tone}">${escapeHtml(state.feedback.message)}</div>` : ''}
+        ${state.method === 'photo' ? `
+          <div class="ob-alert ob-alert--warning">
+            Photo matches only cover common North American species — if your
+            bird isn't one of them, these can look confident and still be
+            wrong. If none of these actually match, use "None of these
+            match" below rather than picking the closest-looking one.
+          </div>
+        ` : ''}
         ${renderCandidateList(state.candidates, state.selectedCode, state.sense)}
         <div class="ob-cluster">
           <button type="button" class="ob-btn ob-btn--ghost" data-action="back-to-describe">Start over</button>
@@ -413,7 +530,7 @@ export function mount(container, props = {}) {
     if (backBtn) backBtn.addEventListener('click', () => { state.step = STEP.CANDIDATES; render(); });
   }
 
-  // ---- Step 3: field notes ----------------------------------------------
+  // ---- Step 4: field notes ----------------------------------------------
 
   function renderFieldNotesStep() {
     const fn = state.fieldNotes;
@@ -424,20 +541,7 @@ export function mount(container, props = {}) {
           <span class="ob-tag" style="margin-left: var(--ob-space-2);">${state.sense === 'sound' ? 'Heard' : 'Seen'}</span>
         </div>
 
-        <div class="ob-field">
-          <label class="ob-label" for="observed-at">Date &amp; time</label>
-          <input id="observed-at" type="datetime-local" class="ob-input" value="${escapeHtml(fn.observedAt)}" required />
-        </div>
-
-        <div class="ob-field">
-          <label class="ob-label" for="address-search">Location</label>
-          <input id="address-search" class="ob-input" autocomplete="off" placeholder="Search for an address or place" />
-          <div data-role="address-results" class="ob-stack" style="--ob-stack-gap: var(--ob-space-1);"></div>
-          <div data-role="location-map" style="height: 320px; border-radius: var(--ob-radius-md); overflow: hidden;"></div>
-          <p class="ob-hint" data-role="pin-status">${renderPinStatusText(fn)}</p>
-          <input id="location-name" class="ob-input" placeholder='Label for this sighting, e.g. "Discovery Park, Seattle"' value="${escapeHtml(fn.locationName)}" />
-          <p class="ob-hint">Map tiles &copy; <a href="https://www.esri.com" target="_blank" rel="noopener">Esri</a>. Address search data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.</p>
-        </div>
+        ${renderWhenWhereSummary()}
 
         <div class="ob-grid" style="--ob-grid-min: 220px;">
           <div class="ob-field">
@@ -498,11 +602,10 @@ export function mount(container, props = {}) {
   // Reads the form's current values into state.fieldNotes. Called before any
   // full re-render triggered mid-edit (e.g. submitting) so that rebuilding
   // the form's HTML from state doesn't blank out fields the user already
-  // typed into. lat/lng aren't form inputs — the map keeps those in state
-  // directly via handleMapPositionChange, below.
+  // typed into. observedAt/locationName/lat/lng aren't form inputs on this
+  // step anymore — they're carried over from the when/where step (step 1)
+  // and only change via its own "Edit" link (`wireWhenWhereSummary`).
   function captureFieldNotesInputs(form) {
-    state.fieldNotes.observedAt = form.querySelector('#observed-at').value;
-    state.fieldNotes.locationName = form.querySelector('#location-name').value;
     state.fieldNotes.sex = form.querySelector('#sex').value;
     state.fieldNotes.lifeStage = form.querySelector('#life-stage').value;
     state.fieldNotes.notes = form.querySelector('#notes').value;
@@ -512,7 +615,7 @@ export function mount(container, props = {}) {
     const form = container.querySelector('[data-form="field-notes"]');
     if (!form) return;
 
-    wireLocationPicker(form);
+    wireWhenWhereSummary(form);
     wirePhotoInput(form);
     wireFieldNotesSubmit(form);
   }
@@ -677,8 +780,6 @@ export function mount(container, props = {}) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       captureFieldNotesInputs(form);
-      mapController?.destroy();
-      mapController = null;
 
       state.error = null;
       state.loading = true;
@@ -705,12 +806,12 @@ export function mount(container, props = {}) {
         state.error = err.message || 'Could not save this observation. Please try again.';
       } finally {
         state.loading = false;
-        render(); // if we're still on field notes (submit failed), the map remounts at the saved lat/lng
+        render();
       }
     });
   }
 
-  // ---- Step 4: done ------------------------------------------------------
+  // ---- Step 5: done ------------------------------------------------------
 
   function renderDoneStep() {
     const { observation, isNewSpecies } = state.result;
@@ -741,7 +842,8 @@ export function mount(container, props = {}) {
         mapController?.destroy();
         mapController = null;
         Object.assign(state, {
-          step: STEP.DESCRIBE,
+          step: STEP.WHEN_WHERE,
+          whenWhereReturnStep: STEP.DESCRIBE,
           descriptionText: '',
           hints: { size: '', color: '', habitat: '' },
           sense: 'sight',
@@ -749,11 +851,12 @@ export function mount(container, props = {}) {
           candidates: [],
           selectedCode: null,
           feedback: null,
+          method: null,
           manualQuery: '',
           manualResults: [],
           confirmedSpecies: null,
           fieldNotes: {
-            observedAt: '', locationName: '', lat: null, lng: null, sex: '', lifeStage: '', notes: '',
+            observedAt: nowForDatetimeLocal(), locationName: '', lat: null, lng: null, sex: '', lifeStage: '', notes: '',
             photoDataUrl: null, photoUrl: null,
           },
           photoUploadState: 'idle',
@@ -775,6 +878,8 @@ export function mount(container, props = {}) {
 
   function wireStep() {
     switch (state.step) {
+      case STEP.WHEN_WHERE:
+        return wireWhenWhereStep();
       case STEP.DESCRIBE:
         return wireDescribeStep();
       case STEP.CANDIDATES:

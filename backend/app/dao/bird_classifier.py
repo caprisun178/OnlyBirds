@@ -20,7 +20,7 @@ from pathlib import Path
 
 import numpy as np
 import onnxruntime as ort
-from PIL import Image
+from PIL import Image, ImageOps
 
 from app.data.bird_classifier_labels import LABEL_TO_SPECIES, MODEL_LABELS
 
@@ -44,7 +44,14 @@ def _get_session() -> ort.InferenceSession:
 
 
 def _preprocess(image_bytes: bytes) -> np.ndarray:
-    img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    img = Image.open(io.BytesIO(image_bytes))
+    # Phone photos routinely store orientation as EXIF metadata rather than
+    # rotating the actual pixels — skip this and a portrait photo gets fed
+    # in sideways, which doesn't degrade predictions gracefully, it produces
+    # confident-looking garbage (confirmed: rotating a correctly-classified
+    # photo 90° with nothing else changed turned "all herons" into
+    # "Vulturine Guineafowl, Common Loon, Flame Bowerbird").
+    img = ImageOps.exif_transpose(img).convert("RGB")
     img = img.resize((_INPUT_SIZE, _INPUT_SIZE), Image.NEAREST)
     arr = np.asarray(img).astype(np.float32) / 255.0
     arr = (arr - _MEAN) / _STD

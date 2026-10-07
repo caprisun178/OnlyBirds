@@ -30,6 +30,7 @@ export function renderCandidateList(candidates, selectedCode, sense = 'sight') {
           <img src="${escapeHtml(c.photo_url)}" alt="${escapeHtml(c.common_name)}" />
           <h3 class="ob-card__title">${escapeHtml(c.common_name)}</h3>
           <p class="ob-card__body ob-text-sm"><em>${escapeHtml(c.scientific_name)}</em></p>
+          ${renderConfidence(c.confidence)}
           ${c.photo_attribution ? `<p class="ob-text-muted ob-text-sm">Photo: ${escapeHtml(c.photo_attribution)}</p>` : ''}
           ${sense === 'sound' ? renderAudio(c) : ''}
           ${c.species_code === selectedCode ? '<span class="ob-tag ob-tag--success">Selected</span>' : ''}
@@ -37,6 +38,18 @@ export function renderCandidateList(candidates, selectedCode, sense = 'sight') {
       `).join('')}
     </div>
   `;
+}
+
+// A visible confidence number lets a user spot a low-confidence (or just
+// generically unconvincing) pick instead of trusting the top card by
+// default — matters most for photo-ID results, which can be confidently
+// wrong rather than just uncertain when the real species isn't one the
+// classifier model knows at all (see docs/features/bird-id.md).
+function renderConfidence(confidence) {
+  if (confidence == null) return '';
+  const pct = Math.round(confidence * 100);
+  const tone = pct >= 50 ? 'success' : pct >= 20 ? 'warning' : 'danger';
+  return `<span class="ob-tag ob-tag--${tone}">${pct}% match</span>`;
 }
 
 function renderAudio(candidate) {

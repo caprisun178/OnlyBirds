@@ -159,11 +159,13 @@ def _fake_classification():
 
 
 def test_photo_identify_returns_ranked_candidates(client, monkeypatch):
-    # Never run real ONNX inference in a test — offline-tests rule
+    # Never run real BioCLIP inference in a test — offline-tests rule
     # (docs/ebird-api.md), and a real model load/run is slow besides.
-    from app.dao import bird_classifier
+    from app.dao import bioclip_classifier
 
-    monkeypatch.setattr(bird_classifier, "classify", lambda image_bytes, top_k=6: _fake_classification())
+    monkeypatch.setattr(
+        bioclip_classifier, "classify", lambda image_bytes, top_k=6, candidates=None: _fake_classification()
+    )
 
     resp = client.post(
         "/identify/photo",
@@ -200,9 +202,11 @@ def test_photo_identify_rejects_oversized_file(client, monkeypatch):
 
 
 def test_photo_identify_candidate_can_be_selected(client, monkeypatch):
-    from app.dao import bird_classifier
+    from app.dao import bioclip_classifier
 
-    monkeypatch.setattr(bird_classifier, "classify", lambda image_bytes, top_k=6: _fake_classification())
+    monkeypatch.setattr(
+        bioclip_classifier, "classify", lambda image_bytes, top_k=6, candidates=None: _fake_classification()
+    )
 
     identified = client.post(
         "/identify/photo",
@@ -221,6 +225,115 @@ def test_photo_identify_candidate_can_be_selected(client, monkeypatch):
     assert body["outcome"] == "unconfirmed"
     assert body["is_match"] is None
     assert body["chosen_species"]["species_code"] == "norcar"
+
+
+def _stub_region(monkeypatch, region_species_codes, region_code="US-NC-067"):
+    """`region_species_codes` is a set of eBird codes — `comName`/`sciName`
+    are fabricated from the code since describe-flow's reorder tests never
+    read them; photo-flow tests that care about specific names pass their
+    own checklist rows directly instead (see `_stub_region_checklist`)."""
+    from app.dao import ebird
+
+    async def fake_region_for_point(lat, lng):
+        return region_code
+
+    async def fake_get_historic_checklist(region, d):
+        return [
+            {"speciesCode": code, "comName": f"Species {code}", "sciName": f"Sci {code}"}
+            for code in region_species_codes
+        ]
+
+    monkeypatch.setattr(ebird, "region_for_point", fake_region_for_point)
+    monkeypatch.setattr(ebird, "get_historic_checklist", fake_get_historic_checklist)
+
+
+def test_photo_identify_passes_regional_checklist_as_candidate_pool(client, monkeypatch):
+    # The real failure mode this fixes: the old fixed-label model couldn't
+    # help but compete an out-of-region vagrant against the real answer.
+    # BioCLIP's pool *is* the candidate set, so scoping it to eBird's real
+    # regional checklist means an implausible species never gets a vote at
+    # all — confirm identify_photo() builds and passes exactly that pool.
+    from app.dao import bioclip_classifier
+
+    _stub_region(monkeypatch, region_species_codes={"grbher3", "squher1"})
+
+    captured = {}
+
+    def fake_classify(image_bytes, top_k=6, candidates=None):
+        captured["candidates"] = candidates
+        return _fake_classification()
+
+    monkeypatch.setattr(bioclip_classifier, "classify", fake_classify)
+
+    resp = client.post(
+        "/identify/photo",
+        files={"file": ("bird.jpg", io.BytesIO(b"fake-image-bytes"), "image/jpeg")},
+        data={"lat": "35.9", "lng": "-79.0", "observed_at": "2026-05-01"},
+    )
+    assert resp.status_code == 200
+    assert captured["candidates"] is not None
+    codes = {c["species_code"] for c in captured["candidates"]}
+    assert codes == {"grbher3", "squher1"}
+    # Real names flowed through, not just codes — this is what gets embedded
+    # as zero-shot text prompts, so a placeholder would defeat the point.
+    assert all(c["common_name"] for c in captured["candidates"])
+
+
+def test_photo_identify_with_no_location_uses_classifiers_default_pool(client, monkeypatch):
+    from app.dao import bioclip_classifier
+
+    captured = {}
+
+    def fake_classify(image_bytes, top_k=6, candidates=None):
+        captured["candidates"] = candidates
+        return _fake_classification()
+
+    monkeypatch.setattr(bioclip_classifier, "classify", fake_classify)
+
+    resp = client.post(
+        "/identify/photo",
+        files={"file": ("bird.jpg", io.BytesIO(b"fake-image-bytes"), "image/jpeg")},
+    )
+    assert resp.status_code == 200
+    # No lat/lng/observed_at given -> no regional pool to build; the
+    # classifier falls back to its own default pool, not an empty one.
+    assert captured["candidates"] is None
+
+
+def test_describe_generic_reorders_toward_regional_species(client, monkeypatch):
+    # "brown owl" matches several owls by keyword/color (see birds.py) with
+    # no single named target — the generic, no-ground-truth path this
+    # reorder is meant for. No lat/lng on this first call, so it's an
+    # unreordered baseline regardless of region stubbing.
+    baseline = client.post("/identify/describe", json={"text": "brown owl"}).json()
+    all_owl_codes = [c["species_code"] for c in baseline["candidates"]]
+
+    # Pick a real code from this run's own candidates rather than guessing
+    # the data file's naming — the point under test is reordering mechanics,
+    # not a specific species' exact eBird code.
+    target = all_owl_codes[-1]  # whichever ranked last on text score alone
+    _stub_region(monkeypatch, region_species_codes={target})
+
+    resp = client.post("/identify/describe", json={
+        "text": "brown owl", "lat": 35.9, "lng": -79.0, "observed_at": "2026-05-01",
+    })
+    codes = [c["species_code"] for c in resp.json()["candidates"]]
+    assert codes[0] == target
+    assert set(codes) == set(all_owl_codes)  # reordered, nothing dropped or added
+
+
+def test_describe_named_match_is_never_reordered_by_region(client, monkeypatch):
+    # Ground truth from naming the species outright must never be
+    # second-guessed by an incomplete regional checklist — see
+    # app/services/identify.py#describe_bird()'s target_code is None check.
+    _stub_region(monkeypatch, region_species_codes=set())  # Blue Jay confirmed absent from this "region"
+
+    resp = client.post("/identify/describe", json={
+        "text": "definitely a Blue Jay", "lat": 35.9, "lng": -79.0, "observed_at": "2026-05-01",
+    })
+    candidates = resp.json()["candidates"]
+    top = max(candidates, key=lambda c: c["confidence"])
+    assert top["species_code"] == "blujay"
 
 
 def test_full_wizard_confirms_species_and_logs_field_notes(client):
