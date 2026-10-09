@@ -38,11 +38,12 @@ export function mount(container, props = {}) {
     revealed: false,
     // Full species profile(s) for the reveal — always the correct species;
     // also the picked species when wrong, for the two-panel "here's what you
-    // picked vs. what it actually was" comparison. `null` until loaded, then
-    // `{ correct, incorrect }` (`incorrect` stays `null` on a correct
-    // answer — a right answer only needs the one panel).
-    revealProfiles: null,
-    revealLoading: false,
+    // picked vs. what it actually was" comparison. Each slot is `null` until
+    // its own fetch resolves (`incorrect` stays `null` forever on a correct
+    // answer — a right answer only needs the one panel); the two load and
+    // render independently, not gated behind each other.
+    revealProfiles: { correct: null, incorrect: null },
+    revealLoading: { correct: false, incorrect: false },
     // Cumulative across mode/filter changes and across "Next question" —
     // deliberately not reset by any of those, since this is "how good am I
     // at birds this session," not a separate tally per setting. Reset to
@@ -109,8 +110,8 @@ export function mount(container, props = {}) {
     state.selectedAnswer = null;
     state.revealed = false;
     state.photoSwapNotice = null;
-    state.revealProfiles = null;
-    state.revealLoading = false;
+    state.revealProfiles = { correct: null, incorrect: null };
+    state.revealLoading = { correct: false, incorrect: false };
     render();
     try {
       state.question = await quizService.getQuestion(state.mode, {
@@ -170,24 +171,32 @@ export function mount(container, props = {}) {
     loadRevealProfiles();
   }
 
-  async function loadRevealProfiles() {
+  function loadRevealProfiles() {
     const q = state.question;
     const correctChoice = q.choices.find((c) => c.scientific_name === q.correct_scientific_name);
     const wasCorrect = state.selectedAnswer === q.correct_scientific_name;
     const pickedChoice = wasCorrect ? null : q.choices.find((c) => c.scientific_name === state.selectedAnswer);
 
-    state.revealLoading = true;
+    // Each panel fetches and renders independently rather than both waiting
+    // on a shared Promise.all — a slow/rate-limited Wikipedia lookup for one
+    // panel (worst case ~30s, see species.py#_get_or_fetch_content) would
+    // otherwise block a panel whose own fetch already finished from showing
+    // anything at all.
+    state.revealProfiles = { correct: null, incorrect: null };
+    state.revealLoading = { correct: true, incorrect: Boolean(pickedChoice) };
     render();
+
+    loadOnePanel('correct', correctChoice.scientific_name, correctChoice.common_name);
+    if (pickedChoice) loadOnePanel('incorrect', pickedChoice.scientific_name, pickedChoice.common_name);
+  }
+
+  async function loadOnePanel(slot, scientificName, commonName) {
     try {
-      const [correct, incorrect] = await Promise.all([
-        speciesService.getProfile(correctChoice.scientific_name, correctChoice.common_name, q.correct_family),
-        pickedChoice ? speciesService.getProfile(pickedChoice.scientific_name, pickedChoice.common_name) : Promise.resolve(null),
-      ]);
-      state.revealProfiles = { correct, incorrect };
+      state.revealProfiles[slot] = await speciesService.getProfile(scientificName, { commonName });
     } catch (err) {
-      state.revealProfiles = null; // the plain correct/incorrect line above still shows either way
+      state.revealProfiles[slot] = null; // the plain correct/incorrect line above still shows either way
     } finally {
-      state.revealLoading = false;
+      state.revealLoading[slot] = false;
       render();
     }
   }
@@ -430,7 +439,7 @@ export function mount(container, props = {}) {
           </p>
           <button type="button" class="ob-btn ob-btn--primary ob-btn--sm" data-action="next-question">Next question</button>
         </div>
-        ${state.revealLoading ? renderLoading() : renderRevealProfiles(wasCorrect)}
+        ${renderRevealProfiles(wasCorrect)}
       </div>
     `;
   }
@@ -440,25 +449,25 @@ export function mount(container, props = {}) {
   // "Correct answer" (per the order this was asked for) — same full profile
   // shape either way, image + call included for both sight and ear quizzes,
   // not just whichever medium the question itself used, so a miss on either
-  // mode gives the full picture to learn from.
+  // mode gives the full picture to learn from. Each panel loads and renders
+  // independently (see loadOnePanel()) — a slow panel never blocks one
+  // that's already resolved from showing up.
   function renderRevealProfiles(wasCorrect) {
-    if (!state.revealProfiles) return '';
     if (wasCorrect) {
-      return renderProfilePanel(state.revealProfiles.correct, 'About this species');
+      return renderProfilePanel('correct', 'About this species');
     }
     return `
       <div class="ob-grid" style="--ob-grid-min: 260px;">
-        ${renderProfilePanel(state.revealProfiles.incorrect, 'Your answer')}
-        ${renderProfilePanel(state.revealProfiles.correct, 'Correct answer')}
+        ${renderProfilePanel('incorrect', 'Your answer')}
+        ${renderProfilePanel('correct', 'Correct answer')}
       </div>
     `;
   }
 
-  function renderProfilePanel(profile, headingLabel) {
+  function renderProfilePanel(slot, headingLabel) {
+    if (state.revealLoading[slot]) return renderLoading();
+    const profile = state.revealProfiles[slot];
     if (!profile) return '';
-    const habitat = profile.habitat && profile.habitat.length
-      ? profile.habitat.map((h) => h.charAt(0).toUpperCase() + h.slice(1)).join(', ')
-      : null;
     // Both the correct and incorrect choices for this question came from the
     // same regional checklist the quiz is currently filtered to (see
     // quiz.py's `_filtered_pool()`) — so "recorded in {region}" is true for
@@ -469,25 +478,27 @@ export function mount(container, props = {}) {
     return `
       <div class="ob-card ob-card--flat ob-stack" style="gap: var(--ob-space-2);">
         <p class="ob-text-sm ob-text-muted" style="margin: 0; text-transform: uppercase; letter-spacing: 0.03em;">${escapeHtml(headingLabel)}</p>
-        <img src="${escapeHtml(profile.photo_url)}" alt="${escapeHtml(profile.common_name)}" style="display:block; width:100%; height:180px; object-fit:cover; border-radius:var(--ob-radius-md); background:var(--ob-color-surface-alt);" />
+        <img src="${escapeHtml(profile.photoUrl)}" alt="${escapeHtml(profile.commonName)}" style="display:block; width:100%; height:180px; object-fit:cover; border-radius:var(--ob-radius-md); background:var(--ob-color-surface-alt);" />
         <div>
-          <p style="margin: 0;"><strong>${escapeHtml(profile.common_name)}</strong> <em class="ob-text-muted">${escapeHtml(profile.scientific_name)}</em></p>
+          <p style="margin: 0;"><strong>${escapeHtml(profile.commonName)}</strong> <em class="ob-text-muted">${escapeHtml(profile.scientificName)}</em></p>
           ${profile.family ? `<p class="ob-text-sm ob-text-muted" style="margin: 0;">${escapeHtml(profile.family)}</p>` : ''}
         </div>
-        ${habitat ? `<p class="ob-text-sm" style="margin: 0;"><strong>Habitat:</strong> ${escapeHtml(habitat)}</p>` : ''}
+        ${profile.sexDifferences ? `<p class="ob-text-sm" style="margin: 0;"><strong>Description:</strong> ${escapeHtml(profile.sexDifferences)}</p>` : ''}
+        ${profile.habitat ? `<p class="ob-text-sm" style="margin: 0;"><strong>Habitat:</strong> ${escapeHtml(profile.habitat)}</p>` : ''}
+        ${profile.migration ? `<p class="ob-text-sm" style="margin: 0;"><strong>Range:</strong> ${escapeHtml(profile.migration)}</p>` : ''}
         ${regionNote ? `<p class="ob-text-sm" style="margin: 0;"><strong>Recorded in:</strong> ${escapeHtml(regionNote)}</p>` : ''}
         ${profile.about ? `<p class="ob-text-sm" style="margin: 0;">${escapeHtml(profile.about)}</p>` : ''}
-        ${profile.about_source_url ? `<a href="${escapeHtml(profile.about_source_url)}" target="_blank" rel="noopener noreferrer" class="ob-text-sm">Read more on Wikipedia</a>` : ''}
-        ${profile.audio_url
+        ${profile.aboutSourceUrl ? `<a href="${escapeHtml(profile.aboutSourceUrl)}" target="_blank" rel="noopener noreferrer" class="ob-text-sm">Read more on Wikipedia</a>` : ''}
+        ${profile.audioUrl
           ? `
             <div>
               <p class="ob-text-sm" style="margin: 0 0 4px;"><strong>Call:</strong></p>
-              <audio controls src="${escapeHtml(profile.audio_url)}" style="width: 100%;"></audio>
-              ${profile.audio_attribution ? `<p class="ob-text-sm ob-text-muted" style="margin: 4px 0 0;">${escapeHtml(profile.audio_attribution)}</p>` : ''}
+              <audio controls src="${escapeHtml(profile.audioUrl)}" style="width: 100%;"></audio>
+              ${profile.audioAttribution ? `<p class="ob-text-sm ob-text-muted" style="margin: 4px 0 0;">${escapeHtml(profile.audioAttribution)}</p>` : ''}
             </div>
           `
           : '<p class="ob-text-sm ob-text-muted" style="margin: 0;">No recording available for this species.</p>'}
-        ${profile.photo_attribution ? `<p class="ob-text-sm ob-text-muted" style="margin: 0;">Photo: ${escapeHtml(profile.photo_attribution)}</p>` : ''}
+        ${profile.photoAttribution ? `<p class="ob-text-sm ob-text-muted" style="margin: 0;">Photo: ${escapeHtml(profile.photoAttribution)}</p>` : ''}
       </div>
     `;
   }

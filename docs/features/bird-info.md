@@ -50,13 +50,35 @@ Also reached by **searching** directly (see below).
 | Photo | one representative photo | **reuses** `app/dao/bird_photos.py#get_stock_photo()` — already built, Wikimedia Commons-backed, disk-cached, used by Life List/Plan a Trip/Explore Map today. Zero new dao code. |
 | Sound | a call/song recording, if one exists | **reuses** `app/dao/bird_audio.py#get_audio()` — same deal; returns `None` cleanly if Commons has nothing (no placeholder — see that file's own docstring for why) |
 | About | a short description paragraph | Wikipedia's REST summary API (see note below) — **new**, one dao function |
+| Male vs. female | plumage/size differences, if the article describes any | Wikipedia article body, "Description" section — see note below |
+| Migration | breeding/wintering pattern, in the article's own words | Wikipedia article body, "Distribution and habitat" / "Migration" section |
+| Habitat | where it's typically found | Wikipedia article body, same section as migration — often one combined section |
 | Your status | "Seen — first on 3 May 2024" or "Not seen yet", plus the pin toggle | our `life_list_entries` (derived) / `pinned_birds` — both already exist |
 
-Deliberately **not** in v1: a migration/range map. That needs eBird's
+Deliberately **not** in v1: a migration **map**. That needs eBird's
 *Status & Trends* product, which — confirmed while building
 [Plan a Trip](plan-a-trip.md)'s `region_for_point()` — is a separately
-gated product, not reachable with the regular API key. Not worth blocking
-this page on it; add it later if that access is ever obtained.
+gated product, not reachable with the regular API key. The three text rows
+above (migration/habitat/sex differences) are prose, not that — not worth
+blocking either on the other.
+
+!!! note "Why these three are prose, not structured fields"
+    There's no free, public, structured source for "male plumage vs. female
+    plumage" or "migration pattern" per species — Cornell's All About Birds /
+    Birds of the World has exactly that, as clean field-guide data, but
+    (same reasoning as the About block above) it's licensed content, not a
+    public API. What's actually buildable: pull more of the Wikipedia
+    article than just the one-paragraph summary — its full extract, via
+    `action=parse&prop=sections` — and look for section headings that match
+    known patterns (`description`, `distribution and habitat`, `migration`,
+    `behaviour`/`behavior`, case-insensitive substring match; most bird
+    articles on Wikipedia follow WikiProject Birds' fairly consistent
+    structure, but it's a real, not guaranteed, convention, not a schema).
+    Whichever sections match get stored as their own plain-text blocks.
+    This is honestly uneven — some species' articles say plenty about sexual
+    dimorphism, some say nothing at all (monomorphic species, or just a
+    thin article) — so the UI must treat a missing section as "not
+    mentioned," not an error, same as a null `about`.
 
 !!! note "Why Wikipedia instead of Cornell (All About Birds / Birds of the World)"
     The original plan for the About block was Cornell's own life-history
@@ -98,6 +120,7 @@ Endpoint details (auth, base URL, failure behavior) for eBird live on the
 | Photo | Wikimedia Commons, via the existing `bird_photos.py` | its own existing cache (`species_photo_cache.json`) — **not** duplicated into a new table |
 | Sound | Wikimedia Commons, via the existing `bird_audio.py` | its own existing in-memory cache — same reasoning |
 | About text | Wikipedia REST summary API | `species_content.about` (new, small cache table — see below) |
+| Sex differences / migration / habitat text | Wikipedia's `action=parse&prop=sections` (full article, section-matched — see note above) | `species_content.sex_differences` / `.migration` / `.habitat` (same table) |
 | "Seen / not seen" + pin state | our own data | `life_list_entries` (derived) / `pinned_birds` |
 
 ## 3. Database changes (SQL)
@@ -127,6 +150,10 @@ create table if not exists species_content (
                                           -- eBird-only code, is the one field every source reliably has)
     about            text,                -- Wikipedia summary extract; null is fine — UI falls back to taxonomy only
     about_source_url text,                -- the Wikipedia page, for the required outbound attribution link
+    sex_differences  text,                -- "Description" section text; null means the article didn't say (not an error)
+    migration        text,                -- "Distribution and habitat"/"Migration" section text; null is equally fine
+    habitat          text,                -- often the same source section as migration — stored separately since the
+                                          -- UI shows them as distinct blocks
     fetched_at       timestamptz not null default now()
 );
 ```
@@ -135,6 +162,7 @@ create table if not exists species_content (
 |---|---|
 | `scientific_name` | Primary key — same identity convention `pinned_birds` already established, so this page can be looked up from every entry point in §1 (several of which only ever have a scientific name on hand, not an eBird code). |
 | `about` / `about_source_url` | The Wikipedia extract and the page it came from (required for attribution and lets the UI link out to the full article). Null `about` just means the page shows taxonomy + photo/sound with no About block — not an error state. |
+| `sex_differences` / `migration` / `habitat` | Section-matched Wikipedia text (see §1's note above). Each is independently nullable — an article might cover habitat but say nothing about sexual dimorphism, and that's a normal outcome, not a fetch failure. |
 | `fetched_at` | Refresh when this is older than ~30 days (Wikipedia summaries change rarely, but not never). |
 | `species_*_trgm` indexes | Make `where common_name ilike '%heron%'` fast enough to run on every keystroke in the search box. |
 
@@ -164,15 +192,22 @@ lookup-by-code endpoint that half of its real callers can't use.
   "audio_url": "https://upload.wikimedia.org/...",
   "audio_attribution": "...",
   "about": "The black-capped chickadee is a small, non-migratory, North American songbird...",
-  "about_source_url": "https://en.wikipedia.org/wiki/Black-capped_chickadee"
+  "about_source_url": "https://en.wikipedia.org/wiki/Black-capped_chickadee",
+  "sex_differences": "The sexes look alike, though males average slightly larger...",
+  "migration": "Generally a non-migratory, year-round resident across its range...",
+  "habitat": "Found in deciduous and mixed forests, parks, and woodland edges..."
 }
 ```
+
+`sex_differences`/`migration`/`habitat` are each independently nullable in
+the real response — the example above shows all three present, but a
+species with a thin article may have `null` for one or more.
 
 ## 5. How the code is layered
 
 | Layer | File | Responsibility |
 |---|---|---|
-| `dao/` | `app/dao/wikipedia.py` (**new**) | `get_summary(title)` — the one genuinely new external call this feature needs |
+| `dao/` | `app/dao/wikipedia.py` (**new**) | `get_summary(title)` (About block) and `get_sections(title)` (sex differences/migration/habitat — fetches the full article, matches section headings per §1's note, returns whichever of the three it found) |
 | `dao/` | `app/dao/bird_photos.py`, `app/dao/bird_audio.py` (reuse, **no changes**) | already do exactly what the Photo/Sound blocks need |
 | `dao/` | `app/dao/species_repo.py` (**new**, small) | read/write `species_content`; look up a `species` row by `scientific_name` |
 | `services/` | `app/services/species.py` (extend) | assemble one profile: taxonomy (if known) + cached/fetched About + photo + audio + the caller's seen/pinned status |

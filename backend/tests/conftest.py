@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from app.dao.notification_repo import InMemoryNotificationRepo
 from app.dao.observation_repo import InMemoryObservationRepo
 from app.dao.pin_repo import InMemoryPinRepo
-from app.dao.species_repo import InMemorySpeciesContentRepo
+from app.dao.species_repo import InMemorySpeciesRepo
 from app.dao.user_repo import InMemoryUserRepo
 from app.main import app
 
@@ -23,10 +23,27 @@ def no_live_media_lookups(monkeypatch):
 
     monkeypatch.setattr("app.dao.commons.search_photo", _no_media)
     monkeypatch.setattr("app.dao.commons.search_audio", _no_media)
-    monkeypatch.setattr("app.dao.wikipedia.get_summary", _no_media)
     monkeypatch.setattr("app.dao.bird_photos._cache", {})
     monkeypatch.setattr("app.dao.bird_audio._cache", {})
-    monkeypatch.setattr("app.dao.species_repo.species_content_repo", InMemorySpeciesContentRepo())
+
+    async def _no_summary(title):
+        return None
+
+    async def _no_sections(title):
+        return {}
+
+    monkeypatch.setattr("app.dao.wikipedia.get_summary", _no_summary)
+    monkeypatch.setattr("app.dao.wikipedia.get_sections", _no_sections)
+    # Isolate species_repo too — any test not using the `client` fixture
+    # below (which resets this to its own fresh InMemorySpeciesRepo) would
+    # otherwise hit the real Postgres-backed repo, since DATABASE_URL is set
+    # in this repo's own .env. Both targets, same reason `client` patches
+    # both: `app/services/species.py` does `from app.dao.species_repo import
+    # species_repo` (a direct name import), so patching only the origin
+    # module's attribute wouldn't affect the name already bound in services.py.
+    fresh_species_repo = InMemorySpeciesRepo()
+    monkeypatch.setattr("app.dao.species_repo.species_repo", fresh_species_repo)
+    monkeypatch.setattr("app.services.species.species_repo", fresh_species_repo)
     # bird_photos' cache now writes through to a real file on disk (see its
     # module docstring) — tests exercise cache-miss paths constantly, which
     # would otherwise spam the real species_photo_cache.json with test
@@ -69,5 +86,8 @@ def client(monkeypatch):
     monkeypatch.setattr("app.dao.notification_repo.notification_repo", fresh_notifications)
     monkeypatch.setattr("app.services.pins.notification_repo", fresh_notifications)
     monkeypatch.setattr("app.services.notifications.notification_repo", fresh_notifications)
+    fresh_species = InMemorySpeciesRepo()
+    monkeypatch.setattr("app.dao.species_repo.species_repo", fresh_species)
+    monkeypatch.setattr("app.services.species.species_repo", fresh_species)
     with TestClient(app) as c:
         yield c

@@ -220,27 +220,44 @@ export function mount(container, props = {}) {
     const panel = container.querySelector('[data-role="hotspot-sighting-detail"]');
     if (panel) {
       panel.innerHTML = renderSightingDetail(sighting);
-      wireSightingDetailPhoto(panel);
+      wireSightingDetailPanel(panel);
     }
   }
 
-  // Click-to-enlarge on the sighting-detail photo — the full-size image
-  // doesn't fit at the detail card's fixed 240px-tall thumbnail crop, so
-  // this opens it full-screen instead. Same lightbox pattern as
-  // ExploreMap.js (its docstrings there cover the reasoning in full); kept
-  // self-contained here rather than extracted into a shared component since
-  // it's a handful of lines wired to this screen's own state either way.
-  function wireSightingDetailPhoto(panel) {
+  // Click-to-enlarge on the sighting-detail photo, plus the species-name
+  // link to the Bird Info page (docs/features/bird-info.md §1, row 4) —
+  // same lightbox pattern as ExploreMap.js (its docstrings there cover the
+  // reasoning in full); kept self-contained here rather than extracted into
+  // a shared component since it's a handful of lines wired to this screen's
+  // own state either way. ExploreMap.js wires this same shared
+  // SightingDetail.js component separately for its own detail panel.
+  function wireSightingDetailPanel(panel) {
     const photoEl = panel?.querySelector('[data-action="enlarge-photo"]');
-    if (!photoEl) return;
-    const open = () => enlargePhoto(photoEl.dataset.photoUrl);
-    photoEl.addEventListener('click', open);
-    photoEl.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        open();
-      }
-    });
+    if (photoEl) {
+      const open = () => enlargePhoto(photoEl.dataset.photoUrl);
+      photoEl.addEventListener('click', open);
+      photoEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          open();
+        }
+      });
+    }
+
+    const nameEl = panel?.querySelector('[data-action="view-profile"]');
+    if (nameEl && onNavigate) {
+      const openProfile = () => onNavigate('species-profile', {
+        scientificName: nameEl.dataset.profileScientificName,
+        commonName: nameEl.dataset.profileCommonName,
+      });
+      nameEl.addEventListener('click', openProfile);
+      nameEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openProfile();
+        }
+      });
+    }
   }
 
   function enlargePhoto(url) {
@@ -473,9 +490,14 @@ export function mount(container, props = {}) {
           ${likelySpecies.length === 0
             ? '<p class="ob-text-muted ob-text-sm">No research-grade iNaturalist sightings found for this area and time of year.</p>'
             : `
-              <div class="ob-grid" style="--ob-grid-min: 200px;">
+              <div class="ob-grid" data-role="likely-species-grid" style="--ob-grid-min: 200px;">
                 ${likelySpecies.map((sp) => `
-                  <div class="ob-card ob-card--flat">
+                  <div
+                    class="ob-card ob-card--flat"
+                    ${sp.species?.scientific_name
+                      ? `data-action="view-profile" data-profile-scientific-name="${escapeHtml(sp.species.scientific_name)}" data-profile-common-name="${escapeHtml(sp.species.common_name || '')}" role="button" tabindex="0" style="cursor:pointer;"`
+                      : ''}
+                  >
                     ${sp.photo_url
                       ? `<img src="${escapeHtml(sp.photo_url)}" alt="" style="width: 100%; height: 120px; object-fit: cover; border-radius: var(--ob-radius-sm); margin-bottom: var(--ob-space-2);" />`
                       : ''}
@@ -559,10 +581,35 @@ export function mount(container, props = {}) {
     });
     container.querySelector('[data-action="close-hotspot-map"]')?.addEventListener('click', () => closeHotspotMap());
 
-    wireSightingDetailPhoto(container.querySelector('[data-role="hotspot-sighting-detail"]'));
+    wireSightingDetailPanel(container.querySelector('[data-role="hotspot-sighting-detail"]'));
     wireLightbox(container.querySelector('[data-role="lightbox"]'));
 
     wireHotspotMap();
+    wireLikelySpeciesCards();
+  }
+
+  // "Birds you're likely to see" cards — open the Bird Info page
+  // (docs/features/bird-info.md §1, row 5). Nothing else claims a click on
+  // these cards today, so the whole card is the target, no stopPropagation
+  // needed (unlike MissingBird.js's card, which also holds a pin button).
+  // Scoped to this one grid, not a bare container-wide selector — the same
+  // `data-action="view-profile"` attribute also appears on the (separately
+  // wired) hotspot sighting-detail panel elsewhere on this screen.
+  function wireLikelySpeciesCards() {
+    if (!onNavigate) return;
+    container.querySelectorAll('[data-role="likely-species-grid"] [data-action="view-profile"]').forEach((el) => {
+      const open = () => onNavigate('species-profile', {
+        scientificName: el.dataset.profileScientificName,
+        commonName: el.dataset.profileCommonName,
+      });
+      el.addEventListener('click', open);
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          open();
+        }
+      });
+    });
   }
 
   function wireDestinationSuggestions() {

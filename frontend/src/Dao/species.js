@@ -9,11 +9,14 @@ export const speciesDAO = {
   // `app/services/species.py#get_stock_photos`.
   photos: (species) => apiClient.post('/species/photos', species),
 
-  // Full profile bundle (photo, audio, About text, habitat) — see
-  // `app/services/species.py#get_profile`. First real caller: Test Your
-  // Skill's post-answer reveal.
-  getProfile: (scientificName, commonName, family) => {
-    const params = new URLSearchParams({ scientific_name: scientificName, common_name: commonName });
+  // The Bird Info page's full profile — see docs/features/bird-info.md.
+  // `commonName`/`family` are optional overrides for a caller that already
+  // has them (Test Your Skill's reveal, straight from the question's own
+  // choices) and shouldn't depend on a taxonomy lookup that's often empty
+  // for a species outside this app's own logged history.
+  profile: (scientificName, { commonName, family } = {}) => {
+    const params = new URLSearchParams({ scientific_name: scientificName });
+    if (commonName) params.set('common_name', commonName);
     if (family) params.set('family', family);
     return apiClient.get(`/species/profile?${params.toString()}`);
   },

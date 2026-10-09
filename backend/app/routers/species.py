@@ -3,10 +3,33 @@
 import httpx
 from fastapi import APIRouter, HTTPException, Query
 
-from app.models.species import SpeciesPhoto, SpeciesRef
+from app.dao.wikipedia import WikipediaUnavailable
+from app.models.species import SpeciesPhoto, SpeciesProfile, SpeciesRef
 from app.services import species as species_service
 
 router = APIRouter(prefix="/species", tags=["species"])
+
+
+@router.get("/profile", response_model=SpeciesProfile)
+async def get_species_profile(
+    scientific_name: str = Query(min_length=1, description="e.g. 'Poecile atricapillus'"),
+    common_name: str | None = Query(default=None, description="Skips the taxonomy lookup when the caller already knows it"),
+    family: str | None = Query(default=None, description="Skips the taxonomy lookup when the caller already knows it"),
+):
+    """The Bird Info page — see docs/features/bird-info.md. Query-param, not
+    a path segment (`/species/{code}`), since most of this app's real entry
+    points only ever have a scientific name on hand, never an eBird code.
+
+    `common_name`/`family` are optional overrides for a caller that already
+    has them (Test Your Skill's reveal, straight from the question's own
+    choices) and shouldn't depend on this species being in our own `species`
+    table — most of the quiz's "world" pool is wider than what any user has
+    actually logged via eBird.
+    """
+    try:
+        return await species_service.get_profile(scientific_name, common_name, family)
+    except WikipediaUnavailable as exc:
+        raise HTTPException(status_code=502, detail=f"Wikipedia error: {exc}") from exc
 
 
 @router.get("/search", response_model=list[SpeciesRef])
@@ -27,18 +50,3 @@ async def get_species_photos(species: list[SpeciesRef]):
     itself.
     """
     return await species_service.get_stock_photos(species)
-
-
-@router.get("/profile")
-async def get_species_profile(
-    scientific_name: str = Query(),
-    common_name: str = Query(),
-    family: str | None = Query(default=None),
-):
-    """Photo + audio + About text + habitat for one species — see
-    docs/features/bird-info.md. First real caller: Test Your Skill's
-    post-answer reveal. Query-param, not `/species/{code}`, since most
-    callers only ever have a scientific name on hand, never an eBird code
-    (see bird-info.md's own note on this).
-    """
-    return await species_service.get_profile(scientific_name, common_name, family)
