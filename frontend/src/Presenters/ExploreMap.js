@@ -260,7 +260,14 @@ export function mount(container, props = {}) {
         lng: state.lng,
         radiusKm: state.radiusKm,
         daysBack: state.daysBack,
-        source: state.source,
+        // "Only my sightings" can only ever match a manual (OnlyBirds-
+        // logged) sighting — eBird/iNaturalist results never carry a
+        // user_id at all, so filteredSightings()'s `s.user_id !== userId`
+        // check always excludes every one of them regardless of the
+        // `source` dropdown. Requesting `source: 'all'` (or 'ebird'/'inat')
+        // while this is checked used to fetch both live external APIs just
+        // to throw every result away client-side — skip them outright.
+        source: state.mineOnly ? 'manual' : state.source,
       });
     } catch (err) {
       state.error = err.message || 'Could not load sightings for this area.';
@@ -427,9 +434,12 @@ export function mount(container, props = {}) {
   // a checkbox toggle shouldn't remount the whole Leaflet map either.
   function toggleMineOnly(checked) {
     state.mineOnly = checked;
-    mapController?.setSightings(filteredSightings());
-    updateStatusLineDom();
-    updateRegionSummaryDom();
+    // Turning this on/off changes which `source` loadSightings() actually
+    // requests (see its own comment) — a plain client-side re-filter isn't
+    // enough: turning it on means eBird/iNat were never fetched to begin
+    // with (nothing to filter, not just nothing shown), and turning it back
+    // off means those need fetching now, not just un-hiding.
+    loadSightings();
   }
 
   function togglePhotosOnly(checked) {

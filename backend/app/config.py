@@ -15,6 +15,15 @@ class Settings(BaseSettings):
     ebird_base_url: str = "https://api.ebird.org/v2"
     inat_base_url: str = "https://api.inaturalist.org/v1"
     http_timeout_seconds: float = 15.0
+    # Shorter than the general timeout above — Wikipedia's REST/action API
+    # normally responds in well under a second, and `_get_or_fetch_content()`
+    # (app/services/species.py) can call into this module up to three times
+    # sequentially for one profile (summary by common name, summary fallback
+    # by scientific name, then sections) — at the general 15s timeout, one
+    # stalled profile fetch could block a Test Your Skill reveal panel for
+    # up to ~45s. A real, legitimately slow (not hung/rate-limited) response
+    # this fast an API is unlikely enough that a tighter bound is worth it.
+    wikipedia_timeout_seconds: float = 5.0
 
     # CORS — comma-separated in the environment, list in code. Both
     # `localhost` and `127.0.0.1` for each dev port: browsers treat them as

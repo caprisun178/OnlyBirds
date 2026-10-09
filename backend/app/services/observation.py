@@ -39,9 +39,10 @@ async def get_observation(observation_id: str) -> Observation | None:
     return await observation_repo.get(observation_id)
 
 
-async def list_observations(user_id: str) -> list[Observation]:
-    """Newest first."""
-    rows = await observation_repo.list_for_user(user_id)
+async def list_observations(user_id: str, scientific_name: str | None = None) -> list[Observation]:
+    """Newest first. `scientific_name` scopes this to one species — see
+    `observation_repo.py#list_for_user`'s own note."""
+    rows = await observation_repo.list_for_user(user_id, scientific_name)
     return sorted(rows, key=lambda o: o.observed_at, reverse=True)
 
 

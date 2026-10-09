@@ -54,7 +54,7 @@ def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
 class ObservationRepo(Protocol):
     async def add(self, payload: ObservationCreate) -> Observation: ...
     async def get(self, observation_id: str) -> Observation | None: ...
-    async def list_for_user(self, user_id: str) -> list[Observation]: ...
+    async def list_for_user(self, user_id: str, scientific_name: str | None = None) -> list[Observation]: ...
     async def update(self, observation_id: str, payload: ObservationUpdate) -> Observation | None: ...
     async def list_near(self, lat: float, lng: float, radius_km: float, since: datetime) -> list[Observation]: ...
 
@@ -89,8 +89,13 @@ class InMemoryObservationRepo:
     async def get(self, observation_id: str) -> Observation | None:
         return self._by_id.get(observation_id)
 
-    async def list_for_user(self, user_id: str) -> list[Observation]:
-        return [o for o in self._by_id.values() if o.user_id == user_id]
+    async def list_for_user(self, user_id: str, scientific_name: str | None = None) -> list[Observation]:
+        return [
+            o
+            for o in self._by_id.values()
+            if o.user_id == user_id
+            and (scientific_name is None or o.species.scientific_name == scientific_name)
+        ]
 
     async def update(self, observation_id: str, payload: ObservationUpdate) -> Observation | None:
         existing = self._by_id.get(observation_id)
@@ -121,8 +126,8 @@ class PostgresObservationRepo:
     async def get(self, observation_id: str) -> Observation | None:
         return await asyncio.to_thread(self._get_sync, observation_id)
 
-    async def list_for_user(self, user_id: str) -> list[Observation]:
-        return await asyncio.to_thread(self._list_for_user_sync, user_id)
+    async def list_for_user(self, user_id: str, scientific_name: str | None = None) -> list[Observation]:
+        return await asyncio.to_thread(self._list_for_user_sync, user_id, scientific_name)
 
     async def update(self, observation_id: str, payload: ObservationUpdate) -> Observation | None:
         return await asyncio.to_thread(self._update_sync, observation_id, payload)
@@ -245,7 +250,7 @@ class PostgresObservationRepo:
 
         return self._row_to_observation(row) if row else None
 
-    def _list_for_user_sync(self, user_id: str) -> list[Observation]:
+    def _list_for_user_sync(self, user_id: str, scientific_name: str | None = None) -> list[Observation]:
         pool = get_pool()
         with pool.connection() as conn:
             with conn.cursor(row_factory=dict_row) as cur:
@@ -254,16 +259,28 @@ class PostgresObservationRepo:
                 if user_row is None:
                     return []  # never logged anything — no point querying observations
 
+                # `scientific_name` scopes this to one species — e.g. Life
+                # List's "view this species' own log" entry point — so a
+                # prolific user's entire history doesn't have to cross the
+                # wire just to show a handful of rows for one bird (see
+                # frontend/src/Presenters/ObservationList.js).
+                params = [user_id, user_row["id"]]
+                species_filter = ""
+                if scientific_name is not None:
+                    species_filter = "and s.scientific_name = %s"
+                    params.append(scientific_name)
+
                 cur.execute(
-                    """
+                    f"""
                     select o.*, %s as user_auth_id,
                            s.scientific_name as species_scientific_name,
                            s.common_name as species_common_name
                     from observations o
                     left join species s on s.id = o.species_id
                     where o.user_id = %s
+                    {species_filter}
                     """,
-                    (user_id, user_row["id"]),
+                    params,
                 )
                 rows = cur.fetchall()
 

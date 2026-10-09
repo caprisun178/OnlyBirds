@@ -68,7 +68,7 @@ async def _fetch_summary(title: str) -> dict | None:
     settings = get_settings()
     url = f"{_REST_BASE}/page/summary/{httpx.URL(title).path or title}"
     try:
-        async with httpx.AsyncClient(timeout=settings.http_timeout_seconds, headers=_HEADERS) as client:
+        async with httpx.AsyncClient(timeout=settings.wikipedia_timeout_seconds, headers=_HEADERS) as client:
             resp = await client.get(url)
         if resp.status_code == 404:
             return None
@@ -98,7 +98,7 @@ async def get_sections(title: str) -> dict[str, str]:
     """
     settings = get_settings()
     try:
-        async with httpx.AsyncClient(timeout=settings.http_timeout_seconds, headers=_HEADERS) as client:
+        async with httpx.AsyncClient(timeout=settings.wikipedia_timeout_seconds, headers=_HEADERS) as client:
             sections_resp = await client.get(
                 _ACTION_API,
                 params={"action": "parse", "page": title, "prop": "sections", "format": "json"},
