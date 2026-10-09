@@ -5,6 +5,8 @@ back to each external API (iNaturalist `taxon_id`, eBird `species_code`) so the
 same real-world species coming from either source resolves to one entry.
 """
 
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 
@@ -29,3 +31,39 @@ class SpeciesPhoto(BaseModel):
     scientific_name: str
     photo_url: str
     photo_attribution: str | None = None
+
+
+class SpeciesContent(BaseModel):
+    """Cached Wikipedia-sourced text — mirrors the `species_content` table
+    (migrations/0006_species_content.sql). See docs/features/bird-info.md.
+    """
+
+    scientific_name: str
+    about: str | None = None
+    about_source_url: str | None = None
+    sex_differences: str | None = None
+    migration: str | None = None
+    habitat: str | None = None
+    fetched_at: datetime | None = None
+
+
+class SpeciesProfile(BaseModel):
+    """The Bird Info page's full response (`GET /species/profile`) — see
+    docs/features/bird-info.md. `common_name`/`family` are `None` when the
+    species isn't in our own `species` table yet (e.g. an iNaturalist-only
+    species never logged via eBird) — that's a normal outcome, not an error;
+    the page just shows less of a header.
+    """
+
+    scientific_name: str
+    common_name: str | None = None
+    family: str | None = None
+    photo_url: str
+    photo_attribution: str | None = None
+    audio_url: str | None = None
+    audio_attribution: str | None = None
+    about: str | None = None
+    about_source_url: str | None = None
+    sex_differences: str | None = None
+    migration: str | None = None
+    habitat: str | None = None

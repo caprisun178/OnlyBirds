@@ -14,6 +14,7 @@ import { renderSpeciesCard } from '../Components/SpeciesCard.js';
 import { renderMissingBird } from '../Components/MissingBird.js';
 import { renderProgressBar } from '../Components/ProgressBar.js';
 import { escapeHtml } from '../Components/htmlUtils.js';
+import { mount as mountObservationList } from './ObservationList.js';
 
 // Default view shows only the top DEFAULT_LIMIT species (taxonomic order,
 // i.e. eBird's own regional frequency ordering) rather than the whole
@@ -29,6 +30,7 @@ export function mount(container, props = {}) {
   const state = {
     loading: true,
     error: null,
+    activeTab: 'checklist', // 'checklist' | 'observations' — see renderTabs()
     view: 'grid', // 'grid' | 'list'
     sort: 'taxonomic', // 'taxonomic' | 'recent' | 'alphabetical'
     limit: DEFAULT_LIMIT, // how many of the (already-filtered) species are visible; grows via "Show more"
@@ -153,15 +155,44 @@ export function mount(container, props = {}) {
       <div class="ob-container ob-stack">
         ${onNavigate ? '<button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="back-to-home" style="align-self:flex-start;">← Back to home</button>' : ''}
         <h1>Life List</h1>
-        ${state.error ? `<div class="ob-alert ob-alert--danger">${escapeHtml(state.error)}</div>` : ''}
-        ${state.pinError ? `<div class="ob-alert ob-alert--danger">${escapeHtml(state.pinError)}</div>` : ''}
-        ${state.loading ? renderLoading() : renderLoaded()}
+        ${renderTabs()}
+        ${state.activeTab === 'checklist' ? `
+          ${state.error ? `<div class="ob-alert ob-alert--danger">${escapeHtml(state.error)}</div>` : ''}
+          ${state.pinError ? `<div class="ob-alert ob-alert--danger">${escapeHtml(state.pinError)}</div>` : ''}
+          ${state.loading ? renderLoading() : renderLoaded()}
+        ` : '<div data-role="observations-tab"></div>'}
       </div>
     `;
     if (onNavigate) {
       container.querySelector('[data-action="back-to-home"]').addEventListener('click', () => onNavigate('home'));
     }
     wire();
+
+    // ObservationList owns its own fetch/state/re-renders from here on,
+    // entirely independent of this presenter's render() — same "mount a
+    // sub-container, let it run itself" pattern Home.js uses for ExploreMap.
+    // Unlike Home, this presenter's render() *does* get called again after
+    // mount (loadPins()/loadQuickStates() resolving in the background), so
+    // this remounts ObservationList fresh each time — a real tradeoff (an
+    // in-progress edit there would be lost if one of those resolves at an
+    // unlucky moment), accepted because that window is brief (one-time,
+    // right after initial load) and the alternative (teaching this
+    // presenter targeted DOM patches everywhere, like Home.js's bell) is a
+    // bigger refactor than this feature needs.
+    if (state.activeTab === 'observations') {
+      mountObservationList(container.querySelector('[data-role="observations-tab"]'), {
+        userId, embedded: true, onNavigate,
+      });
+    }
+  }
+
+  function renderTabs() {
+    return `
+      <div class="ob-cluster" role="tablist" aria-label="Life List sections">
+        <button type="button" class="ob-btn ${state.activeTab === 'checklist' ? 'ob-btn--primary' : 'ob-btn--ghost'}" role="tab" aria-selected="${state.activeTab === 'checklist'}" data-tab="checklist">Checklist</button>
+        <button type="button" class="ob-btn ${state.activeTab === 'observations' ? 'ob-btn--primary' : 'ob-btn--ghost'}" role="tab" aria-selected="${state.activeTab === 'observations'}" data-tab="observations">My Observations</button>
+      </div>
+    `;
   }
 
   function renderLoading() {
@@ -324,6 +355,14 @@ export function mount(container, props = {}) {
   // ---- Wiring -------------------------------------------------------------
 
   function wire() {
+    container.querySelectorAll('[data-tab]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (state.activeTab === btn.dataset.tab) return;
+        state.activeTab = btn.dataset.tab;
+        render();
+      });
+    });
+
     const toggleBtn = container.querySelector('[data-action="toggle-picker"]');
     if (toggleBtn) {
       toggleBtn.addEventListener('click', () => {
@@ -374,18 +413,47 @@ export function mount(container, props = {}) {
     wireSpeciesCards();
     wireRegionPicker();
     wirePinButtons();
+    wireMissingBirdProfileCards();
   }
 
   function wirePinButtons() {
     container.querySelectorAll('[data-action="toggle-pin"]').forEach((btn) => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
+        // The whole MissingBird card is now its own click target (Bird
+        // Info — see wireMissingBirdProfileCards() below); without this,
+        // clicking "Pin" would bubble up and also open the profile page.
+        e.stopPropagation();
         togglePin(btn.dataset.pinScientificName, btn.dataset.pinCommonName);
       });
     });
   }
 
+  // MissingBird.js's whole card (not seen yet) opens the Bird Info page —
+  // docs/features/bird-info.md §1, row 2. `data-profile-scientific-name` is
+  // its own attribute, distinct from `data-scientific-name` (seen cards,
+  // just below) and `data-pin-scientific-name` (the pin button inside this
+  // same card) — see that component's own comment for why reusing either
+  // of those names here would double-wire the click.
+  function wireMissingBirdProfileCards() {
+    if (!onNavigate) return;
+    container.querySelectorAll('[data-profile-scientific-name]').forEach((el) => {
+      const open = () => onNavigate('species-profile', {
+        scientificName: el.dataset.profileScientificName,
+        commonName: el.dataset.profileCommonName,
+      });
+      el.addEventListener('click', open);
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          open();
+        }
+      });
+    });
+  }
+
   // Seen-species cards open that species' observation log. Missing-bird
-  // placeholders aren't clickable yet (see Components/MissingBird.js).
+  // placeholders aren't clickable here — they open the Bird Info page
+  // instead (wireMissingBirdProfileCards() above).
   function wireSpeciesCards() {
     if (!onNavigate) return;
     container.querySelectorAll('[data-scientific-name]').forEach((el) => {
@@ -403,6 +471,31 @@ export function mount(container, props = {}) {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           open();
+        }
+      });
+    });
+    wireSpeciesNameProfileLinks();
+  }
+
+  // The species name inside a seen card is its own, separate click target
+  // (Bird Info — docs/features/bird-info.md §1, row 1) — `stopPropagation()`
+  // so clicking the name doesn't *also* fire the whole card's
+  // navigate-to-observation-log handler wired just above.
+  function wireSpeciesNameProfileLinks() {
+    if (!onNavigate) return;
+    container.querySelectorAll('[data-action="view-profile"]').forEach((el) => {
+      const open = (e) => {
+        e.stopPropagation();
+        onNavigate('species-profile', {
+          scientificName: el.dataset.profileScientificName,
+          commonName: el.dataset.profileCommonName,
+        });
+      };
+      el.addEventListener('click', open);
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          open(e);
         }
       });
     });

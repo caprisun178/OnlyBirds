@@ -6,7 +6,7 @@ set instead of calling a real CV/LLM service. These models are shaped so that
 DAO can be swapped out later without touching the service or router layer.
 """
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -26,6 +26,14 @@ class IdentifyRequest(BaseModel):
     text: str = Field(min_length=1)
     hints: IdentifyHints | None = None
     sense: Sense = "sight"  # "saw it" vs "heard it" — decides which media the candidates carry
+    # All three optional and all-or-nothing in practice (lat/lng without a
+    # date, or vice versa, just means the regional reorder below is skipped
+    # — see app/services/identify.py#_regional_species_codes()). Lets the
+    # candidate list be reordered toward what's regionally plausible instead
+    # of ranking on text/visual similarity alone.
+    lat: float | None = None
+    lng: float | None = None
+    observed_at: date | None = None
 
 
 class Candidate(BaseModel):
@@ -41,7 +49,7 @@ class Candidate(BaseModel):
 
 class IdentifyResponse(BaseModel):
     identification_id: str
-    method: Literal["describe"] = "describe"
+    method: Literal["describe", "photo"] = "describe"
     sense: Sense = "sight"
     candidates: list[Candidate]
 
@@ -63,7 +71,7 @@ class Identification(BaseModel):
     """Persisted record — mirrors the `identifications` table in database.md."""
 
     id: str
-    method: Literal["describe"] = "describe"
+    method: Literal["describe", "photo"] = "describe"
     sense: Sense = "sight"
     input: dict = Field(default_factory=dict)
     candidates: list[Candidate] = Field(default_factory=list)
