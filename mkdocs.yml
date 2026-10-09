@@ -36,6 +36,8 @@ markdown_extensions:
   - pymdownx.superfences
   - pymdownx.tabbed:
       alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
 
 nav:
   - Set up & test your changes: setup-and-test.md
@@ -58,8 +60,12 @@ nav:
       - Test your skill: features/test-your-skill.md
       - Community: features/community.md
       - Competitions: features/competitions.md
+      - Seeded sighting data: features/data-seeding.md
       - Progressive Web App: features/pwa.md
   - Backend API: backend.md
   - eBird API: ebird-api.md
   - Deployment: deployment.md
+  - Production environment (self-hosted proposal): production-environment.md
+  - Production on AWS / other cloud (alternative): production-environment-cloud.md
+  - External services & API risk: external-services.md
   - Contributing: contributing.md

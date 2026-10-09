@@ -1,6 +1,8 @@
 # Deployment
 
-How Only Birds is hosted, and how to stand up your own copy. The stack is chosen
+How Only Birds is hosted today (the dev environment), and how to stand up
+your own copy. The planned self-hosted production setup is proposed in
+[Production environment](production-environment.md). The stack is chosen
 to be **managed** — no servers to patch, no Docker to learn.
 
 | Concern | Service | Notes |
