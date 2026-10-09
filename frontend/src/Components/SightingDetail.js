@@ -29,7 +29,7 @@ export function renderSightingDetail(sighting) {
           data-photo-url="${escapeHtml(sighting.photo_url)}"
           role="button"
           tabindex="0"
-          style="width:100%;height:240px;object-fit:cover;border-radius:var(--ob-radius-md);margin-bottom:var(--ob-space-2);cursor:zoom-in;"
+          style="width:100%;height:240px;object-fit:contain;background:var(--ob-color-surface-alt);border-radius:var(--ob-radius-md);margin-bottom:var(--ob-space-2);cursor:zoom-in;"
         />`
       : ''}
     <h3 class="ob-card__title" style="margin-bottom:0;">${escapeHtml(name)}</h3>

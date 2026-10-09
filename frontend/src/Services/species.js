@@ -21,4 +21,8 @@ export const speciesService = {
     const photos = await speciesDAO.photos(payload);
     return new Map(photos.map((p) => [p.scientific_name, p.photo_url]));
   },
+
+  async getProfile(scientificName, commonName, family) {
+    return speciesDAO.getProfile(scientificName, commonName, family);
+  },
 };

@@ -87,6 +87,36 @@ def test_get_question_audio_mode_returns_real_media(monkeypatch):
     assert question["photo_url"] is None
 
 
+def test_get_question_includes_the_correct_species_family(monkeypatch):
+    monkeypatch.setattr(quiz.bird_photos, "get_stock_photo", _real_photo())
+
+    question = asyncio.run(quiz.get_question("photo"))
+
+    assert question["correct_family"] == "Crows, Jays, and Magpies"  # Blue Jay, first in fixed order
+
+
+def test_get_question_skips_a_flagged_photo_and_retries(monkeypatch):
+    # Real, reported bug: a Seaside Sparrow question showed a range map —
+    # Commons had *something* (so `attribution` wasn't None, the old skip
+    # condition), it just wasn't a photo of the bird. `flagged` is how
+    # bird_photos/commons report that; a photo quiz must reject it, not just
+    # "no media at all" — see _real_media()'s own docstring.
+    calls = []
+
+    async def fake(scientific_name, common_name):
+        calls.append(scientific_name)
+        if scientific_name == "Corvus brachyrhynchos":  # 3rd in CHECKLIST's fixed order
+            return {"photo_url": "https://upload.wikimedia.org/real.jpg", "attribution": "Real / Commons", "flagged": False}
+        return {"photo_url": "https://upload.wikimedia.org/a-map.jpg", "attribution": "Someone / Commons", "flagged": True}
+
+    monkeypatch.setattr(quiz.bird_photos, "get_stock_photo", fake)
+
+    question = asyncio.run(quiz.get_question("photo"))
+
+    assert question["correct_scientific_name"] == "Corvus brachyrhynchos"
+    assert calls[:2] == ["Cyanocitta cristata", "Cyanocitta stelleri"]
+
+
 def test_get_question_skips_a_placeholder_photo_and_retries(monkeypatch):
     calls = []
 
@@ -207,6 +237,41 @@ def test_quiz_question_endpoint_503_without_an_ebird_key(client, monkeypatch):
     resp = client.get("/quiz/question", params={"mode": "photo"})
 
     assert resp.status_code == 503
+
+
+def test_get_another_photo_delegates_to_bird_photos(monkeypatch):
+    async def fake_get_different(scientific_name, common_name, exclude_photo_url):
+        assert scientific_name == "Ammodramus maritimus"
+        assert common_name == "Seaside Sparrow"
+        assert exclude_photo_url == "https://upload.wikimedia.org/the-map.jpg"
+        return {"photo_url": "https://upload.wikimedia.org/a-real-photo.jpg", "attribution": "Jane Birder / Commons", "flagged": False, "changed": True}
+
+    monkeypatch.setattr(quiz.bird_photos, "get_different_stock_photo", fake_get_different)
+
+    result = asyncio.run(
+        quiz.get_another_photo("Ammodramus maritimus", "Seaside Sparrow", "https://upload.wikimedia.org/the-map.jpg")
+    )
+    assert result["changed"] is True
+    assert result["photo_url"] == "https://upload.wikimedia.org/a-real-photo.jpg"
+
+
+def test_quiz_another_photo_endpoint(client, monkeypatch):
+    async def fake_get_different(scientific_name, common_name, exclude_photo_url):
+        return {"photo_url": "https://upload.wikimedia.org/different.jpg", "attribution": "Someone / Commons", "flagged": False, "changed": True}
+
+    monkeypatch.setattr(quiz.bird_photos, "get_different_stock_photo", fake_get_different)
+
+    resp = client.get(
+        "/quiz/another-photo",
+        params={
+            "scientific_name": "Ammodramus maritimus",
+            "common_name": "Seaside Sparrow",
+            "exclude_photo_url": "https://upload.wikimedia.org/the-map.jpg",
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["photo_url"] == "https://upload.wikimedia.org/different.jpg"
+    assert resp.json()["changed"] is True
 
 
 def test_quiz_filters_endpoint(client):

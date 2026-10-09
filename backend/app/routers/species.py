@@ -27,3 +27,18 @@ async def get_species_photos(species: list[SpeciesRef]):
     itself.
     """
     return await species_service.get_stock_photos(species)
+
+
+@router.get("/profile")
+async def get_species_profile(
+    scientific_name: str = Query(),
+    common_name: str = Query(),
+    family: str | None = Query(default=None),
+):
+    """Photo + audio + About text + habitat for one species — see
+    docs/features/bird-info.md. First real caller: Test Your Skill's
+    post-answer reveal. Query-param, not `/species/{code}`, since most
+    callers only ever have a scientific name on hand, never an eBird code
+    (see bird-info.md's own note on this).
+    """
+    return await species_service.get_profile(scientific_name, common_name, family)

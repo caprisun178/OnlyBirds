@@ -23,6 +23,7 @@
 // full ~10,800-species eBird taxonomy.
 
 import { quizService } from '../Services/quiz.js';
+import { speciesService } from '../Services/species.js';
 import { escapeHtml } from '../Components/htmlUtils.js';
 
 export function mount(container, props = {}) {
@@ -32,9 +33,16 @@ export function mount(container, props = {}) {
     mode: 'photo', // 'photo' | 'audio'
     loading: true,
     error: null,
-    question: null, // { mode, photo_url, audio_url, attribution, choices, correct_scientific_name }
+    question: null, // { mode, photo_url, audio_url, attribution, choices, correct_scientific_name, correct_family }
     selectedAnswer: null, // the scientific_name picked, or null before answering
     revealed: false,
+    // Full species profile(s) for the reveal — always the correct species;
+    // also the picked species when wrong, for the two-panel "here's what you
+    // picked vs. what it actually was" comparison. `null` until loaded, then
+    // `{ correct, incorrect }` (`incorrect` stays `null` on a correct
+    // answer — a right answer only needs the one panel).
+    revealProfiles: null,
+    revealLoading: false,
     // Cumulative across mode/filter changes and across "Next question" —
     // deliberately not reset by any of those, since this is "how good am I
     // at birds this session," not a separate tally per setting. Reset to
@@ -42,6 +50,14 @@ export function mount(container, props = {}) {
     // "nothing is persisted" by construction.
     score: 0,
     totalAnswered: 0,
+
+    // "Try another photo" — same question, a different reference image.
+    // Real report that motivated this: a Seaside Sparrow question showed a
+    // range map instead of a bird. Available any time there's a photo
+    // question (not just after revealing), since the whole point is letting
+    // someone move past a bad image *before* they have to guess from it.
+    photoSwapping: false,
+    photoSwapNotice: null,
 
     // "Type" filter — a taxonomic family, or null for "Any type."
     regionCode: 'world',
@@ -92,6 +108,9 @@ export function mount(container, props = {}) {
     state.question = null;
     state.selectedAnswer = null;
     state.revealed = false;
+    state.photoSwapNotice = null;
+    state.revealProfiles = null;
+    state.revealLoading = false;
     render();
     try {
       state.question = await quizService.getQuestion(state.mode, {
@@ -148,6 +167,52 @@ export function mount(container, props = {}) {
       state.score += 1;
     }
     render();
+    loadRevealProfiles();
+  }
+
+  async function loadRevealProfiles() {
+    const q = state.question;
+    const correctChoice = q.choices.find((c) => c.scientific_name === q.correct_scientific_name);
+    const wasCorrect = state.selectedAnswer === q.correct_scientific_name;
+    const pickedChoice = wasCorrect ? null : q.choices.find((c) => c.scientific_name === state.selectedAnswer);
+
+    state.revealLoading = true;
+    render();
+    try {
+      const [correct, incorrect] = await Promise.all([
+        speciesService.getProfile(correctChoice.scientific_name, correctChoice.common_name, q.correct_family),
+        pickedChoice ? speciesService.getProfile(pickedChoice.scientific_name, pickedChoice.common_name) : Promise.resolve(null),
+      ]);
+      state.revealProfiles = { correct, incorrect };
+    } catch (err) {
+      state.revealProfiles = null; // the plain correct/incorrect line above still shows either way
+    } finally {
+      state.revealLoading = false;
+      render();
+    }
+  }
+
+  async function tryAnotherPhoto() {
+    if (!state.question || state.mode !== 'photo' || state.photoSwapping) return;
+    const q = state.question;
+    const correctCommonName = q.choices.find((c) => c.scientific_name === q.correct_scientific_name)?.common_name || '';
+    state.photoSwapping = true;
+    state.photoSwapNotice = null;
+    render();
+    try {
+      const result = await quizService.getAnotherPhoto(q.correct_scientific_name, correctCommonName, q.photo_url);
+      if (result.changed) {
+        q.photo_url = result.photo_url;
+        q.attribution = result.attribution;
+      } else {
+        state.photoSwapNotice = 'No other photo of this species is available right now.';
+      }
+    } catch (err) {
+      state.photoSwapNotice = 'Could not load another photo — try again in a moment.';
+    } finally {
+      state.photoSwapping = false;
+      render();
+    }
   }
 
   // ---- Region picker (mirrors LifeList.js's own cascading picker) --------
@@ -334,23 +399,95 @@ export function mount(container, props = {}) {
           ? `<img src="${escapeHtml(q.photo_url)}" alt="Guess this bird" style="display:block; width:100%; height:360px; object-fit:contain; background:var(--ob-color-surface-alt); border-radius:var(--ob-radius-md);" />`
           : `<div class="ob-text-center" style="padding: var(--ob-space-5) 0;"><audio controls src="${escapeHtml(q.audio_url)}" style="width:100%; max-width:360px;"></audio></div>`}
 
+        ${q.mode === 'photo'
+          ? `
+            <div class="ob-cluster" style="align-items: center; gap: var(--ob-space-2);">
+              <button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="try-another-photo" ${state.photoSwapping ? 'disabled' : ''}>
+                ${state.photoSwapping ? 'Loading another photo…' : 'Not a clear photo? Try another'}
+              </button>
+              ${state.photoSwapNotice ? `<span class="ob-text-sm ob-text-muted">${escapeHtml(state.photoSwapNotice)}</span>` : ''}
+            </div>
+          `
+          : ''}
+
         <div class="ob-grid" style="--ob-grid-min: 160px;">
           ${q.choices.map((c) => renderChoice(c)).join('')}
         </div>
 
-        ${state.revealed
+        ${state.revealed ? renderReveal() : ''}
+      </div>
+    `;
+  }
+
+  function renderReveal() {
+    const q = state.question;
+    const wasCorrect = state.selectedAnswer === q.correct_scientific_name;
+    return `
+      <div class="ob-stack" style="gap: var(--ob-space-3);">
+        <div class="ob-cluster" style="justify-content: space-between; align-items: center;">
+          <p class="ob-text-sm" style="margin: 0;">
+            ${wasCorrect ? '<strong>Correct!</strong>' : '<strong>Not quite.</strong>'}
+          </p>
+          <button type="button" class="ob-btn ob-btn--primary ob-btn--sm" data-action="next-question">Next question</button>
+        </div>
+        ${state.revealLoading ? renderLoading() : renderRevealProfiles(wasCorrect)}
+      </div>
+    `;
+  }
+
+  // One full profile when the answer was right — nothing to compare against.
+  // Two side-by-side panels when it was wrong: "Your answer" first, then
+  // "Correct answer" (per the order this was asked for) — same full profile
+  // shape either way, image + call included for both sight and ear quizzes,
+  // not just whichever medium the question itself used, so a miss on either
+  // mode gives the full picture to learn from.
+  function renderRevealProfiles(wasCorrect) {
+    if (!state.revealProfiles) return '';
+    if (wasCorrect) {
+      return renderProfilePanel(state.revealProfiles.correct, 'About this species');
+    }
+    return `
+      <div class="ob-grid" style="--ob-grid-min: 260px;">
+        ${renderProfilePanel(state.revealProfiles.incorrect, 'Your answer')}
+        ${renderProfilePanel(state.revealProfiles.correct, 'Correct answer')}
+      </div>
+    `;
+  }
+
+  function renderProfilePanel(profile, headingLabel) {
+    if (!profile) return '';
+    const habitat = profile.habitat && profile.habitat.length
+      ? profile.habitat.map((h) => h.charAt(0).toUpperCase() + h.slice(1)).join(', ')
+      : null;
+    // Both the correct and incorrect choices for this question came from the
+    // same regional checklist the quiz is currently filtered to (see
+    // quiz.py's `_filtered_pool()`) — so "recorded in {region}" is true for
+    // either panel's species whenever a specific region is active. Not shown
+    // for "Anywhere" (region_code "world"): true of literally every species,
+    // so it wouldn't tell anyone anything.
+    const regionNote = state.regionCode !== 'world' ? state.regionLabel : null;
+    return `
+      <div class="ob-card ob-card--flat ob-stack" style="gap: var(--ob-space-2);">
+        <p class="ob-text-sm ob-text-muted" style="margin: 0; text-transform: uppercase; letter-spacing: 0.03em;">${escapeHtml(headingLabel)}</p>
+        <img src="${escapeHtml(profile.photo_url)}" alt="${escapeHtml(profile.common_name)}" style="display:block; width:100%; height:180px; object-fit:cover; border-radius:var(--ob-radius-md); background:var(--ob-color-surface-alt);" />
+        <div>
+          <p style="margin: 0;"><strong>${escapeHtml(profile.common_name)}</strong> <em class="ob-text-muted">${escapeHtml(profile.scientific_name)}</em></p>
+          ${profile.family ? `<p class="ob-text-sm ob-text-muted" style="margin: 0;">${escapeHtml(profile.family)}</p>` : ''}
+        </div>
+        ${habitat ? `<p class="ob-text-sm" style="margin: 0;"><strong>Habitat:</strong> ${escapeHtml(habitat)}</p>` : ''}
+        ${regionNote ? `<p class="ob-text-sm" style="margin: 0;"><strong>Recorded in:</strong> ${escapeHtml(regionNote)}</p>` : ''}
+        ${profile.about ? `<p class="ob-text-sm" style="margin: 0;">${escapeHtml(profile.about)}</p>` : ''}
+        ${profile.about_source_url ? `<a href="${escapeHtml(profile.about_source_url)}" target="_blank" rel="noopener noreferrer" class="ob-text-sm">Read more on Wikipedia</a>` : ''}
+        ${profile.audio_url
           ? `
-            <div class="ob-cluster" style="justify-content: space-between; align-items: center;">
-              <p class="ob-text-sm" style="margin: 0;">
-                ${state.selectedAnswer === q.correct_scientific_name
-                  ? '<strong>Correct!</strong>'
-                  : `<strong>Not quite.</strong> It was the ${escapeHtml(q.choices.find((c) => c.scientific_name === q.correct_scientific_name)?.common_name || '')}.`}
-                ${q.attribution ? `<span class="ob-text-muted"> — ${escapeHtml(q.attribution)}</span>` : ''}
-              </p>
-              <button type="button" class="ob-btn ob-btn--primary ob-btn--sm" data-action="next-question">Next question</button>
+            <div>
+              <p class="ob-text-sm" style="margin: 0 0 4px;"><strong>Call:</strong></p>
+              <audio controls src="${escapeHtml(profile.audio_url)}" style="width: 100%;"></audio>
+              ${profile.audio_attribution ? `<p class="ob-text-sm ob-text-muted" style="margin: 4px 0 0;">${escapeHtml(profile.audio_attribution)}</p>` : ''}
             </div>
           `
-          : ''}
+          : '<p class="ob-text-sm ob-text-muted" style="margin: 0;">No recording available for this species.</p>'}
+        ${profile.photo_attribution ? `<p class="ob-text-sm ob-text-muted" style="margin: 0;">Photo: ${escapeHtml(profile.photo_attribution)}</p>` : ''}
       </div>
     `;
   }
@@ -385,5 +522,6 @@ export function mount(container, props = {}) {
       btn.addEventListener('click', () => selectAnswer(btn.dataset.choice));
     });
     container.querySelector('[data-action="next-question"]')?.addEventListener('click', loadQuestion);
+    container.querySelector('[data-action="try-another-photo"]')?.addEventListener('click', tryAnotherPhoto);
   }
 }

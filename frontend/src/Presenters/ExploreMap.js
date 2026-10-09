@@ -88,6 +88,7 @@ export function mount(container, props = {}) {
     speciesQuery: '', // free-text species-name filter, client-side over `sightings` — not reset on location/filter changes, since "find this bird" is a persistent intent while panning around
     speciesFilterFocused: false, // gates the suggestions dropdown's visibility — suppressed once the input loses focus, not just once the query is cleared
     mineOnly: false, // narrows to the logged-in user's own sightings (user_id match) — distinct from source: 'manual', which is every OnlyBirds user's logged sightings, not just this one
+    photosOnly: false, // narrows to sightings with a photo_url — eBird/iNaturalist sightings often have none, same as a manual one logged without a photo
 
     searchQuery: '',
     searchResults: [],
@@ -284,6 +285,7 @@ export function mount(container, props = {}) {
     const query = state.speciesQuery.trim().toLowerCase();
     return state.sightings.filter((s) => {
       if (state.mineOnly && s.user_id !== userId) return false;
+      if (state.photosOnly && !s.photo_url) return false;
       if (!query) return true;
       const common = s.species?.common_name?.toLowerCase() || '';
       const sci = s.species?.scientific_name?.toLowerCase() || '';
@@ -425,6 +427,13 @@ export function mount(container, props = {}) {
   // a checkbox toggle shouldn't remount the whole Leaflet map either.
   function toggleMineOnly(checked) {
     state.mineOnly = checked;
+    mapController?.setSightings(filteredSightings());
+    updateStatusLineDom();
+    updateRegionSummaryDom();
+  }
+
+  function togglePhotosOnly(checked) {
+    state.photosOnly = checked;
     mapController?.setSightings(filteredSightings());
     updateStatusLineDom();
     updateRegionSummaryDom();
@@ -842,6 +851,10 @@ export function mount(container, props = {}) {
           <input id="mine-only-filter" type="checkbox" ${state.mineOnly ? 'checked' : ''} ${state.lat == null ? 'disabled' : ''} />
           Only my sightings
         </label>
+        <label class="ob-field" style="flex-direction:row; align-items:center; gap: var(--ob-space-2);">
+          <input id="photos-only-filter" type="checkbox" ${state.photosOnly ? 'checked' : ''} ${state.lat == null ? 'disabled' : ''} />
+          Only sightings with photos
+        </label>
       </div>
     `;
   }
@@ -1089,6 +1102,9 @@ export function mount(container, props = {}) {
 
     const mineOnlyCheckbox = container.querySelector('#mine-only-filter');
     mineOnlyCheckbox?.addEventListener('change', () => toggleMineOnly(mineOnlyCheckbox.checked));
+
+    const photosOnlyCheckbox = container.querySelector('#photos-only-filter');
+    photosOnlyCheckbox?.addEventListener('change', () => togglePhotosOnly(photosOnlyCheckbox.checked));
   }
 
   // The map is a live widget, not markup rebuilt from `state` — every

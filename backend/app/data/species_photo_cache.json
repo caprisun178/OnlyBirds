@@ -17,6 +17,19 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/97/Spotted_sandpiper_%28Actitis_macularius%29.jpg/330px-Spotted_sandpiper_%28Actitis_macularius%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Spotted_sandpiper_(Actitis_macularius).jpg"
   },
+  "Aechmophorus occidentalis": {
+    "artist": "Frank Schulenburg",
+    "flagged": false,
+    "license": "CC BY-SA 3.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/08/Western_Grebe_%28Aechmophorus_occidentalis%29_V.jpg/330px-Western_Grebe_%28Aechmophorus_occidentalis%29_V.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Western_Grebe_(Aechmophorus_occidentalis)_V.jpg"
+  },
+  "Anas crecca": {
+    "artist": "Charles J. Sharp",
+    "license": "CC BY-SA 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9c/Eurasian_teal_%28Anas_crecca_crecca%29_male_Qingshui.jpg/330px-Eurasian_teal_%28Anas_crecca_crecca%29_male_Qingshui.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Eurasian_teal_(Anas_crecca_crecca)_male_Qingshui.jpg"
+  },
   "Anthracoceros marchei": {
     "artist": "Paulo Ordoveza",
     "license": "CC BY 2.0",
@@ -40,6 +53,13 @@
     "license": "CC BY-SA 4.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d8/Kadalundi_Bird_Sanctuary_Ardea_alba_09138.jpg/330px-Kadalundi_Bird_Sanctuary_Ardea_alba_09138.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Kadalundi_Bird_Sanctuary_Ardea_alba_09138.jpg"
+  },
+  "Ardenna gravis": {
+    "artist": "Charles J. Sharp",
+    "flagged": false,
+    "license": "CC BY-SA 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/48/Greater_shearwater_%28Ardenna_gravis%29_Sagres.jpg/330px-Greater_shearwater_%28Ardenna_gravis%29_Sagres.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Greater_shearwater_(Ardenna_gravis)_Sagres.jpg"
   },
   "Arremonops rufivirgatus": {
     "artist": "Chuck Homler d/b/a Focus On Wildlife",
@@ -71,11 +91,24 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0d/Aythya_americana_f_SamSmith.jpg/330px-Aythya_americana_f_SamSmith.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Aythya_americana_f_SamSmith.jpg"
   },
+  "Aythya marila": {
+    "artist": "Chuck Homler d/b/a Focus On Wildlife",
+    "license": "CC BY-SA 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b9/Drake_Greater_scaup_%28Aythya_marila%29_Barnegat_Inlet%2C_New_Jersey%2C_USA.jpg/330px-Drake_Greater_scaup_%28Aythya_marila%29_Barnegat_Inlet%2C_New_Jersey%2C_USA.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Drake_Greater_scaup_(Aythya_marila)_Barnegat_Inlet,_New_Jersey,_USA.jpg"
+  },
   "Baeolophus bicolor": {
     "artist": "Basar",
     "license": "CC BY-SA 3.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6e/Baeolophus_bicolor_15.jpeg/330px-Baeolophus_bicolor_15.jpeg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Baeolophus_bicolor_15.jpeg"
+  },
+  "Bambusicola fytchii": {
+    "artist": "Ryan Somma",
+    "flagged": false,
+    "license": "CC BY-SA 2.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/72/Bambusicola_fytchii.jpg/330px-Bambusicola_fytchii.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Bambusicola_fytchii.jpg"
   },
   "Bombycilla cedrorum": {
     "artist": "Charles J. Sharp",
@@ -107,6 +140,13 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/16/Buteo_jamaicensis_in_flight_at_Llano_Seco-1520.jpg/330px-Buteo_jamaicensis_in_flight_at_Llano_Seco-1520.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Buteo_jamaicensis_in_flight_at_Llano_Seco-1520.jpg"
   },
+  "Buteo lagopus": {
+    "artist": "Greg7 on Flickr",
+    "flagged": false,
+    "license": "CC BY 2.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1e/Buteo_lagopus_Iona2.jpg/330px-Buteo_lagopus_Iona2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Buteo_lagopus_Iona2.jpg"
+  },
   "Buteo lineatus": {
     "artist": "Frank Schulenburg",
     "license": "CC BY-SA 4.0",
@@ -137,6 +177,20 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ad/2019-08-13_02_Purple_Sandpiper_%28Calidris_maritima%29%2C_Reykjavik_Iceland.jpg/330px-2019-08-13_02_Purple_Sandpiper_%28Calidris_maritima%29%2C_Reykjavik_Iceland.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:2019-08-13_02_Purple_Sandpiper_(Calidris_maritima),_Reykjavik_Iceland.jpg"
   },
+  "Calidris mauri": {
+    "artist": "Frank Schulenburg",
+    "flagged": false,
+    "license": "CC BY-SA 3.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/19/Calidris_mauri_%28Sandpiper%29%2C_Bodega_Bay.jpg/330px-Calidris_mauri_%28Sandpiper%29%2C_Bodega_Bay.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Calidris_mauri_(Sandpiper),_Bodega_Bay.jpg"
+  },
+  "Calidris pugnax": {
+    "artist": "Charles J. Sharp",
+    "flagged": false,
+    "license": "CC BY-SA 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9b/Ruff_%28Calidris_pugnax%29%2C_non-breeding%2C_Lake_Ziway%2C_Ethiopia.jpg/330px-Ruff_%28Calidris_pugnax%29%2C_non-breeding%2C_Lake_Ziway%2C_Ethiopia.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Ruff_(Calidris_pugnax),_non-breeding,_Lake_Ziway,_Ethiopia.jpg"
+  },
   "Cardellina pusilla": {
     "artist": "Dario",
     "license": "CC0",
@@ -163,9 +217,10 @@
   },
   "Charadrius hiaticula": {
     "artist": "Charles J. Sharp",
+    "flagged": false,
     "license": "CC BY-SA 4.0",
-    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b0/Ringed_plovers_%28Charadrius_hiaticula%29_in_flight.jpg/330px-Ringed_plovers_%28Charadrius_hiaticula%29_in_flight.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-    "source_url": "https://commons.wikimedia.org/wiki/File:Ringed_plovers_(Charadrius_hiaticula)_in_flight.jpg"
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a2/Ringed_plover_%28Charadrius_hiaticula%29_juvenile.jpg/330px-Ringed_plover_%28Charadrius_hiaticula%29_juvenile.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Ringed_plover_(Charadrius_hiaticula)_juvenile.jpg"
   },
   "Chloroceryle amazona": {
     "artist": "Charles J. Sharp",
@@ -192,10 +247,11 @@
     "source_url": "https://commons.wikimedia.org/wiki/File:Coccothraustes-vespertinus-002.jpg"
   },
   "Coccyzus americanus": {
-    "artist": "Jos Zwarts",
-    "license": "CC BY-SA 4.0",
-    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/10/Geelsnavelkoekoek_Coccyzus_americanus_Jos_Zwarts.jpg/330px-Geelsnavelkoekoek_Coccyzus_americanus_Jos_Zwarts.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-    "source_url": "https://commons.wikimedia.org/wiki/File:Geelsnavelkoekoek_Coccyzus_americanus_Jos_Zwarts.jpg"
+    "artist": "F\u00e9lix Uribe from Rionegro, Antioquia, Colombia",
+    "flagged": false,
+    "license": "CC BY-SA 2.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ae/Coccyzus_americanus_Cuco_americano_Yellow-billed_Cuckoo_%2815400863187%29.jpg/330px-Coccyzus_americanus_Cuco_americano_Yellow-billed_Cuckoo_%2815400863187%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Coccyzus_americanus_Cuco_americano_Yellow-billed_Cuckoo_(15400863187).jpg"
   },
   "Colaptes auratus": {
     "artist": "Cephas",
@@ -259,6 +315,20 @@
     "source_url": "https://commons.wikimedia.org/wiki/File:Cyanocitta_stelleri_Big_Sur_May_2011.jpg"
   },
   "Cyanocorax colliei": null,
+  "Cygnus columbianus": {
+    "artist": "Judy Gallagher",
+    "flagged": false,
+    "license": "CC BY 2.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a9/Tundra_Swan_-_Cygnus_columbianus%2C_Pocosin_Lakes_National_Wildlife_Refuge%2C_Columbia%2C_North_Carolina%2C_January_26%2C_2024_%2853556919685%29.jpg/330px-Tundra_Swan_-_Cygnus_columbianus%2C_Pocosin_Lakes_National_Wildlife_Refuge%2C_Columbia%2C_North_Carolina%2C_January_26%2C_2024_%2853556919685%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Tundra_Swan_-_Cygnus_columbianus,_Pocosin_Lakes_National_Wildlife_Refuge,_Columbia,_North_Carolina,_January_26,_2024_(53556919685).jpg"
+  },
+  "Dendroplex kienerii": {
+    "artist": "Hector Bottai",
+    "flagged": false,
+    "license": "CC BY-SA 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/53/Dendroplex_picus_-_Straight_billed_Woodcreeper%3B_Itacoatiara%2C_Amazonas%2C_Brazil.jpg/330px-Dendroplex_picus_-_Straight_billed_Woodcreeper%3B_Itacoatiara%2C_Amazonas%2C_Brazil.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Dendroplex_picus_-_Straight_billed_Woodcreeper;_Itacoatiara,_Amazonas,_Brazil.jpg"
+  },
   "Dryocopus pileatus": {
     "artist": "Cephas",
     "license": "CC BY-SA 3.0",
@@ -272,11 +342,25 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f9/Egretta_thula_at_Las_Gallinas_Wildlife_Ponds.jpg/330px-Egretta_thula_at_Las_Gallinas_Wildlife_Ponds.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Egretta_thula_at_Las_Gallinas_Wildlife_Ponds.jpg"
   },
+  "Egretta tricolor": {
+    "artist": "gailhampshire from Cradley, Malvern, U.K",
+    "flagged": false,
+    "license": "CC BY 2.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/57/Tricoloured_Heron_Egretta_tricolor_-_Flickr_-_gailhampshire.jpg/330px-Tricoloured_Heron_Egretta_tricolor_-_Flickr_-_gailhampshire.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Tricoloured_Heron_Egretta_tricolor_-_Flickr_-_gailhampshire.jpg"
+  },
   "Elanus leucurus": {
     "artist": "Alejandro  Bayer Tamayo from Armenia, Colombia",
     "license": "CC BY-SA 2.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5d/Elanus_leucurus_%28Aguililla_blanca_-_Gavil%C3%A1n_maromero%29_-_Flickr_-_Alejandro_Bayer_%281%29.jpg/330px-Elanus_leucurus_%28Aguililla_blanca_-_Gavil%C3%A1n_maromero%29_-_Flickr_-_Alejandro_Bayer_%281%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Elanus_leucurus_(Aguililla_blanca_-_Gavil%C3%A1n_maromero)_-_Flickr_-_Alejandro_Bayer_(1).jpg"
+  },
+  "Empidonax difficilis": {
+    "artist": "Dominic Sherony",
+    "flagged": false,
+    "license": "CC BY-SA 2.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bb/Pacific-slope_Flycatcher_%28Empidonax_difficilis%29.jpg/330px-Pacific-slope_Flycatcher_%28Empidonax_difficilis%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Pacific-slope_Flycatcher_(Empidonax_difficilis).jpg"
   },
   "Empidonax virescens": {
     "artist": "Don Faulkner",
@@ -297,11 +381,25 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7b/Euthlypis_lachrymosa.jpg/330px-Euthlypis_lachrymosa.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Euthlypis_lachrymosa.jpg"
   },
+  "Falco rusticolus": {
+    "artist": "\u00d3lafur Larsen",
+    "flagged": false,
+    "license": "CC BY-SA 2.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fb/F%C3%A1lki_%28Falco_rusticolus%29_-_Gyr_Falcon_%28cropped%29.jpg/330px-F%C3%A1lki_%28Falco_rusticolus%29_-_Gyr_Falcon_%28cropped%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:F%C3%A1lki_(Falco_rusticolus)_-_Gyr_Falcon_(cropped).jpg"
+  },
   "Falco sparverius": {
     "artist": "Charles J. Sharp",
     "license": "CC BY-SA 4.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/69/American_kestrel_%28Falco_sparverius_cinnamominus%29_male_Leona_Amarga.jpg/330px-American_kestrel_%28Falco_sparverius_cinnamominus%29_male_Leona_Amarga.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:American_kestrel_(Falco_sparverius_cinnamominus)_male_Leona_Amarga.jpg"
+  },
+  "Geothlypis tolmiei": {
+    "artist": "Tim from Ithaca",
+    "flagged": false,
+    "license": "CC BY 2.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/83/Geothlypis_tolmiei_Boston_MA.jpg/330px-Geothlypis_tolmiei_Boston_MA.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Geothlypis_tolmiei_Boston_MA.jpg"
   },
   "Geothlypis trichas": {
     "artist": "Cephas",
@@ -334,6 +432,13 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ee/Hirundo_rustica_LC0073.jpg/330px-Hirundo_rustica_LC0073.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Hirundo_rustica_LC0073.jpg"
   },
+  "Hydroprogne caspia": {
+    "artist": "Charles J. Sharp",
+    "flagged": false,
+    "license": "CC BY-SA 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/51/Caspian_tern_%28Hydroprogne_caspia%29_non-breeding.jpg/330px-Caspian_tern_%28Hydroprogne_caspia%29_non-breeding.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Caspian_tern_(Hydroprogne_caspia)_non-breeding.jpg"
+  },
   "Icterus galbula": {
     "artist": "Mdf",
     "license": "CC BY-SA 3.0",
@@ -345,6 +450,13 @@
     "license": "CC BY 4.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6f/Lampornis_viridipallens_139638172.jpg/330px-Lampornis_viridipallens_139638172.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Lampornis_viridipallens_139638172.jpg"
+  },
+  "Lanius borealis": {
+    "artist": "National Park Service, Alaska Region",
+    "flagged": false,
+    "license": "Public domain",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3a/Northern_Shrike_Lanius_borealis%2C_juvenile_%282%29_-_%2821294810880%29.jpg/330px-Northern_Shrike_Lanius_borealis%2C_juvenile_%282%29_-_%2821294810880%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Northern_Shrike_Lanius_borealis,_juvenile_(2)_-_(21294810880).jpg"
   },
   "Larus californicus": {
     "artist": "King of Hearts",
@@ -456,6 +568,13 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bf/2024_Pachyptila_desolata_-_Taubensturmvogel_-_by_2eight_-_9SC6888-1.jpg/330px-2024_Pachyptila_desolata_-_Taubensturmvogel_-_by_2eight_-_9SC6888-1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:2024_Pachyptila_desolata_-_Taubensturmvogel_-_by_2eight_-_9SC6888-1.jpg"
   },
+  "Pandion haliaetus": {
+    "artist": "\u05de\u05d9\u05e0\u05d5\u05d6\u05d9\u05d2 - MinoZig",
+    "flagged": false,
+    "license": "CC BY-SA 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/13/Pandion_haliaetus%2C_Israel.jpg/330px-Pandion_haliaetus%2C_Israel.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Pandion_haliaetus,_Israel.jpg"
+  },
   "Pardirallus sanguinolentus": {
     "artist": "Charles J. Sharp",
     "license": "CC BY-SA 4.0",
@@ -467,6 +586,13 @@
     "license": "CC BY-SA 4.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f3/Passer_domesticus_%28male%29_version_2%2C_Geneve%2C_Switzerland.jpg/330px-Passer_domesticus_%28male%29_version_2%2C_Geneve%2C_Switzerland.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Passer_domesticus_(male)_version_2,_Geneve,_Switzerland.jpg"
+  },
+  "Passerina cyanea": {
+    "artist": "Tyler Savitski",
+    "flagged": false,
+    "license": "CC BY-SA 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6b/Indigo_Bunting_Passerina_cyanea_Male_SGL57.jpg/330px-Indigo_Bunting_Passerina_cyanea_Male_SGL57.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Indigo_Bunting_Passerina_cyanea_Male_SGL57.jpg"
   },
   "Pericrocotus flammeus": {
     "artist": "A.DiCorpo",
@@ -481,16 +607,24 @@
     "source_url": "https://commons.wikimedia.org/wiki/File:Petrochelidon_fulva_66960564.jpg"
   },
   "Petrochelidon pyrrhonota": {
-    "artist": "Richard Bowdler Sharpe",
-    "license": "Public domain",
-    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9f/Hybrid_Hirundo_rustica_erythrogaster%C3%97_Petrochelidon_pyrrhonota_swainsoni_1894.jpg/330px-Hybrid_Hirundo_rustica_erythrogaster%C3%97_Petrochelidon_pyrrhonota_swainsoni_1894.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-    "source_url": "https://commons.wikimedia.org/wiki/File:Hybrid_Hirundo_rustica_erythrogaster%C3%97_Petrochelidon_pyrrhonota_swainsoni_1894.jpg"
+    "artist": "Dominic Sherony",
+    "flagged": false,
+    "license": "CC BY-SA 2.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ee/Cliff_Swallow_%28Petrochelidon_pyrrhonota%29_%287749645954%29.jpg/330px-Cliff_Swallow_%28Petrochelidon_pyrrhonota%29_%287749645954%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Cliff_Swallow_(Petrochelidon_pyrrhonota)_(7749645954).jpg"
   },
   "Peucaea cassinii": {
     "artist": "Dominic Sherony",
     "license": "CC BY-SA 2.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/Cassins_Sparrow_Peucaea_cassinii_%286908216340%29.jpg/330px-Cassins_Sparrow_Peucaea_cassinii_%286908216340%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Cassins_Sparrow_Peucaea_cassinii_(6908216340).jpg"
+  },
+  "Phaethon aethereus": {
+    "artist": "Charles J. Sharp",
+    "flagged": false,
+    "license": "CC BY-SA 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4a/Red-billed_tropicbird_%28Phaethon_aethereus_mesonauta%29_in_flight.jpg/330px-Red-billed_tropicbird_%28Phaethon_aethereus_mesonauta%29_in_flight.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Red-billed_tropicbird_(Phaethon_aethereus_mesonauta)_in_flight.jpg"
   },
   "Pheugopedius felix": {
     "artist": "Dominic Sherony",
@@ -511,6 +645,13 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6a/T%C3%A1ngara_Capucha_Roja%2C_Western_Tanager%2C_Piranga_ludoviciana_%2813929564023%29.jpg/330px-T%C3%A1ngara_Capucha_Roja%2C_Western_Tanager%2C_Piranga_ludoviciana_%2813929564023%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:T%C3%A1ngara_Capucha_Roja,_Western_Tanager,_Piranga_ludoviciana_(13929564023).jpg"
   },
+  "Piranga olivacea": {
+    "artist": "lwolfartist",
+    "flagged": false,
+    "license": "CC BY 2.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3f/Piranga_olivacea_DSC_2265.jpg/330px-Piranga_olivacea_DSC_2265.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Piranga_olivacea_DSC_2265.jpg"
+  },
   "Ploceus insignis": {
     "artist": "John Gerrard Keulemans",
     "license": "Public domain",
@@ -522,6 +663,13 @@
     "license": "CC BY-SA 3.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Pluvialis_fulva_2_-_Laem_Pak_Bia.jpg/330px-Pluvialis_fulva_2_-_Laem_Pak_Bia.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Pluvialis_fulva_2_-_Laem_Pak_Bia.jpg"
+  },
+  "Pluvialis squatarola": {
+    "artist": "Hans Hillewaert",
+    "flagged": false,
+    "license": "CC BY-SA 3.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/aa/Pluvialis_squatarola_%28summer_plumage%29.jpg/330px-Pluvialis_squatarola_%28summer_plumage%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Pluvialis_squatarola_(summer_plumage).jpg"
   },
   "Poecile atricapillus": {
     "artist": "Cephas",
@@ -579,6 +727,13 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/08/Northrn_Parula_%28Setophaga_americana%29_%2815226309800%29.jpg/330px-Northrn_Parula_%28Setophaga_americana%29_%2815226309800%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Northrn_Parula_(Setophaga_americana)_(15226309800).jpg"
   },
+  "Setophaga citrina": {
+    "artist": "lwolfartist",
+    "flagged": false,
+    "license": "CC BY 2.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/62/Setophaga_citrina_DSC_6933.jpg/330px-Setophaga_citrina_DSC_6933.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Setophaga_citrina_DSC_6933.jpg"
+  },
   "Setophaga coronata": {
     "artist": "Cephas",
     "license": "CC BY-SA 3.0",
@@ -602,6 +757,13 @@
     "license": "CC BY-SA 2.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cd/Setophaga_ruticilla_-Chiquimula%2C_Guatemala_-male-8-4c.jpg/330px-Setophaga_ruticilla_-Chiquimula%2C_Guatemala_-male-8-4c.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Setophaga_ruticilla_-Chiquimula,_Guatemala_-male-8-4c.jpg"
+  },
+  "Sialia currucoides": {
+    "artist": null,
+    "flagged": false,
+    "license": "CC BY-SA 2.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/00/Bergh%C3%BCttens%C3%A4nger_%28Sialia_currucoides%29%2C_Seitenansicht_%28cropped%29.jpg/330px-Bergh%C3%BCttens%C3%A4nger_%28Sialia_currucoides%29%2C_Seitenansicht_%28cropped%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Bergh%C3%BCttens%C3%A4nger_(Sialia_currucoides),_Seitenansicht_(cropped).jpg"
   },
   "Sitta carolinensis": {
     "artist": "Mdf",
@@ -627,11 +789,25 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6a/Echinacea_purpurea_Spinus_tristis_JRVdH_07.jpg/330px-Echinacea_purpurea_Spinus_tristis_JRVdH_07.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Echinacea_purpurea_Spinus_tristis_JRVdH_07.jpg"
   },
+  "Spizella passerina": {
+    "artist": "Mdf",
+    "flagged": false,
+    "license": "CC BY-SA 3.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c2/Spizella-passerina-015.jpg/330px-Spizella-passerina-015.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Spizella-passerina-015.jpg"
+  },
   "Stelgidopteryx serripennis": {
     "artist": "Jshamgochian",
     "license": "CC BY-SA 4.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/17/Adult_Northern_Rough-winged_Swallow_%28Stelgidopteryx_serripennis%29_in_Waterville%2C_Maine.jpg/330px-Adult_Northern_Rough-winged_Swallow_%28Stelgidopteryx_serripennis%29_in_Waterville%2C_Maine.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Adult_Northern_Rough-winged_Swallow_(Stelgidopteryx_serripennis)_in_Waterville,_Maine.jpg"
+  },
+  "Stercorarius maccormicki": {
+    "artist": "\u0410\u043b\u0435\u043a\u0441\u0435\u0439 \u041b\u043e\u0433\u0438\u043d\u043e\u0432",
+    "flagged": false,
+    "license": "CC BY 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8e/Stercorarius_maccormicki_-_%D0%90%D0%BB%D0%B5%D0%BA%D1%81%D0%B5%D0%B9_%D0%9B%D0%BE%D0%B3%D0%B8%D0%BD%D0%BE%D0%B2_-_464637571.jpeg/330px-Stercorarius_maccormicki_-_%D0%90%D0%BB%D0%B5%D0%BA%D1%81%D0%B5%D0%B9_%D0%9B%D0%BE%D0%B3%D0%B8%D0%BD%D0%BE%D0%B2_-_464637571.jpeg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Stercorarius_maccormicki_-_%D0%90%D0%BB%D0%B5%D0%BA%D1%81%D0%B5%D0%B9_%D0%9B%D0%BE%D0%B3%D0%B8%D0%BD%D0%BE%D0%B2_-_464637571.jpeg"
   },
   "Stercorarius skua": {
     "artist": "Hobbyfotowiki",
@@ -740,5 +916,12 @@
     "license": "CC BY-SA 3.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9f/Zonotrichia_leucophrys_CT2.jpg/330px-Zonotrichia_leucophrys_CT2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Zonotrichia_leucophrys_CT2.jpg"
+  },
+  "x": {
+    "artist": "Dominicus Johannes Bergsma",
+    "flagged": false,
+    "license": "CC BY-SA 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3f/Hamamelis_x_intermedia_%27Angelly%27._19-02-2021._%28d.j.b%29_01.jpg/330px-Hamamelis_x_intermedia_%27Angelly%27._19-02-2021._%28d.j.b%29_01.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Hamamelis_x_intermedia_%27Angelly%27._19-02-2021._(d.j.b)_01.jpg"
   }
 }
