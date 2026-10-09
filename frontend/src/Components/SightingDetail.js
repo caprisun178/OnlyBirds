@@ -32,7 +32,18 @@ export function renderSightingDetail(sighting) {
           style="width:100%;height:240px;object-fit:cover;border-radius:var(--ob-radius-md);margin-bottom:var(--ob-space-2);cursor:zoom-in;"
         />`
       : ''}
-    <h3 class="ob-card__title" style="margin-bottom:0;">${escapeHtml(name)}</h3>
+    <h3 class="ob-card__title" style="margin-bottom:0;">
+      ${sci
+        ? `<span
+            data-action="view-profile"
+            data-profile-scientific-name="${escapeHtml(sci)}"
+            data-profile-common-name="${escapeHtml(name)}"
+            role="button"
+            tabindex="0"
+            style="text-decoration: underline; text-decoration-style: dotted; cursor: pointer;"
+          >${escapeHtml(name)}</span>`
+        : escapeHtml(name)}
+    </h3>
     ${sci ? `<p class="ob-text-sm" style="margin:0;"><em>${escapeHtml(sci)}</em></p>` : ''}
     ${date || detectionLabel
       ? `<p class="ob-text-sm ob-text-muted" style="margin:var(--ob-space-2) 0 0;">${escapeHtml(date)}${date && detectionLabel ? ' — ' : ''}${escapeHtml(detectionLabel)}</p>`

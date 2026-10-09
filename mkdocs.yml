@@ -52,7 +52,9 @@ nav:
       - Stickers: features/stickers.md
       - Pinned birds: features/pinned-birds.md
       - Bird information page: features/bird-info.md
+      - Photo-based bird ID: features/bird-id.md
       - Explore map: features/explore-map.md
+      - Progressive Web App: features/pwa.md
   - Backend API: backend.md
   - eBird API: ebird-api.md
   - Deployment: deployment.md
