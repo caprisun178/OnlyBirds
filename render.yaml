@@ -7,7 +7,7 @@
 
 services:
   - type: web
-    name: onlybirds-api
+    name: onlybirds-dev
     runtime: python
     plan: free                       # sleeps after 15 min idle; fine for dev
     rootDir: backend
