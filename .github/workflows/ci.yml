@@ -37,3 +37,5 @@ jobs:
           cache-dependency-path: docs/requirements.txt
       - run: pip install -r docs/requirements.txt
       - run: mkdocs build --strict
+      # same docs, converted for the GitHub wiki — fails on any wiki link that wouldn't resolve
+      - run: python scripts/build_wiki.py "$RUNNER_TEMP/wiki" --strict

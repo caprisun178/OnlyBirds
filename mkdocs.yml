@@ -54,6 +54,9 @@ nav:
       - Bird information page: features/bird-info.md
       - Photo-based bird ID: features/bird-id.md
       - Explore map: features/explore-map.md
+      - Plan a trip: features/plan-a-trip.md
+      - Test your skill: features/test-your-skill.md
+      - Community: features/community.md
       - Progressive Web App: features/pwa.md
   - Backend API: backend.md
   - eBird API: ebird-api.md

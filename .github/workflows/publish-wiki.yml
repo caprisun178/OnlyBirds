@@ -1,0 +1,56 @@
+name: Publish wiki
+
+# Mirrors docs/ into the repo's GitHub wiki on every push to main that
+# touches the docs. docs/ + mkdocs.yml stay the source of truth;
+# scripts/build_wiki.py converts them into wiki pages (flat page names,
+# sidebar from the nav, MkDocs-only syntax rewritten). Any edit made
+# directly in the wiki is overwritten by the next run.
+#
+# One-time setup: repo Settings > General > Features > tick "Wikis", then
+# open the Wiki tab and save any first page (GitHub doesn't create the
+# wiki's git repo until a page exists). This workflow replaces that page.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "scripts/build_wiki.py"
+      - ".github/workflows/publish-wiki.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wiki
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install pyyaml
+      - run: python scripts/build_wiki.py wiki-out --strict
+      - name: Push to the wiki repo
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git" wiki
+          find wiki -maxdepth 1 -name '*.md' -delete
+          cp wiki-out/*.md wiki/
+          cd wiki
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Wiki already up to date."
+            exit 0
+          fi
+          git commit -m "Sync from docs/ at ${GITHUB_SHA::7}"
+          git push
