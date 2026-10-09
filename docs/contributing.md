@@ -311,6 +311,16 @@ mkdocs build      # render to ./site
 Pages live in `docs/`; the nav is defined in `mkdocs.yml`. Keep
 [Environment Setup](index.md) accurate whenever setup steps change.
 
+The same pages are mirrored to the repo's **GitHub wiki** on every merge to
+`main` (`.github/workflows/publish-wiki.yml`). Always edit here in `docs/`,
+never in the wiki itself: the next publish overwrites wiki edits. Wiki page
+names and the wiki sidebar come from the `mkdocs.yml` nav titles, so add new
+pages to the nav. To preview the wiki version locally:
+
+```bash
+python scripts/build_wiki.py wiki-out    # writes the wiki pages to ./wiki-out
+```
+
 ## Roadmap
 
 1. Scaffold FastAPI backend, hello-world endpoint — **done**

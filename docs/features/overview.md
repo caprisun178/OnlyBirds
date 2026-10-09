@@ -16,6 +16,8 @@ sources, the API, the SQL, and the code layout.
 | [Explore map](explore-map.md) | Partial — MVP live and well beyond bare point+radius now (place search with live suggestions, species-photo filter, trip-planning box with top spots, a mi/km toggle); full spec (viewport-driven bbox fetch, clustering, `observations.geom`) still not started | after baseline for the MVP; after Add Observation for the rest |
 | [Plan a trip](plan-a-trip.md) | **Completed** — destination + date-range input, eBird hotspot suggestions with a per-hotspot last-year sightings map (eBird + iNaturalist merged, cached, degrades gracefully), iNaturalist-based "likely species," life-list gap — built and verified live end to end | after baseline |
 | [Test your skill](test-your-skill.md) | **Completed** — a no-persistence photo/sound quiz over the full eBird taxonomy, filterable by taxonomic type (warblers, corvids, owls, ...) and by region, reusing Life List's checklist/region-picker infrastructure and Add Observation's Commons-backed media lookups. No database change at all; see the page for why | after Add Observation + Life List |
+| [Community](community.md) | Scoping — discussion board + outing plans (RSVP at public eBird hotspots), region-scoped; first-pass data model and API on the page, open questions listed. **Blocked on real sign-in** (today every screen is `u1`) | after auth + profiles |
+| [Competitions](competitions.md) | Scoping — time-boxed leaderboards (most observations this week, most owl photos this month, …) computed live from logged observations, with fair-play rules (no imports/backdating, robin-day dedupe, photo hashing, classifier flagging) and sticker prizes. **Blocked on real sign-in**, same as Community | after auth + profiles; prizes after Stickers |
 | [Progressive Web App](pwa.md) | Planned, scoped — manifest + service worker to make the site installable on a phone; no native wrapper, no in-app camera (upload-only, decided); needs real icon art before it can start | any time (independent) |
 
 *Partial* means some API already exists but the feature isn't done end to end. **Completed** means the backend and frontend are both built and verified live — see that page's own Status line for specifics.
@@ -40,6 +42,8 @@ before starting.
 | [Explore map](explore-map.md) | Sarah Parisi | | in progress (MVP done, full spec not started) | |
 | [Plan a trip](plan-a-trip.md) | Sarah Parisi | `working/sparisi/Feature-plan-a-trip` | done | |
 | [Test your skill](test-your-skill.md) | Sarah Parisi | `working/sparisi/Feature-test-your-skill` | done | |
+| [Community](community.md) | _unassigned_ | | not started | blocked on auth, see page |
+| [Competitions](competitions.md) | _unassigned_ | | not started | blocked on auth, see page |
 | [Progressive Web App](pwa.md) | _unassigned_ | | not started | blocked on icon art, see page |
 
 *Status* is one of: `not started` · `in progress` · `in review` · `done`.
@@ -92,6 +96,8 @@ Full SQL is on each feature page; this is the map.
 | `stickers`, `user_stickers`, `groups` | [Stickers](stickers.md) | **new** — catalog, award ledger, group definitions |
 | `pinned_birds`, `notifications` | [Pinned birds](pinned-birds.md) | **new** — want-to-see list + the notification feed |
 | `species_content` | [Bird information page](bird-info.md) | **new** (cache) — About text plus sex-differences/migration/habitat prose (photos/audio reuse `bird_photos.py`/`bird_audio.py`'s own existing caches; no migration *map* in v1 — see that page) |
+| `threads`, `outings`, `thread_replies`, `outing_rsvps`, `content_reports` | [Community](community.md) | **new** — discussion threads, outing events + RSVPs, moderation reports; `users` + `is_admin`; `notifications` gains four `kind`s |
+| `competitions`, `competition_entries`, `competition_results`, `competition_exclusions`, `competition_flags` | [Competitions](competitions.md) | **new** — competition definitions, challenge membership, frozen standings, moderation; `users` + `competitions_opt_in`; `observations` + `photo_sha256` |
 | `sighting_cache` | [Explore map](explore-map.md) | **new** (cache) — eBird / iNat sightings for a map tile |
 
 ## End-to-end flow
