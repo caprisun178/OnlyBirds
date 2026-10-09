@@ -57,6 +57,7 @@ nav:
       - Plan a trip: features/plan-a-trip.md
       - Test your skill: features/test-your-skill.md
       - Community: features/community.md
+      - Competitions: features/competitions.md
       - Progressive Web App: features/pwa.md
   - Backend API: backend.md
   - eBird API: ebird-api.md
