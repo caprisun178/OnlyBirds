@@ -60,6 +60,7 @@ nav:
       - Test your skill: features/test-your-skill.md
       - Community: features/community.md
       - Competitions: features/competitions.md
+      - Seeded sighting data: features/data-seeding.md
       - Progressive Web App: features/pwa.md
   - Backend API: backend.md
   - eBird API: ebird-api.md

@@ -18,6 +18,7 @@ sources, the API, the SQL, and the code layout.
 | [Test your skill](test-your-skill.md) | **Completed** — a no-persistence photo/sound quiz over the full eBird taxonomy, filterable by taxonomic type (warblers, corvids, owls, ...) and by region, reusing Life List's checklist/region-picker infrastructure and Add Observation's Commons-backed media lookups. No database change at all; see the page for why | after Add Observation + Life List |
 | [Community](community.md) | Scoping — discussion board + outing plans (RSVP at public eBird hotspots), region-scoped; first-pass data model and API on the page, open questions listed. **Blocked on real sign-in** (today every screen is `u1`) | after auth + profiles |
 | [Competitions](competitions.md) | Scoping — time-boxed leaderboards (most observations this week, most owl photos this month, …) computed live from logged observations, with fair-play rules (no imports/backdating, robin-day dedupe, photo hashing, classifier flagging) and sticker prizes. **Blocked on real sign-in**, same as Community | after auth + profiles; prizes after Stickers |
+| [Seeded sighting data](data-seeding.md) | Scoping — a local, monthly-refreshed copy of eBird (EBD bulk dataset) + iNaturalist (via GBIF) sightings, imported through official bulk channels (never API scraping); speeds up Plan a Trip and keeps historical features working if API access is lost | any time; start the eBird data request first |
 | [Progressive Web App](pwa.md) | Planned, scoped — manifest + service worker to make the site installable on a phone; no native wrapper, no in-app camera (upload-only, decided); needs real icon art before it can start | any time (independent) |
 
 *Partial* means some API already exists but the feature isn't done end to end. **Completed** means the backend and frontend are both built and verified live — see that page's own Status line for specifics.
@@ -44,6 +45,7 @@ before starting.
 | [Test your skill](test-your-skill.md) | Sarah Parisi | `working/sparisi/Feature-test-your-skill` | done | |
 | [Community](community.md) | _unassigned_ | | not started | blocked on auth, see page |
 | [Competitions](competitions.md) | _unassigned_ | | not started | blocked on auth, see page |
+| [Seeded sighting data](data-seeding.md) | _unassigned_ | | not started | |
 | [Progressive Web App](pwa.md) | _unassigned_ | | not started | blocked on icon art, see page |
 
 *Status* is one of: `not started` · `in progress` · `in review` · `done`.

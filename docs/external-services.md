@@ -78,6 +78,9 @@ breaks if it does.
 - **Attribution:** show "Data from [eBird.org](https://ebird.org)" (linked)
   wherever eBird data appears: Life List checklists, Explore Map, Plan a
   Trip hotspots, Test Your Skill.
+- **Keep our own copy, via the official bulk channels.** The eBird Basic
+  Dataset and iNaturalist's GBIF export, never by paging through the
+  APIs. Scoped in [Seeded sighting data](features/data-seeding.md).
 - **Reduce how much we depend on live calls:**
     - The **eBird/Clements taxonomy is published as a yearly download**.
       Import it into our own table, which removes taxonomy calls entirely.
