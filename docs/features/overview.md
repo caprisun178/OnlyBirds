@@ -17,6 +17,8 @@ sources, the API, the SQL, and the code layout.
 | [Plan a trip](plan-a-trip.md) | **Completed** — destination + date-range input, eBird hotspot suggestions with a per-hotspot last-year sightings map (eBird + iNaturalist merged, cached, degrades gracefully), iNaturalist-based "likely species," life-list gap — built and verified live end to end | after baseline |
 | [Test your skill](test-your-skill.md) | **Completed** — a no-persistence photo/sound quiz over the full eBird taxonomy, filterable by taxonomic type (warblers, corvids, owls, ...) and by region, reusing Life List's checklist/region-picker infrastructure and Add Observation's Commons-backed media lookups. No database change at all; see the page for why | after Add Observation + Life List |
 | [Progressive Web App](pwa.md) | Planned, scoped — manifest + service worker to make the site installable on a phone; no native wrapper, no in-app camera (upload-only, decided); needs real icon art before it can start | any time (independent) |
+| [Photo location & date (EXIF)](photo-metadata.md) | Planned, scoped — read GPS + capture time from uploaded photos to pre-fill When & Where (and widen photo ID's regional pool); strip that metadata from the stored public copy. No migration | after Photo-based bird ID |
+| [Bulk photo import](bulk-import.md) | Planned, scoped — multi-select photos, browser-driven identify loop (no job queue), review grid before anything is logged, undo per import. Open questions on the page need answers first | after Photo location & date |
 
 *Partial* means some API already exists but the feature isn't done end to end. **Completed** means the backend and frontend are both built and verified live — see that page's own Status line for specifics.
 
@@ -41,6 +43,8 @@ before starting.
 | [Plan a trip](plan-a-trip.md) | Sarah Parisi | `working/sparisi/Feature-plan-a-trip` | done | |
 | [Test your skill](test-your-skill.md) | Sarah Parisi | `working/sparisi/Feature-test-your-skill` | done | |
 | [Progressive Web App](pwa.md) | _unassigned_ | | not started | blocked on icon art, see page |
+| [Photo location & date (EXIF)](photo-metadata.md) | _unassigned_ | | not started | |
+| [Bulk photo import](bulk-import.md) | _unassigned_ | | not started | needs photo-metadata first; see open questions |
 
 *Status* is one of: `not started` · `in progress` · `in review` · `done`.
 

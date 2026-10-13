@@ -481,3 +481,5 @@ locally — see the note under "Field notes" above.
 - [Stickers](stickers.md) and [Pinned birds](pinned-birds.md) — run after a log
 - [Explore map](explore-map.md) — consumes `observations.geom`
 - [Database & migrations](database.md)
+- [Photo location & date (EXIF)](photo-metadata.md) — planned: pre-fill When & Where from the photo
+- [Bulk photo import](bulk-import.md) — planned: many photos at once
