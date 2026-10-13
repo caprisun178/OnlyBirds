@@ -11,6 +11,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.models.upload import PhotoMetadata
+
 Outcome = Literal["correct", "incorrect", "unconfirmed"]
 Sense = Literal["sight", "sound"]
 
@@ -52,6 +54,9 @@ class IdentifyResponse(BaseModel):
     method: Literal["describe", "photo"] = "describe"
     sense: Sense = "sight"
     candidates: list[Candidate]
+    # Photo flow only: where/when the uploaded photo says it was taken, for
+    # the frontend to pre-fill When & Where. See docs/features/photo-metadata.md.
+    photo_metadata: PhotoMetadata | None = None
 
 
 class SelectCandidateRequest(BaseModel):

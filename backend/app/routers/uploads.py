@@ -1,7 +1,10 @@
 """Photo upload endpoint — object storage for the Add Observation field-notes
 photo (and, later, avatars).
 
-    POST /uploads/photo    multipart file -> {photo_url}
+    POST /uploads/photo    multipart file -> {photo_url, photo_metadata}
+
+The stored copy has its EXIF stripped; `photo_metadata` is what it said
+first (see docs/features/photo-metadata.md).
 
 Returns 503 while `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` aren't set —
 see docs/features/add-observation.md.
@@ -20,7 +23,7 @@ router = APIRouter(prefix="/uploads", tags=["uploads"])
 async def upload_photo(file: UploadFile = File(...)):
     content = await file.read()
     try:
-        photo_url = await upload_service.upload_observation_photo(
+        return await upload_service.upload_observation_photo(
             file.filename or "photo",
             file.content_type or "application/octet-stream",
             content,
@@ -29,4 +32,3 @@ async def upload_photo(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except StorageNotConfigured as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
-    return PhotoUploadResponse(photo_url=photo_url)

@@ -99,6 +99,12 @@ export function mount(container, props = {}) {
     photoUploadState: 'idle', // 'idle' | 'uploading' | 'done' | 'error'
     photoUploadError: null,
 
+    // Photo EXIF only fills blanks (docs/features/photo-metadata.md):
+    // `observedAt` is never empty (it defaults to "now"), so this flag is
+    // what tells a real user choice apart from that default.
+    observedAtTouched: false,
+    filledFromPhoto: { date: false, location: false }, // drives the "filled in from your photo" hints
+
     result: null, // { observation, isNewSpecies }
   };
 
@@ -164,9 +170,84 @@ export function mount(container, props = {}) {
   // `observedAt` truncated to a plain date — eBird's regional checklist is
   // per calendar day, and the datetime-local value carries minutes the
   // backend has no use for (see Services/identify.js's `toRegional()`).
-  function currentLocation() {
+  //
+  // `omitDefaultDate` (photo flow only): leave out a date that's still the
+  // untouched "now" default, so the backend can use the photo's own capture
+  // date instead — it falls back to today itself when the photo has none.
+  function currentLocation({ omitDefaultDate = false } = {}) {
     const { lat, lng, observedAt } = state.fieldNotes;
-    return { lat, lng, observedAt: observedAt ? observedAt.slice(0, 10) : undefined };
+    const isDefaultDate = !state.observedAtTouched && !state.filledFromPhoto.date;
+    const sendDate = observedAt && !(omitDefaultDate && isDefaultDate);
+    return { lat, lng, observedAt: sendDate ? observedAt.slice(0, 10) : undefined };
+  }
+
+  // Applies a photo's `{ lat, lng, taken_at }` (from /identify/photo or
+  // /uploads/photo) to When & Where — only into fields the user hasn't set,
+  // never over them. `form` is passed when a step with the date input and
+  // map is on screen (Confirm's own photo picker); without one (right after
+  // a Describe-step photo identify) only state changes, and the next render
+  // picks it up.
+  function applyPhotoMetadata(meta, form) {
+    if (!meta) return;
+    const fn = state.fieldNotes;
+
+    if (meta.taken_at && !state.observedAtTouched) {
+      fn.observedAt = meta.taken_at.slice(0, 16); // "YYYY-MM-DDTHH:MM", what datetime-local expects
+      state.filledFromPhoto.date = true;
+      const input = form?.querySelector('#observed-at');
+      if (input) input.value = fn.observedAt;
+    }
+
+    if (meta.lat != null && meta.lng != null && fn.lat == null && fn.lng == null) {
+      if (form) {
+        mapController?.setView(meta.lat, meta.lng);
+        handleMapPositionChange(form, meta.lat, meta.lng); // also reverse-geocodes a label, if none typed
+      } else {
+        fn.lat = meta.lat;
+        fn.lng = meta.lng;
+        fillLocationLabelFromPin(meta.lat, meta.lng);
+      }
+      state.filledFromPhoto.location = true; // after handleMapPositionChange, which clears it for user moves
+    }
+
+    if (form) refreshPhotoFillHints(form);
+  }
+
+  // handleMapPositionChange's label lookup, for when no step's form is on
+  // screen to write into — same stale-response guard.
+  async function fillLocationLabelFromPin(lat, lng) {
+    const requestId = ++positionRequestId;
+    try {
+      const place = await geocodingService.reverse(lat, lng);
+      if (requestId !== positionRequestId || !place || state.fieldNotes.locationName.trim()) return;
+      state.fieldNotes.locationName = place.display_name;
+      const input = container.querySelector('#location-name');
+      if (input && !input.value.trim()) input.value = place.display_name;
+    } catch (err) {
+      // Non-fatal — the pin is still set even without a readable label.
+    }
+  }
+
+  function renderPhotoFillHint(kind) {
+    const text = kind === 'date'
+      ? 'Filled in from your photo — change it if that’s wrong.'
+      : 'Pinned from your photo’s location — move the pin if that’s wrong.';
+    return `<p class="ob-hint" data-role="${kind}-from-photo" ${state.filledFromPhoto[kind] ? '' : 'hidden'}>${text}</p>`;
+  }
+
+  function refreshPhotoFillHints(form) {
+    form.querySelector('[data-role="date-from-photo"]')?.toggleAttribute('hidden', !state.filledFromPhoto.date);
+    form.querySelector('[data-role="location-from-photo"]')?.toggleAttribute('hidden', !state.filledFromPhoto.location);
+  }
+
+  // Shared by Describe and Confirm: once the user edits the date it's
+  // theirs — photo metadata stops being allowed to replace it.
+  function wireObservedAtInput(form) {
+    form.querySelector('#observed-at')?.addEventListener('input', () => {
+      state.observedAtTouched = true;
+      state.filledFromPhoto.date = false;
+      refreshPhotoFillHints(form);
+    });
   }
 
   // ---- Step 1: describe (when/where + sight-or-sound + photo or text) ---
@@ -183,6 +264,7 @@ export function mount(container, props = {}) {
         <div class="ob-field">
           <label class="ob-label" for="observed-at">Date &amp; time</label>
           <input id="observed-at" type="datetime-local" class="ob-input" value="${escapeHtml(fn.observedAt)}" required />
+          ${renderPhotoFillHint('date')}
         </div>
         <div class="ob-field">
           <label class="ob-label" for="address-search">Location (optional)</label>
@@ -191,6 +273,7 @@ export function mount(container, props = {}) {
           <div data-role="address-results" class="ob-stack" style="--ob-stack-gap: var(--ob-space-1);"></div>
           <div data-role="location-map" style="height: 320px; border-radius: var(--ob-radius-md); overflow: hidden;"></div>
           <p class="ob-hint" data-role="pin-status">${renderPinStatusText(fn)}</p>
+          ${renderPhotoFillHint('location')}
           <input id="location-name" class="ob-input" placeholder='Label for this sighting, e.g. "Discovery Park, Seattle"' value="${escapeHtml(fn.locationName)}" />
           <p class="ob-hint">Map tiles &copy; <a href="https://www.esri.com" target="_blank" rel="noopener">Esri</a>. Address search data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors. Knowing roughly where and when helps narrow the next step's match suggestions to birds actually recorded in your area around this time of year.</p>
         </div>
@@ -205,7 +288,7 @@ export function mount(container, props = {}) {
           <label class="ob-label">Or upload a photo</label>
           <input type="file" id="identify-photo-input" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none;" />
           <button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="upload-photo" style="align-self:flex-start;">Upload a photo</button>
-          <p class="ob-hint">Skips straight to picking a match — only covers common North American species, so an uncommon or regional bird may come back as a confident-looking but wrong match.</p>
+          <p class="ob-hint">If the photo has its location and time saved, we'll fill those in for you. Skips straight to picking a match — only covers common North American species, so an uncommon or regional bird may come back as a confident-looking but wrong match.</p>
         </div>
         <div class="ob-field">
           <label class="ob-label" for="description">${state.sense === 'sound' ? 'What did you hear?' : 'What did you see?'}</label>
@@ -245,6 +328,7 @@ export function mount(container, props = {}) {
     if (!form) return;
 
     wireLocationPicker(form);
+    wireObservedAtInput(form);
 
     form.querySelectorAll('[data-sense]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -266,7 +350,8 @@ export function mount(container, props = {}) {
       state.loading = true;
       render();
       try {
-        const response = await identifyService.identifyPhoto(file, currentLocation());
+        const response = await identifyService.identifyPhoto(file, currentLocation({ omitDefaultDate: true }));
+        applyPhotoMetadata(response.photo_metadata);
         state.identificationId = response.identification_id;
         state.candidates = response.candidates;
         state.method = 'photo';
@@ -594,6 +679,7 @@ export function mount(container, props = {}) {
         <div class="ob-field">
           <label class="ob-label" for="observed-at">Date &amp; time</label>
           <input id="observed-at" type="datetime-local" class="ob-input" value="${escapeHtml(fn.observedAt)}" required />
+          ${renderPhotoFillHint('date')}
         </div>
 
         <div class="ob-field">
@@ -603,6 +689,7 @@ export function mount(container, props = {}) {
           <div data-role="address-results" class="ob-stack" style="--ob-stack-gap: var(--ob-space-1);"></div>
           <div data-role="location-map" style="height: 320px; border-radius: var(--ob-radius-md); overflow: hidden;"></div>
           <p class="ob-hint" data-role="pin-status">${renderPinStatusText(fn)}</p>
+          ${renderPhotoFillHint('location')}
           <input id="location-name" class="ob-input" placeholder='Label for this sighting, e.g. "Discovery Park, Seattle"' value="${escapeHtml(fn.locationName)}" />
           <p class="ob-hint">Map tiles &copy; <a href="https://www.esri.com" target="_blank" rel="noopener">Esri</a>. Address search data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.</p>
         </div>
@@ -686,6 +773,7 @@ export function mount(container, props = {}) {
     if (!form) return;
 
     wireLocationPicker(form);
+    wireObservedAtInput(form);
     wirePhotoInput(form);
     wirePhotoRemoveButton(form);
     wireFieldNotesSubmit(form);
@@ -809,6 +897,8 @@ export function mount(container, props = {}) {
 
     state.fieldNotes.lat = lat;
     state.fieldNotes.lng = lng;
+    state.filledFromPhoto.location = false; // applyPhotoMetadata() sets it back right after, when it's the caller
+    refreshPhotoFillHints(form);
     const pinStatusEl = form.querySelector('[data-role="pin-status"]');
     if (pinStatusEl) pinStatusEl.textContent = renderPinStatusText(state.fieldNotes);
 
@@ -857,8 +947,10 @@ export function mount(container, props = {}) {
       updatePhotoStatusDom(form);
       updateSubmitButtonDom(form);
       try {
-        state.fieldNotes.photoUrl = await uploadsService.uploadPhoto(file);
+        const { photoUrl, photoMetadata } = await uploadsService.uploadPhotoWithMetadata(file);
+        state.fieldNotes.photoUrl = photoUrl;
         state.photoUploadState = 'done';
+        applyPhotoMetadata(photoMetadata, form);
       } catch (err) {
         state.photoUploadState = 'error';
         state.photoUploadError = `${err.message} You can still log this sighting without a photo.`;
@@ -992,6 +1084,8 @@ export function mount(container, props = {}) {
           },
           photoUploadState: 'idle',
           photoUploadError: null,
+          observedAtTouched: false,
+          filledFromPhoto: { date: false, location: false },
           result: null,
           error: null,
         });

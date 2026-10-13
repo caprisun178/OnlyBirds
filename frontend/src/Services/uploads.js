@@ -10,13 +10,21 @@ export const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', '
 
 export const uploadsService = {
   async uploadPhoto(file) {
+    const { photoUrl } = await this.uploadPhotoWithMetadata(file);
+    return photoUrl;
+  },
+
+  // Same upload, plus where/when the photo says it was taken
+  // (`photoMetadata`: `{ lat, lng, taken_at }` or null) — read server-side
+  // before the stored copy is stripped. See docs/features/photo-metadata.md.
+  async uploadPhotoWithMetadata(file) {
     if (!ALLOWED_TYPES.has(file.type)) {
       throw new Error('Please choose a JPEG, PNG, WebP, or GIF image.');
     }
     if (file.size > MAX_BYTES) {
       throw new Error('That image is too large (max 8 MB).');
     }
-    const { photo_url: photoUrl } = await uploadsDAO.uploadPhoto(file);
-    return photoUrl;
+    const { photo_url: photoUrl, photo_metadata: photoMetadata } = await uploadsDAO.uploadPhoto(file);
+    return { photoUrl, photoMetadata: photoMetadata || null };
   },
 };

@@ -137,7 +137,7 @@ alongside `"describe"`). No migration file for this feature.
 
 | Method | Path | Notes |
 |---|---|---|
-| `POST` | `/identify/photo` | multipart `file` (+ optional `lat`, `lng`, `observed_at` form fields) → `IdentifyResponse` (`method: "photo"`, `sense: "sight"` always, `candidates`). Same validation as `POST /uploads/photo` (type/size) — reuse `app/services/uploads.py`'s constants rather than redeclaring them. |
+| `POST` | `/identify/photo` | multipart `file` (+ optional `lat`, `lng`, `observed_at` form fields; the photo's own EXIF fills whichever are missing, see [photo-metadata](photo-metadata.md)) → `IdentifyResponse` (`method: "photo"`, `sense: "sight"` always, `candidates`, `photo_metadata`). Same validation as `POST /uploads/photo` (type/size) — reuse `app/services/uploads.py`'s constants rather than redeclaring them. |
 | `POST` | `/identify/{id}/select` | **unchanged** — already generic over `method`. |
 
 `IdentifyResponse.method` and `Identification.method` widen from

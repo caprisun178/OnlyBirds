@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from datetime import date
 
-from app.dao import bioclip_classifier, bird_photos, ebird
+from app.dao import bioclip_classifier, bird_photos, ebird, photo_metadata
 from app.dao import identify as identify_dao
 from app.dao.identification_repo import identification_repo
 from app.models.identification import (
@@ -14,6 +14,7 @@ from app.models.identification import (
     IdentifyResponse,
     SelectCandidateResponse,
 )
+from app.models.upload import PhotoMetadata
 
 # A wider raw pool is only worth fetching once a region filter can actually
 # use the extra candidates to rescue one buried behind implausible ones —
@@ -169,7 +170,24 @@ async def identify_photo(
     region's checklist to be complete enough to stand on its own (it isn't,
     always — see `bioclip_classifier.classify()`'s docstring for the
     confirmed-live regression that shaped this).
+
+    The photo's own EXIF (`photo_metadata.read()`) fills whichever of those
+    the caller didn't send — the caller always wins, field by field. If a
+    location is known but no date came from either, today is used, matching
+    the wizard's "now" default (the frontend only sends a date the user
+    actually edited, so the photo's date can win over that default). The
+    metadata is also returned, so the frontend can pre-fill When & Where —
+    see docs/features/photo-metadata.md.
     """
+    metadata = photo_metadata.read(image_bytes)
+    if metadata:
+        if lat is None and lng is None and metadata["lat"] is not None:
+            lat, lng = metadata["lat"], metadata["lng"]
+        if observed_at is None and metadata["taken_at"] is not None:
+            observed_at = metadata["taken_at"].date()
+    if observed_at is None and lat is not None and lng is not None:
+        observed_at = date.today()
+
     regional_candidates = await _regional_candidates(lat, lng, observed_at)
 
     predictions = bioclip_classifier.classify(
@@ -201,7 +219,13 @@ async def identify_photo(
         candidates=candidates,
         target_species_code=None,
     )
-    return IdentifyResponse(identification_id=record.id, method="photo", sense="sight", candidates=candidates)
+    return IdentifyResponse(
+        identification_id=record.id,
+        method="photo",
+        sense="sight",
+        candidates=candidates,
+        photo_metadata=PhotoMetadata(**metadata) if metadata else None,
+    )
 
 
 async def select_candidate(

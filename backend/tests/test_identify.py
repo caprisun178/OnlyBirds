@@ -300,6 +300,85 @@ def test_photo_identify_with_no_location_uses_classifiers_default_pool(client, m
     assert captured["candidates"] is None
 
 
+def _capture_region_lookup(monkeypatch):
+    """Stubs eBird and records which point/date the regional pool was built
+    from — what the EXIF-fallback tests below care about."""
+    from app.dao import bioclip_classifier, ebird
+
+    calls = {}
+
+    async def fake_region_for_point(lat, lng):
+        calls["point"] = (lat, lng)
+        return "US-NC-183"
+
+    async def fake_get_historic_checklist(region, d):
+        calls["date"] = d
+        return [{"speciesCode": "grnher", "comName": "Green Heron", "sciName": "Butorides virescens"}]
+
+    monkeypatch.setattr(ebird, "region_for_point", fake_region_for_point)
+    monkeypatch.setattr(ebird, "get_historic_checklist", fake_get_historic_checklist)
+    monkeypatch.setattr(
+        bioclip_classifier, "classify", lambda image_bytes, top_k=6, candidates=None: _fake_classification()
+    )
+    return calls
+
+
+def test_photo_identify_uses_exif_location_and_date_when_form_has_none(client, monkeypatch):
+    from tests.photo_helpers import RALEIGH_GPS, make_image
+
+    calls = _capture_region_lookup(monkeypatch)
+    photo = make_image(gps=RALEIGH_GPS, taken_at="2026:05:03 07:15:00")
+
+    resp = client.post("/identify/photo", files={"file": ("bird.jpg", io.BytesIO(photo), "image/jpeg")})
+
+    assert resp.status_code == 200
+    assert round(calls["point"][0], 3) == 35.780
+    assert str(calls["date"]) == "2026-05-03"
+    meta = resp.json()["photo_metadata"]
+    assert round(meta["lng"], 3) == -78.638
+    assert meta["taken_at"] == "2026-05-03T07:15:00"
+
+
+def test_photo_identify_form_values_win_over_exif(client, monkeypatch):
+    from tests.photo_helpers import RALEIGH_GPS, make_image
+
+    calls = _capture_region_lookup(monkeypatch)
+    photo = make_image(gps=RALEIGH_GPS, taken_at="2026:05:03 07:15:00")
+
+    resp = client.post(
+        "/identify/photo",
+        files={"file": ("bird.jpg", io.BytesIO(photo), "image/jpeg")},
+        data={"lat": "47.66", "lng": "-122.42", "observed_at": "2026-06-01"},
+    )
+
+    assert resp.status_code == 200
+    assert calls["point"] == (47.66, -122.42)
+    assert str(calls["date"]) == "2026-06-01"
+    # Still reported — the frontend decides what to pre-fill, and won't
+    # overwrite what the user entered.
+    assert resp.json()["photo_metadata"] is not None
+
+
+def test_photo_identify_location_without_any_date_defaults_to_today(client, monkeypatch):
+    # The frontend only sends a date the user edited; with a pin but no
+    # date from either side, today keeps the regional pool working as before.
+    from datetime import date
+
+    from tests.photo_helpers import make_image
+
+    calls = _capture_region_lookup(monkeypatch)
+
+    resp = client.post(
+        "/identify/photo",
+        files={"file": ("bird.jpg", io.BytesIO(make_image()), "image/jpeg")},
+        data={"lat": "35.9", "lng": "-79.0"},
+    )
+
+    assert resp.status_code == 200
+    assert calls["date"] == date.today()
+    assert resp.json()["photo_metadata"] is None
+
+
 def test_describe_generic_reorders_toward_regional_species(client, monkeypatch):
     # "brown owl" matches several owls by keyword/color (see birds.py) with
     # no single named target — the generic, no-ground-truth path this
