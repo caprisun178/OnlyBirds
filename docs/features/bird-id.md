@@ -475,3 +475,5 @@ pool(s) are warm: ~0.4s — in the same ballpark as the old ONNX model.
 - [Bird information page](bird-info.md) — same `scientific_name` identity
   convention as the crosswalk here
 - [Database & migrations](database.md)
+- [Photo location & date (EXIF)](photo-metadata.md) — planned: pre-fill When & Where from the photo
+- [Bulk photo import](bulk-import.md) — planned: many photos at once

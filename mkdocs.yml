@@ -55,6 +55,8 @@ nav:
       - Pinned birds: features/pinned-birds.md
       - Bird information page: features/bird-info.md
       - Photo-based bird ID: features/bird-id.md
+      - Photo location & date (EXIF): features/photo-metadata.md
+      - Bulk photo import: features/bulk-import.md
       - Explore map: features/explore-map.md
       - Plan a trip: features/plan-a-trip.md
       - Test your skill: features/test-your-skill.md
