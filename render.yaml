@@ -38,3 +38,5 @@ services:
         sync: false
       - key: REPORT_EMAIL_TO
         sync: false
+      - key: HF_TOKEN                 # set in dashboard — huggingface.co > Settings > Access Tokens (read-only)
+        sync: false

@@ -48,6 +48,11 @@ class Settings(BaseSettings):
     smtp_password: str | None = None
     report_email_to: str | None = None
 
+    # Hugging Face read token for the BioCLIP model download
+    # (app/dao/bioclip_classifier.py). Optional — without it the download
+    # still works, just with lower rate limits and a startup warning.
+    hf_token: str | None = None
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

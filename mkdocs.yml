@@ -57,6 +57,7 @@ nav:
       - Photo-based bird ID: features/bird-id.md
       - Photo location & date (EXIF): features/photo-metadata.md
       - Bulk photo import: features/bulk-import.md
+      - Migration calendar: features/migration-calendar.md
       - Explore map: features/explore-map.md
       - Plan a trip: features/plan-a-trip.md
       - Test your skill: features/test-your-skill.md

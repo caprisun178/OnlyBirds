@@ -54,6 +54,7 @@ including a live run through this exact module via `POST /identify/photo`.
 from __future__ import annotations
 
 import io
+import os
 import threading
 
 import open_clip
@@ -61,6 +62,7 @@ import torch
 import torch.nn.functional as F
 from PIL import Image, ImageOps
 
+from app.config import get_settings
 from app.data.bird_classifier_labels import LABEL_TO_SPECIES
 
 _MODEL_ID = "hf-hub:imageomics/bioclip"
@@ -98,6 +100,14 @@ def _get_model():
     if _model is None:
         with _lock:
             if _model is None:  # re-check inside the lock
+                # huggingface_hub reads HF_TOKEN from the process
+                # environment, but Settings only loads .env into itself —
+                # so copy it across (never overriding a real env var).
+                # Optional: without it downloads still work, just
+                # rate-limited and with a warning.
+                hf_token = get_settings().hf_token
+                if hf_token:
+                    os.environ.setdefault("HF_TOKEN", hf_token)
                 model, _, preprocess = open_clip.create_model_and_transforms(_MODEL_ID)
                 model.eval()
                 _model, _tokenizer, _preprocess = model, open_clip.get_tokenizer(_MODEL_ID), preprocess

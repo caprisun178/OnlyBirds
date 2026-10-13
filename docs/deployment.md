@@ -127,6 +127,7 @@ Add each deployed web origin to `CORS_ORIGINS` on the Render service.
 | `EBIRD_API_KEY` | backend | `backend/.env`, Render | **yes** |
 | `DATABASE_URL` | backend, `migrate.sh` | `backend/.env`, Render | **yes** |
 | `CORS_ORIGINS` | backend | `backend/.env`, Render | no |
+| `HF_TOKEN` | backend (photo-ID model download) | `backend/.env`, Render | **yes** |
 | `SUPABASE_URL` | backend, frontend | dashboards | no (public) |
 | `SUPABASE_JWT_SECRET` | backend | Render | **yes** |
 | `SUPABASE_SERVICE_ROLE_KEY` | backend | Render | **yes** |
