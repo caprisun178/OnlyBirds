@@ -85,10 +85,11 @@ def test_one_rare_bird_everyone_photographed_is_irregular():
 
 
 def test_minimum_observations_scale_with_the_area():
-    assert patterns.min_obs_for(2_000) == 10  # data-poor: the floor
+    assert patterns.min_obs_for(3_243) == 20  # data-poor rural cell: the floor
     assert patterns.min_obs_for(101_203) == 20  # Raleigh
+    assert patterns.min_obs_for(214_029) == 43  # Seattle
     counts, rel = _curve(range(15, 42), base=1)  # 27 records of a "summer visitor"
-    assert patterns.classify(counts, rel, min_obs=10) == "summer"
+    assert patterns.classify(counts, rel, min_obs=20) == "summer"
     assert patterns.classify(counts, rel, min_obs=30) == "irregular"
 
 

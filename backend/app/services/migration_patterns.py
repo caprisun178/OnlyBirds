@@ -16,7 +16,7 @@ Pattern = Literal["resident", "summer", "winter", "passage", "irregular"]
 Movement = Literal["arriving", "peak", "leaving"]
 
 WEEKS = 52
-MIN_TOTAL_OBS = 10  # fewer observations than this all year: too little data to call...
+MIN_TOTAL_OBS = 20  # fewer observations than this all year: too little data to call...
 MIN_OBS_SHARE = 0.0002  # ...or than 0.02% of the area's observations, in data-rich areas
 MIN_WEEKS_SEEN = 3  # seen in fewer distinct weeks than this: a one-off, not a pattern
 MAX_ONE_WEEK_SHARE = 0.6  # more than this share of all its sightings in one week: one rarity everyone photographed
@@ -54,9 +54,12 @@ def relative_weekly(counts: list[int], totals: list[int]) -> list[float]:
 
 def min_obs_for(area_total_obs: int) -> int:
     """The minimum yearly observations to classify a species at all, scaled
-    to the area: about 20 in Raleigh (~100k observations/year), never below
-    10. Without this, escaped peafowl and a handful of Ross's Goose records
-    came out as "seasonal visitors" in data-rich cells."""
+    to the area: 20 in Raleigh (~100k observations/year), 43 in Seattle
+    (~214k), never below 20. Without the scaling, escaped peafowl and a
+    handful of Ross's Goose records came out as "seasonal visitors" in
+    data-rich cells; with a floor of 10, year-round feeder birds that are
+    mostly photographed in winter (Tufted Titmouse, Song Sparrow) came out
+    as "winter visitors" in a data-poor rural cell."""
     return max(MIN_TOTAL_OBS, round(area_total_obs * MIN_OBS_SHARE))
 
 

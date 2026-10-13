@@ -534,6 +534,12 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/80/House_Finch_%28Haemorhous_mexicanus%29_-_Simcoe%2C_Ontario_01.jpg/330px-House_Finch_%28Haemorhous_mexicanus%29_-_Simcoe%2C_Ontario_01.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:House_Finch_(Haemorhous_mexicanus)_-_Simcoe,_Ontario_01.jpg"
   },
+  "Haemorhous purpureus": {
+    "artist": "Andrew C",
+    "license": "CC BY 2.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/44/Purple_Finch_%28Haemorhous_purpureus%29_%2824709794690%29.jpg/330px-Purple_Finch_%28Haemorhous_purpureus%29_%2824709794690%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Purple_Finch_(Haemorhous_purpureus)_(24709794690).jpg"
+  },
   "Haliaeetus leucocephalus": {
     "artist": "AngMoKio",
     "license": "CC BY-SA 3.0",
@@ -958,6 +964,12 @@
     "license": "CC BY-SA 2.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/08/Northrn_Parula_%28Setophaga_americana%29_%2815226309800%29.jpg/330px-Northrn_Parula_%28Setophaga_americana%29_%2815226309800%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Northrn_Parula_(Setophaga_americana)_(15226309800).jpg"
+  },
+  "Setophaga caerulescens": {
+    "artist": "Charles J. Sharp",
+    "license": "CC BY-SA 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/01/Black-throated_blue_warbler_%28Setophaga_caerulescens%29_male.jpg/330px-Black-throated_blue_warbler_%28Setophaga_caerulescens%29_male.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Black-throated_blue_warbler_(Setophaga_caerulescens)_male.jpg"
   },
   "Setophaga castanea": {
     "artist": "Ryan Hodnett",

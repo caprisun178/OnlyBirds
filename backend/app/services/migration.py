@@ -29,7 +29,7 @@ CELL_SIZE_DEG = 0.5
 RADIUS_KM = 40
 STALE_AFTER = timedelta(days=90)
 REQUEST_SPACING_S = 1.0  # iNaturalist asks API clients to stay around 1 request/second
-LIMITED_BELOW = 2000  # whole-year bird observations — see §1 "Honest limits"
+LIMITED_BELOW = 10_000  # whole-year bird observations — tuned on real cells, see doc §6
 INSUFFICIENT_BELOW = 300
 NOW_LIST_LIMIT = 15  # per list (arriving / peak / leaving)
 

@@ -1,8 +1,11 @@
 # Migration calendar
 
-> **Status:** Planned, scoped — docs only, nothing built yet. The data source
-> was checked against the live iNaturalist API on 2026-10-13 (§1, "Why this
-> works"). The open questions at the end need answers before work starts.
+> **Status:** Built (backend + frontend) on `working/sparisi/migrationCalendar`.
+> The classifier was validated on four real cells before any UI was built
+> (§6, step 1). Backend tests cover the rules and endpoints, and the UI was
+> driven in Chrome with responses generated from real Raleigh data.
+> **Not yet done:** applying migration `0010` to the Neon database, then a
+> live end-to-end build from the browser (§6 step 7).
 
 ## 1. What you're building
 
@@ -130,7 +133,8 @@ listed nesting Purple Martins, Wood Thrushes and White-eyed Vireos as
   the calendar: "Based on iNaturalist photo observations, all years; birds
   that are hard to photograph may appear rarer than they are."
 - **Data-poor areas.** Rural areas can have very few observations. When a
-  location's yearly total is under **2,000 bird observations**, show a
+  location's yearly total is under **10,000 bird observations** (raised from
+  2,000 after validation, §6), show a
   "Not much data here yet, so this calendar may be incomplete" banner. If
   it's under 300, show a "try a larger radius or a nearby city" message
   instead of the calendar.
@@ -225,7 +229,7 @@ and no rebuild.
   "status": "ready",
   "built_at": "2026-10-13T15:02:11Z",
   "refreshing": false,               // true while a stale (> 90 days) cell rebuilds
-  "data_quality": "good",            // "good" | "limited" (< 2,000 obs/yr) | "insufficient" (< 300)
+  "data_quality": "good",            // "good" | "limited" (< 10,000 obs/yr) | "insufficient" (< 300)
   "total_obs": 101203,
   "species": [                       // sorted: passage, summer, winter, resident, irregular; then by arrival week
     {
@@ -282,6 +286,45 @@ registered in `preview.js`'s route table.
    Cardinal) and a few borderline ones (American Robin and Eastern Bluebird,
    partly migratory). Tune §1's thresholds until they agree. Record the
    result in this page, the way bird-id.md §9 records its live runs.
+
+   **Done 2026-10-13.** A full year of live iNaturalist data was fetched for
+   four cells (40 km radius, research grade, 1 request/second):
+
+   | Cell | Species | Observations/yr | Build time | Known species correct |
+   |---|---|---|---|---|
+   | Raleigh, NC | 328 | 101,203 | 5 m 15 s | **26 / 26**: residents (Cardinal, Bluebird, Robin, Song Sparrow…), winter visitors (White-throated Sparrow, Junco, Sapsucker, Yellow-rumped Warbler…), summer visitors (Chimney Swift, Hummingbird, Indigo Bunting, Summer Tanager…), passage (Blackpoll, Magnolia, Bay-breasted, Cape May… warblers, Swainson's Thrush) |
+   | Wilmington, NC (coast) | 296 | 21,532 | 5 m 18 s | **4 / 5**. Sanderling is "irregular": it's on these beaches most of the year with a big fall peak, which fits no single season. Arguably correct. |
+   | Rural eastern NC | 207 | 3,243 | 4 m 19 s | no reference list; used to tune data-poor behaviour |
+   | Seattle, WA | 379 | 214,029 | 4 m 46 s | **8 / 8** (Rufous Hummingbird, Violet-green Swallow summer; Golden-crowned Sparrow, Bufflehead, Scaup winter…) |
+
+   Sample "This week" output for Raleigh, which reads like a real birding year:
+   **March:** Osprey, Louisiana Waterthrush arriving; Hermit Thrush,
+   Sapsucker, Wilson's Snipe leaving. **May:** Scarlet and Summer Tanager,
+   Indigo Bunting arriving; Blackpoll Warbler, Bobolink at peak.
+   **October:** Swainson's and Gray-cheeked Thrush, Cape May Warbler at
+   peak. **November:** loons, Bufflehead, Hooded Merganser arriving.
+
+   What the validation changed (all now in §1):
+
+   - **Seasonal visitors use stay-edge rules, not slope.** Slope called
+     nesting Purple Martins and Wood Thrushes "leaving" Raleigh in May.
+   - **Rarity rule** (< 3 weeks seen, or > 60% of records in one week).
+     It removed a Kirtland's Warbler "at peak" in October.
+   - **Scaled minimum observations, floor 20.** These removed escaped
+     peafowl and chickens and a few Ross's Goose records in data-rich
+     cells, and year-round feeder birds (Titmouse, Song Sparrow)
+     misfiled as winter visitors in the rural cell.
+   - **"Limited data" threshold raised from 2,000 to 10,000
+     observations/yr.** The rural cell (3,243) was being labelled "good"
+     while its lists were still noisy.
+   - Lowering the "present" cutoff from 15% to 10% was tried and made
+     things worse (Black Skimmer also became irregular), so it stays 15%.
+
+   **Known limit that stays:** in July a few nesting birds (Wood Thrush,
+   Red-eyed Vireo) show as "leaving" because they go quiet and get
+   photographed less. It's a photo-data artifact, covered by the page's
+   "hard-to-photograph" note, and the eBird Status & Trends upgrade
+   (open question 3) would fix it.
 2. `classify()` and `this_week()` with unit tests built from synthetic
    weekly lists (a clean resident, a clean passage migrant, a winter
    visitor wrapping round week 53→1, a southern-hemisphere summer
@@ -301,7 +344,7 @@ registered in `preview.js`'s route table.
 
 1. ~~**Week or month?**~~ **Decided (2026-10-13): weekly.** It matches
    eBird's bar charts, and short passages like Blackpoll Warbler's ~4-week
-   window stay visible. It costs ~106 calls (about 2 minutes) per cold cell,
+   window stay visible. It costs ~106 calls (about 5 minutes, measured) per cold cell,
    which the background build and shared cache absorb.
 2. **Cell size / radius.** 0.5° cells with a 40 km radius are a guess
    that suits metro areas. Coastal cells mix beach and inland birds. Revisit
