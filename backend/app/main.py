@@ -15,6 +15,7 @@ from app.routers import (
     health,
     identify,
     life_list,
+    migration,
     notifications,
     observations,
     pins,
@@ -60,6 +61,7 @@ def create_app() -> FastAPI:
     app.include_router(pins.router)
     app.include_router(notifications.router)
     app.include_router(feedback.router)
+    app.include_router(migration.router)
 
     @app.get("/", tags=["health"])
     async def root() -> dict:

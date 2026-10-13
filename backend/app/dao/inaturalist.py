@@ -141,6 +141,62 @@ async def get_species_counts(
         return resp.json().get("results", [])
 
 
+async def get_weekly_species_counts(
+    lat: float, lng: float, radius_km: int, week: int
+) -> list[dict]:
+    """Every bird species observed near a point in one **week of the year,
+    across all years** — iNaturalist's `week` filter (1–53) ignores the year.
+    Backs docs/features/migration-calendar.md. Pages through all results
+    (500 per page, iNaturalist's max); a week rarely has more than a few
+    hundred species within one radius, so this is usually a single call.
+    """
+    results: list[dict] = []
+    page = 1
+    async with _client() as client:
+        while True:
+            resp = await client.get(
+                "/observations/species_counts",
+                params={
+                    "lat": lat,
+                    "lng": lng,
+                    "radius": radius_km,
+                    "taxon_id": _AVES_TAXON_ID,
+                    "quality_grade": "research",
+                    "week": week,
+                    "per_page": 500,
+                    "page": page,
+                },
+            )
+            resp.raise_for_status()
+            body = resp.json()
+            batch = body.get("results", [])
+            results.extend(batch)
+            if not batch or len(results) >= body.get("total_results", 0):
+                return results
+            page += 1
+
+
+async def count_weekly_observations(lat: float, lng: float, radius_km: int, week: int) -> int:
+    """Total research-grade bird observations near a point in one week of the
+    year, all years — the effort denominator for the migration calendar
+    (`per_page=0` returns just the count)."""
+    async with _client() as client:
+        resp = await client.get(
+            "/observations",
+            params={
+                "lat": lat,
+                "lng": lng,
+                "radius": radius_km,
+                "taxon_id": _AVES_TAXON_ID,
+                "quality_grade": "research",
+                "week": week,
+                "per_page": 0,
+            },
+        )
+        resp.raise_for_status()
+        return int(resp.json().get("total_results", 0))
+
+
 # --- Not implemented yet — stub for a planned feature. ---------------------
 
 

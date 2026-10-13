@@ -247,11 +247,29 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/40/Turkey_vulture_%28Cathartes_aura%29_in_flight.JPG/330px-Turkey_vulture_%28Cathartes_aura%29_in_flight.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Turkey_vulture_(Cathartes_aura)_in_flight.JPG"
   },
+  "Catharus guttatus": {
+    "artist": "Cephas",
+    "license": "CC BY-SA 3.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4a/Catharus_guttatus_GJ.jpg/330px-Catharus_guttatus_GJ.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Catharus_guttatus_GJ.jpg"
+  },
+  "Catharus ustulatus": {
+    "artist": "Charles J. Sharp",
+    "license": "CC BY-SA 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/58/Russet-backed_Swainson%27s_thrush_%28Catharus_ustulatus_ustulatus%29_Seward_Park.jpg/330px-Russet-backed_Swainson%27s_thrush_%28Catharus_ustulatus_ustulatus%29_Seward_Park.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Russet-backed_Swainson%27s_thrush_(Catharus_ustulatus_ustulatus)_Seward_Park.jpg"
+  },
   "Centrocercus urophasianus": {
     "artist": "Bureau  of Land Management",
     "license": "Public domain",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/04/Greater_sage-grouse_%28Centrocercus_urophasianus%29.jpg/330px-Greater_sage-grouse_%28Centrocercus_urophasianus%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Greater_sage-grouse_(Centrocercus_urophasianus).jpg"
+  },
+  "Certhia americana": {
+    "artist": "Mdf",
+    "license": "CC BY-SA 3.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fc/Certhia-americana-001.jpg/330px-Certhia-americana-001.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Certhia-americana-001.jpg"
   },
   "Chaetura pelagica": {
     "artist": "Photo by David J. Stang",
@@ -264,6 +282,12 @@
     "license": "CC BY-SA 4.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b0/Ringed_plovers_%28Charadrius_hiaticula%29_in_flight.jpg/330px-Ringed_plovers_%28Charadrius_hiaticula%29_in_flight.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Ringed_plovers_(Charadrius_hiaticula)_in_flight.jpg"
+  },
+  "Charadrius vociferus": {
+    "artist": "Charles J. Sharp",
+    "license": "CC BY-SA 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/04/Killdeer_%28Charadrius_vociferus_ternominatus%29.JPG/330px-Killdeer_%28Charadrius_vociferus_ternominatus%29.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Killdeer_(Charadrius_vociferus_ternominatus).JPG"
   },
   "Chloroceryle amazona": {
     "artist": "Charles J. Sharp",
@@ -325,6 +349,12 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/34/Black_vulture_%28Coragyps_atratus%29_head.JPG/330px-Black_vulture_%28Coragyps_atratus%29_head.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Black_vulture_(Coragyps_atratus)_head.JPG"
   },
+  "Corthylio calendula": {
+    "artist": "Claude Lyneis",
+    "license": "CC0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b8/Corthylio_calendula_468375795.jpg/330px-Corthylio_calendula_468375795.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Corthylio_calendula_468375795.jpg"
+  },
   "Corvus brachyrhynchos": {
     "artist": "Gordon Leggett",
     "license": "CC BY-SA 4.0",
@@ -382,6 +412,12 @@
     "source_url": "https://commons.wikimedia.org/wiki/File:Dryocopus_pileatus_MP2.jpg"
   },
   "Dubusia carrikeri": null,
+  "Dumetella carolinensis": {
+    "artist": "Charles J. Sharp",
+    "license": "CC BY-SA 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d3/Grey_catbird_%28Dumetella_carolinensis%29_Orange_Walk.jpg/330px-Grey_catbird_%28Dumetella_carolinensis%29_Orange_Walk.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Grey_catbird_(Dumetella_carolinensis)_Orange_Walk.jpg"
+  },
   "Egretta caerulea": {
     "artist": "Charles J. Sharp",
     "license": "CC BY-SA 4.0",
@@ -498,6 +534,12 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/80/House_Finch_%28Haemorhous_mexicanus%29_-_Simcoe%2C_Ontario_01.jpg/330px-House_Finch_%28Haemorhous_mexicanus%29_-_Simcoe%2C_Ontario_01.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:House_Finch_(Haemorhous_mexicanus)_-_Simcoe,_Ontario_01.jpg"
   },
+  "Haliaeetus leucocephalus": {
+    "artist": "AngMoKio",
+    "license": "CC BY-SA 3.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d4/Weisskopf_Seeadler_haliaeetus_leucocephalus_8_amk.jpg/330px-Weisskopf_Seeadler_haliaeetus_leucocephalus_8_amk.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Weisskopf_Seeadler_haliaeetus_leucocephalus_8_amk.jpg"
+  },
   "Himantopus novaezelandiae": {
     "artist": null,
     "license": "CC BY 4.0",
@@ -521,6 +563,12 @@
     "license": "CC BY-SA 4.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2a/Hen_Harlequin_duck_%28Histrionicus_histrionicus%29_sitting_on_a_rock_in_the_Barnegat_Inlet%2C_New_Jersey%2C_USA.jpg/330px-Hen_Harlequin_duck_%28Histrionicus_histrionicus%29_sitting_on_a_rock_in_the_Barnegat_Inlet%2C_New_Jersey%2C_USA.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Hen_Harlequin_duck_(Histrionicus_histrionicus)_sitting_on_a_rock_in_the_Barnegat_Inlet,_New_Jersey,_USA.jpg"
+  },
+  "Hylocichla mustelina": {
+    "artist": "Charles J. Sharp",
+    "license": "CC BY-SA 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fd/Wood_thrush_%28Hylocichla_mustelina%29_Peten.jpg/330px-Wood_thrush_%28Hylocichla_mustelina%29_Peten.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Wood_thrush_(Hylocichla_mustelina)_Peten.jpg"
   },
   "Ibidorhyncha struthersii": {
     "artist": "Birds of Gilgit-Baltistan from Aliabad, Hunza, Pakistan",
@@ -649,7 +697,19 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/20/Gila_Woodpecker_%28Melanerpes_uropygialis%29_%28female%29.jpg/330px-Gila_Woodpecker_%28Melanerpes_uropygialis%29_%28female%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Gila_Woodpecker_(Melanerpes_uropygialis)_(female).jpg"
   },
+  "Meleagris gallopavo": {
+    "artist": "Frank Schulenburg",
+    "license": "CC BY-SA 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8a/Male_wild_turkey_%28Meleagris_gallopavo%29_strutting.jpg/330px-Male_wild_turkey_%28Meleagris_gallopavo%29_strutting.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Male_wild_turkey_(Meleagris_gallopavo)_strutting.jpg"
+  },
   "Melopyrrha violacea": null,
+  "Melospiza georgiana": {
+    "artist": "Cephas",
+    "license": "CC BY-SA 3.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bc/Melospiza_georgiana_MN1.jpg/330px-Melospiza_georgiana_MN1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Melospiza_georgiana_MN1.jpg"
+  },
   "Melospiza melodia": {
     "artist": "Cephas",
     "license": "CC BY-SA 4.0",
@@ -764,6 +824,12 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/34/Common_pheasant_%28Phasianus_colchicus%29_immature_male.jpg/330px-Common_pheasant_%28Phasianus_colchicus%29_immature_male.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Common_pheasant_(Phasianus_colchicus)_immature_male.jpg"
   },
+  "Pheucticus ludovicianus": {
+    "artist": "Cephas",
+    "license": "CC BY-SA 3.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/28/Pheucticus_ludovicianus_CT3.jpg/330px-Pheucticus_ludovicianus_CT3.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Pheucticus_ludovicianus_CT3.jpg"
+  },
   "Pheugopedius felix": {
     "artist": "Dominic Sherony",
     "license": "CC BY-SA 2.0",
@@ -851,6 +917,12 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fd/Quiscalus-quiscula-001.jpg/330px-Quiscalus-quiscula-001.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Quiscalus-quiscula-001.jpg"
   },
+  "Regulus satrapa": {
+    "artist": "lwolfartist",
+    "license": "CC BY 2.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7a/Regulus_satrapa_DSC_6223.jpg/330px-Regulus_satrapa_DSC_6223.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Regulus_satrapa_DSC_6223.jpg"
+  },
   "Rhynchophanes mccownii": {
     "artist": "Ron Knight from Seaford, East Sussex, United Kingdom",
     "license": "CC BY 2.0",
@@ -905,6 +977,12 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3b/Kirtland%27s_Warbler_%28Setophaga_kirtlandii%29_male.jpg/330px-Kirtland%27s_Warbler_%28Setophaga_kirtlandii%29_male.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Kirtland%27s_Warbler_(Setophaga_kirtlandii)_male.jpg"
   },
+  "Setophaga magnolia": {
+    "artist": "Cephas",
+    "license": "CC BY-SA 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/32/Setophaga_magnolia_MP.jpg/330px-Setophaga_magnolia_MP.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Setophaga_magnolia_MP.jpg"
+  },
   "Setophaga petechia": {
     "artist": "Charles J. Sharp",
     "license": "CC BY-SA 4.0",
@@ -958,6 +1036,12 @@
     "license": "CC BY 4.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5f/Spatula_puna_336674104.jpg/330px-Spatula_puna_336674104.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Spatula_puna_336674104.jpg"
+  },
+  "Sphyrapicus varius": {
+    "artist": "Charles J. Sharp",
+    "license": "CC BY-SA 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/02/Yellow-bellied_sapsucker_%28Sphyrapicus_varius%29_juvenile.JPG/330px-Yellow-bellied_sapsucker_%28Sphyrapicus_varius%29_juvenile.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Yellow-bellied_sapsucker_(Sphyrapicus_varius)_juvenile.JPG"
   },
   "Spilornis cheela": {
     "artist": "Crisco 1492",
