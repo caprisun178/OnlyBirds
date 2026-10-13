@@ -87,11 +87,14 @@ before. The describe flow is unchanged and still always sends the date.
 - **Phone GPS can be off by tens of meters**, and a photo taken through a
   long lens is of a bird that may be far from the photographer. That's fine
   for region lookup and a map pin; the user can still drag the pin.
-- **HEIC** (iPhone's native format) is not in `ALLOWED_CONTENT_TYPES`. iOS
-  Safari usually converts to JPEG when picking from the photo library, but a
-  `.heic` file dragged in on a desktop is rejected today. Out of scope here.
-  See the open questions in [Bulk photo import](bulk-import.md), where it
-  matters more.
+- **HEIC** (iPhone's native format) is accepted since bulk import and
+  stored as JPEG. See [Bulk photo import](bulk-import.md), open question 2.
+- **Camera JPEGs stored as MPO.** Many camera JPEGs, Fujifilm's included,
+  open in Pillow as **MPO** (a JPEG plus an embedded preview frame). The
+  first version of `strip()` rejected them as an unsupported format, so a
+  real camera JPEG would have failed to upload. Fixed while building bulk
+  import: MPO is stored as a plain JPEG of its main frame, and
+  `test_mpo_camera_jpeg_is_read_and_stored_as_plain_jpeg` covers it.
 
 ## 2. Where the data comes from and where it goes
 

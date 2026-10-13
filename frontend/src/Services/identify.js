@@ -2,7 +2,7 @@
 // The free-text description is part of validation: it must say enough that
 // the identify service has something to match against before we call the API.
 import { identifyDAO } from '../Dao/identify.js';
-import { ALLOWED_TYPES, MAX_BYTES } from './uploads.js';
+import { validateImageFile } from './uploads.js';
 
 const MIN_DESCRIPTION_LENGTH = 3;
 
@@ -44,14 +44,11 @@ export const identifyService = {
   // Same validation as uploadsService.uploadPhoto() (identical limits,
   // reused not redeclared) — the classifier never sees a file the server
   // would reject anyway.
-  async identifyPhoto(file, location) {
-    if (!ALLOWED_TYPES.has(file.type)) {
-      throw new Error('Please choose a JPEG, PNG, WebP, or GIF image.');
-    }
-    if (file.size > MAX_BYTES) {
-      throw new Error('That image is too large (max 8 MB).');
-    }
-    return identifyDAO.identifyPhoto(file, toRegional(location));
+  async identifyPhoto(file, location, { store = false } = {}) {
+    validateImageFile(file);
+    // `store` (bulk import): the server also saves the stripped photo and
+    // returns `photo_url`, so the file is uploaded once, not twice.
+    return identifyDAO.identifyPhoto(file, toRegional(location), { store });
   },
 };
 

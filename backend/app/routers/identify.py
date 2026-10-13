@@ -19,7 +19,7 @@ from app.models.identification import (
     SelectCandidateResponse,
 )
 from app.services import identify as identify_service
-from app.services import uploads as upload_service
+from app.services import uploads as upload_service  # validation + store_photo()
 
 router = APIRouter(prefix="/identify", tags=["identify"])
 
@@ -35,20 +35,23 @@ async def identify_photo(
     lat: float | None = Form(None),
     lng: float | None = Form(None),
     observed_at: date | None = Form(None),
+    store: bool = Form(False),
 ):
-    content_type = file.content_type or "application/octet-stream"
-    if content_type not in upload_service.ALLOWED_CONTENT_TYPES:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported image type '{content_type}'. Use JPEG, PNG, WebP, or GIF.",
-        )
+    """`store=true` (bulk import) also saves the photo — stripped and
+    resized, same as `POST /uploads/photo` — and returns its `photo_url`,
+    so the browser uploads each photo once instead of twice. See
+    docs/features/bulk-import.md §4."""
     content = await file.read()
-    if len(content) > upload_service.MAX_BYTES:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Image is too large ({len(content) // 1024} KB). Max is {upload_service.MAX_BYTES // 1024} KB.",
+    try:
+        upload_service.validate(upload_service.normalize_content_type(file.content_type, file.filename), content)
+    except upload_service.UploadError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    try:
+        return await identify_service.identify_photo(
+            content, lat=lat, lng=lng, observed_at=observed_at, store=store
         )
-    return await identify_service.identify_photo(content, lat=lat, lng=lng, observed_at=observed_at)
+    except upload_service.UploadError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/{identification_id}/select", response_model=SelectCandidateResponse)

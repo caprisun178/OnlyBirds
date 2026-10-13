@@ -56,6 +56,11 @@ for each → insert a 'pin_hit' notification   (deduped to one per user/species/
 - **Region containment** is eBird-code prefix matching: `world` matches
   everything; otherwise `R` matches the pin's region when `R = region` or `R`
   starts with `region || '-'`.
+- **Recent sightings only**: a sighting dated more than **7 days** before it's
+  logged never alerts (`app/services/observation.py#PIN_ALERT_MAX_AGE`). An
+  alert only helps if the bird might still be there, and back-dated entries
+  and [bulk-imported](bulk-import.md) trips would otherwise send alerts
+  about months-old sightings. Decided 2026-10-13.
 - **Dedupe**: at most one `pin_hit` per `(user, species, region, day)` — a
   twitchy species reported five times in a morning is one nudge, with a count.
 - Location is coarsened to the region — never exact lat/lng — and the reporter's

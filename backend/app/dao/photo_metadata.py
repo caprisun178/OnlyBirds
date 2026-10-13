@@ -16,8 +16,22 @@ from __future__ import annotations
 import io
 from datetime import datetime
 
+import pillow_heif
 from PIL import ExifTags, Image, ImageOps
 
+# Lets Pillow open iPhone HEIC/HEIF files everywhere in the process —
+# including bioclip_classifier's Image.open — once this module is imported.
+pillow_heif.register_heif_opener()
+
+# Decoded format -> format the stored copy is written as.
+_OUTPUT_FORMAT = {
+    "JPEG": "JPEG",
+    "MPO": "JPEG",
+    "HEIF": "JPEG",
+    "PNG": "PNG",
+    "WEBP": "WEBP",
+    "GIF": "GIF",
+}
 _FORMAT_TO_CONTENT_TYPE = {
     "JPEG": "image/jpeg",
     "PNG": "image/png",
@@ -69,7 +83,7 @@ def read(image_bytes: bytes) -> dict | None:
     return {"lat": lat, "lng": lng, "taken_at": taken_at}
 
 
-def strip(image_bytes: bytes) -> tuple[bytes, str]:
+def strip(image_bytes: bytes, max_edge: int | None = None) -> tuple[bytes, str]:
     """Re-saves the image without EXIF/XMP metadata and returns
     `(bytes, content_type)` — the content type of what was actually
     written, from the decoded format rather than whatever the client
@@ -80,7 +94,15 @@ def strip(image_bytes: bytes) -> tuple[bytes, str]:
     would store phone photos sideways (same bug class as
     `docs/features/bird-id.md` §1).
 
-    GIFs and animated images pass through untouched: GIFs carry no EXIF,
+    `max_edge`, when given, shrinks the image so its longer side is at most
+    that many pixels (never enlarges). Uploads pass one so a 25 MB camera
+    original isn't stored at full resolution (docs/features/bulk-import.md).
+
+    Camera JPEGs that Pillow opens as MPO (a JPEG with an extra embedded
+    preview frame) and iPhone HEIC files are stored as plain JPEG: browsers
+    other than Safari can't display HEIC, and only MPO's main frame matters.
+
+    GIFs and animated WebP/PNG pass through untouched: GIFs carry no EXIF,
     and re-saving an animation here would keep only its first frame.
     """
     try:
@@ -89,32 +111,34 @@ def strip(image_bytes: bytes) -> tuple[bytes, str]:
     except Exception as exc:
         raise UnreadableImage("Couldn't read that image.") from exc
 
-    fmt = img.format
-    content_type = _FORMAT_TO_CONTENT_TYPE.get(fmt)
-    if content_type is None:
-        raise UnreadableImage(f"Unsupported image format '{fmt}'.")
-    if fmt == "GIF" or getattr(img, "is_animated", False):
+    out_fmt = _OUTPUT_FORMAT.get(img.format)
+    if out_fmt is None:
+        raise UnreadableImage(f"Unsupported image format '{img.format}'.")
+    content_type = _FORMAT_TO_CONTENT_TYPE[out_fmt]
+    if img.format == "GIF" or (img.format != "MPO" and getattr(img, "is_animated", False)):
         return image_bytes, content_type
 
     icc_profile = img.info.get("icc_profile")
-    img = ImageOps.exif_transpose(img)
+    img = ImageOps.exif_transpose(img)  # also leaves just MPO's main frame
     # Pillow falls back to `img.info` for some metadata (e.g. XMP) when
     # saving — clear it so nothing rides along, keeping only the colour
     # profile (not identifying, and dropping it would shift colours).
     img.info = {}
+    if max_edge and max(img.size) > max_edge:
+        img.thumbnail((max_edge, max_edge), Image.Resampling.LANCZOS)
 
     save_kwargs: dict = {}
     if icc_profile:
         save_kwargs["icc_profile"] = icc_profile
-    if fmt == "JPEG":
+    if out_fmt == "JPEG":
         if img.mode not in ("RGB", "L", "CMYK"):
             img = img.convert("RGB")
         save_kwargs["quality"] = 90
-    elif fmt == "WEBP":
+    elif out_fmt == "WEBP":
         save_kwargs["quality"] = 90
 
     out = io.BytesIO()
-    img.save(out, format=fmt, **save_kwargs)
+    img.save(out, format=out_fmt, **save_kwargs)
     return out.getvalue(), content_type
 
 

@@ -26,6 +26,7 @@
 
 import { mount as mountHome } from './Presenters/Home.js';
 import { mount as mountAddObservation } from './Presenters/AddObservation.js';
+import { mount as mountBulkImport } from './Presenters/BulkImport.js';
 import { mount as mountLifeList } from './Presenters/LifeList.js';
 import { mount as mountObservationList } from './Presenters/ObservationList.js';
 import { mount as mountPlanATrip } from './Presenters/PlanATrip.js';
@@ -43,6 +44,7 @@ const reportWidget = mountReportButton();
 const SCREENS = {
   home: (container, params) => mountHome(container, { onNavigate: navigate, ...params }),
   'add-observation': (container, params) => mountAddObservation(container, { onNavigate: navigate, ...params }),
+  'bulk-import': (container, params) => mountBulkImport(container, { onNavigate: navigate, ...params }),
   'life-list': (container, params) => mountLifeList(container, { onNavigate: navigate, ...params }),
   'observation-log': (container, params) => mountObservationList(container, { onNavigate: navigate, ...params }),
   'plan-a-trip': (container, params) => mountPlanATrip(container, { onNavigate: navigate, ...params }),

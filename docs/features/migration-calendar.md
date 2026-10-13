@@ -141,7 +141,7 @@ patterns barely move within a year; 90 days just picks up new observations.
 ## 3. Database changes (SQL)
 
 ```sql
--- 0007_migration_calendar.sql   (renumber if bulk import's 0007 lands first)
+-- 0010_migration_calendar.sql   (next free number after bulk import's 0009; recheck when building)
 
 create table if not exists migration_calendars (
     cell_id      text primary key,                -- 'lat:lng' of the cell's SW corner, e.g. '35.5:-79.0'
@@ -253,7 +253,7 @@ registered in `preview.js`'s route table.
    weekly lists (a clean resident, a clean passage migrant, a winter
    visitor wrapping round week 53→1, a southern-hemisphere summer
    visitor, too-little-data → irregular).
-3. Migration `0007_migration_calendar.sql` + `migration_repo.py`
+3. Migration `0010_migration_calendar.sql` + `migration_repo.py`
    (+ test: `claim_build` refuses a fresh `building` row and accepts an
    abandoned one).
 4. `inaturalist.py` extensions + `build_cell()` (tests mock the DAO; no

@@ -16,12 +16,13 @@ export const identifyDAO = {
   // Doesn't go through apiClient.js's `request()` — that always sends
   // JSON, this needs multipart/form-data (same reasoning as Dao/uploads.js,
   // and same fix: reuse apiClient's BASE_URL rather than redeclaring it).
-  async identifyPhoto(file, regional) {
+  async identifyPhoto(file, regional, { store = false } = {}) {
     const formData = new FormData();
     formData.append('file', file);
     if (regional?.lat != null) formData.append('lat', regional.lat);
     if (regional?.lng != null) formData.append('lng', regional.lng);
     if (regional?.observed_at) formData.append('observed_at', regional.observed_at);
+    if (store) formData.append('store', 'true');
     const resp = await fetch(`${BASE_URL}/identify/photo`, {
       method: 'POST',
       body: formData,

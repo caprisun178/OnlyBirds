@@ -57,6 +57,7 @@ class ObservationRepo(Protocol):
     async def list_for_user(self, user_id: str) -> list[Observation]: ...
     async def update(self, observation_id: str, payload: ObservationUpdate) -> Observation | None: ...
     async def list_near(self, lat: float, lng: float, radius_km: float, since: datetime) -> list[Observation]: ...
+    async def delete_by_import_batch(self, user_id: str, import_batch_id: str) -> int: ...
 
 
 class InMemoryObservationRepo:
@@ -82,6 +83,7 @@ class InMemoryObservationRepo:
             detection_type=payload.detection_type,
             status=payload.status,
             region=payload.region,
+            import_batch_id=payload.import_batch_id,
         )
         self._by_id[obs.id] = obs
         return obs
@@ -111,6 +113,16 @@ class InMemoryObservationRepo:
             and _haversine_km(lat, lng, o.lat, o.lng) <= radius_km
         ]
 
+    async def delete_by_import_batch(self, user_id: str, import_batch_id: str) -> int:
+        doomed = [
+            obs_id
+            for obs_id, o in self._by_id.items()
+            if o.user_id == user_id and o.import_batch_id == import_batch_id
+        ]
+        for obs_id in doomed:
+            del self._by_id[obs_id]
+        return len(doomed)
+
 
 class PostgresObservationRepo:
     """Real persistence against Postgres (Neon). See module docstring."""
@@ -129,6 +141,9 @@ class PostgresObservationRepo:
 
     async def list_near(self, lat: float, lng: float, radius_km: float, since: datetime) -> list[Observation]:
         return await asyncio.to_thread(self._list_near_sync, lat, lng, radius_km, since)
+
+    async def delete_by_import_batch(self, user_id: str, import_batch_id: str) -> int:
+        return await asyncio.to_thread(self._delete_by_import_batch_sync, user_id, import_batch_id)
 
     # ---- sync internals, each run off the event loop via to_thread above --
 
@@ -174,9 +189,10 @@ class PostgresObservationRepo:
                     insert into observations (
                         user_id, species_id, lat, lng, location_name, observed_at,
                         source, source_observation_id, photo_url, notes,
-                        sex, life_stage, detection_type, status, region
+                        sex, life_stage, detection_type, status, region,
+                        import_batch_id
                     ) values (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                     )
                     returning id
                     """,
@@ -196,6 +212,7 @@ class PostgresObservationRepo:
                         payload.detection_type,
                         payload.status,
                         payload.region,
+                        payload.import_batch_id,
                     ),
                 )
                 new_id = cur.fetchone()["id"]
@@ -218,6 +235,7 @@ class PostgresObservationRepo:
             detection_type=payload.detection_type,
             status=payload.status,
             region=payload.region,
+            import_batch_id=payload.import_batch_id,
         )
 
     def _get_sync(self, observation_id: str) -> Observation | None:
@@ -327,6 +345,22 @@ class PostgresObservationRepo:
         candidates = [self._row_to_observation(row) for row in rows]
         return [o for o in candidates if _haversine_km(lat, lng, o.lat, o.lng) <= radius_km]
 
+    def _delete_by_import_batch_sync(self, user_id: str, import_batch_id: str) -> int:
+        pool = get_pool()
+        with pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    delete from observations o
+                    using users u
+                    where u.id = o.user_id
+                      and u.auth_provider_id = %s
+                      and o.import_batch_id = %s
+                    """,
+                    (user_id, import_batch_id),
+                )
+                return cur.rowcount
+
     @staticmethod
     def _row_to_observation(row: dict[str, Any]) -> Observation:
         return Observation(
@@ -351,6 +385,7 @@ class PostgresObservationRepo:
             detection_type=row["detection_type"],
             status=row["status"],
             region=row.get("region"),
+            import_batch_id=row.get("import_batch_id"),
         )
 
 

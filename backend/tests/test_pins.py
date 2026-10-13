@@ -14,20 +14,24 @@ in the second half of this file.
 """
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from app.models.observation import Observation
 from app.models.species import SpeciesRef
 from app.services.pins import evaluate_pins
 
 
-def _log(client, user_id, scientific_name, common_name, lat, lng):
+def _log(client, user_id, scientific_name, common_name, lat, lng, observed_at=None):
+    # Defaults to an hour ago: sightings older than 7 days never alert
+    # (app/services/observation.py#PIN_ALERT_MAX_AGE), so a fixed date here
+    # would quietly stop exercising the alert path as the calendar moves on.
+    observed_at = observed_at or (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
     resp = client.post(
         "/observations",
         json={
             "user_id": user_id,
             "species": {"scientific_name": scientific_name, "common_name": common_name},
-            "observed_at": "2026-10-01T08:00:00+00:00",
+            "observed_at": observed_at,
             "lat": lat,
             "lng": lng,
             "source": "manual",
@@ -117,6 +121,26 @@ def test_logging_a_pinned_species_notifies_the_pinning_user(client):
     assert notifications[0]["kind"] == "pin_hit"
     assert notifications[0]["payload"]["species"] == "Bubo scandiacus"
     assert notifications[0]["read_at"] is None
+
+
+def test_sighting_older_than_seven_days_does_not_notify(client):
+    # Back-dated entries and bulk-imported trips: the bird is long gone, so
+    # an alert would only mislead. See docs/features/bulk-import.md §4.
+    client.post("/users/u1/pins", json={"scientific_name": "Bubo scandiacus", "region": "world"})
+
+    old = (datetime.now(timezone.utc) - timedelta(days=8)).isoformat()
+    _log(client, "u2", "Bubo scandiacus", "Snowy Owl", 47.6, -122.3, observed_at=old)
+
+    assert client.get("/users/u1/notifications").json() == []
+
+
+def test_sighting_six_days_old_still_notifies(client):
+    client.post("/users/u1/pins", json={"scientific_name": "Bubo scandiacus", "region": "world"})
+
+    recent = (datetime.now(timezone.utc) - timedelta(days=6)).isoformat()
+    _log(client, "u2", "Bubo scandiacus", "Snowy Owl", 47.6, -122.3, observed_at=recent)
+
+    assert len(client.get("/users/u1/notifications").json()) == 1
 
 
 def test_reporter_is_never_notified_of_their_own_sighting(client):

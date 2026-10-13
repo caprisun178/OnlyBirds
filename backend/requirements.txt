@@ -12,6 +12,7 @@ onnxruntime>=1.30          # app/dao/bird_classifier.py — not currently wired 
                             # changes back; see docs/features/bird-id.md §9 for why BioCLIP replaced it
 pillow>=11.0                # image preprocessing for both photo-ID models
 numpy>=2.0                  # same
+pillow-heif>=0.18           # iPhone HEIC uploads — app/dao/photo_metadata.py (stored as JPEG)
 
 # Self-hosted photo-ID model (POST /identify/photo) — app/dao/bioclip_classifier.py,
 # zero-shot, no fixed species list. See docs/features/bird-id.md §7/§9 for why this

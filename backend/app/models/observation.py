@@ -45,6 +45,10 @@ class ObservationBase(BaseModel):
     # persisting. Lives here (not computed on read) so Pinned Birds' match
     # query can filter on it directly. See docs/features/pinned-birds.md.
     region: str | None = None
+    # Same value on every observation logged by one bulk import (a UUID the
+    # browser generates), so the whole import can be undone at once. None for
+    # wizard-logged observations. See docs/features/bulk-import.md §3.
+    import_batch_id: str | None = None
 
 
 class ObservationCreate(ObservationBase):

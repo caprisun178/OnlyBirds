@@ -22,7 +22,7 @@
 // See docs/features/life-list.md.
 
 import { observationService } from '../Services/observations.js';
-import { uploadsService } from '../Services/uploads.js';
+import { uploadsService, ACCEPT_ATTR, TYPES_HINT } from '../Services/uploads.js';
 import { escapeHtml } from '../Components/htmlUtils.js';
 
 const SEX_OPTIONS = [
@@ -430,9 +430,9 @@ export function mount(container, props = {}) {
           </div>
           <div class="ob-field">
             <label class="ob-label" for="edit-photo">Photo</label>
-            <input id="edit-photo" type="file" accept="image/*" class="ob-input" />
+            <input id="edit-photo" type="file" accept="${ACCEPT_ATTR}" class="ob-input" />
             <div data-role="edit-photo-status">${renderEditPhotoStatusHtml()}</div>
-            <p class="ob-hint">JPEG, PNG, WebP, or GIF, up to 8 MB.</p>
+            <p class="ob-hint">${TYPES_HINT}</p>
           </div>
           <div class="ob-field">
             <label class="ob-label" for="edit-notes">Notes</label>

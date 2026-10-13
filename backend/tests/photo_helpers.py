@@ -45,3 +45,17 @@ def make_image(
     kwargs = {"exif": exif.tobytes()} if len(exif) else {}
     img.save(out, format=fmt, **kwargs)
     return out.getvalue()
+
+
+def make_mpo(gps: dict | None = None, size: tuple[int, int] = (40, 20)) -> bytes:
+    """A camera-style MPO: a JPEG main image plus an embedded second frame
+    (many camera JPEGs open in Pillow as MPO)."""
+    main = Image.new("RGB", size, "red")
+    extra = Image.new("RGB", (size[0] // 2, size[1] // 2), "blue")
+    exif = Image.Exif()
+    if gps is not None:
+        exif[ExifTags.IFD.GPSInfo] = gps
+    out = io.BytesIO()
+    kwargs = {"exif": exif.tobytes()} if len(exif) else {}
+    main.save(out, format="MPO", save_all=True, append_images=[extra], **kwargs)
+    return out.getvalue()

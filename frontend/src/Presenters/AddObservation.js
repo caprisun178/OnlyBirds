@@ -23,7 +23,7 @@
 import { identifyService } from '../Services/identify.js';
 import { speciesService } from '../Services/species.js';
 import { observationService } from '../Services/observations.js';
-import { uploadsService } from '../Services/uploads.js';
+import { uploadsService, ACCEPT_ATTR, TYPES_HINT } from '../Services/uploads.js';
 import { geocodingService } from '../Services/geocoding.js';
 import { recentLocationsService } from '../Services/recentLocations.js';
 import { getCurrentUser } from '../testData/testProfile.js';
@@ -286,8 +286,11 @@ export function mount(container, props = {}) {
         </div>
         <div class="ob-field">
           <label class="ob-label">Or upload a photo</label>
-          <input type="file" id="identify-photo-input" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none;" />
-          <button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="upload-photo" style="align-self:flex-start;">Upload a photo</button>
+          <input type="file" id="identify-photo-input" accept="${ACCEPT_ATTR}" style="display:none;" />
+          <div class="ob-cluster">
+            <button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="upload-photo">Upload a photo</button>
+            ${onNavigate ? '<button type="button" class="ob-btn ob-btn--subtle ob-btn--sm" data-action="bulk-import">Import several photos at once</button>' : ''}
+          </div>
           <p class="ob-hint">If the photo has its location and time saved, we'll fill those in for you. Skips straight to picking a match — only covers common North American species, so an uncommon or regional bird may come back as a confident-looking but wrong match.</p>
         </div>
         <div class="ob-field">
@@ -341,6 +344,11 @@ export function mount(container, props = {}) {
 
     const photoInput = form.querySelector('#identify-photo-input');
     form.querySelector('[data-action="upload-photo"]')?.addEventListener('click', () => photoInput.click());
+    form.querySelector('[data-action="bulk-import"]')?.addEventListener('click', () => {
+      mapController?.destroy();
+      mapController = null;
+      onNavigate('bulk-import', { userId });
+    });
     photoInput.addEventListener('change', async () => {
       const file = photoInput.files[0];
       if (!file) return;
@@ -718,9 +726,9 @@ export function mount(container, props = {}) {
 
         <div class="ob-field">
           <label class="ob-label" for="photo">Photo (optional)</label>
-          <input id="photo" type="file" accept="image/*" class="ob-input" />
+          <input id="photo" type="file" accept="${ACCEPT_ATTR}" class="ob-input" />
           <div data-role="photo-status">${renderPhotoStatusHtml()}</div>
-          <p class="ob-hint">JPEG, PNG, WebP, or GIF, up to 8 MB.</p>
+          <p class="ob-hint">${TYPES_HINT}</p>
         </div>
 
         <div class="ob-field">

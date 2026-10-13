@@ -23,6 +23,12 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9a/Male_Red-winged_blackbird_%28Agelaius_phoeniceus%29_John_Heinz_National_Wildlife_Refuge%2C_Philadelphia%2C_Pennsylvania%2C_United_States.jpg/330px-Male_Red-winged_blackbird_%28Agelaius_phoeniceus%29_John_Heinz_National_Wildlife_Refuge%2C_Philadelphia%2C_Pennsylvania%2C_United_States.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Male_Red-winged_blackbird_(Agelaius_phoeniceus)_John_Heinz_National_Wildlife_Refuge,_Philadelphia,_Pennsylvania,_United_States.jpg"
   },
+  "Aix galericulata": {
+    "artist": "Michael G\u00e4bler",
+    "license": "CC BY 3.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b9/Aix_galericulata_%28Linnaeus_1758%29.jpg/330px-Aix_galericulata_%28Linnaeus_1758%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Aix_galericulata_(Linnaeus_1758).jpg"
+  },
   "Aix sponsa": {
     "artist": "Francis C. Franklin",
     "license": "CC BY-SA 3.0",
@@ -58,6 +64,12 @@
     "license": "CC BY-SA 4.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/32/Antigone_canadensis%2C_Parc_Plaisance%2C_Qu%C3%A9bec_03.jpg/330px-Antigone_canadensis%2C_Parc_Plaisance%2C_Qu%C3%A9bec_03.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Antigone_canadensis,_Parc_Plaisance,_Qu%C3%A9bec_03.jpg"
+  },
+  "Aquila chrysaetos": {
+    "artist": "Diego Delso",
+    "license": "CC BY-SA 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/04/Busardo_mixto_%28Parabuteo_unicinctus%29%2C_Arcos_de_la_Frontera%2C_C%C3%A1diz%2C_Espa%C3%B1a%2C_2015-12-08%2C_DD_06.jpg/330px-Busardo_mixto_%28Parabuteo_unicinctus%29%2C_Arcos_de_la_Frontera%2C_C%C3%A1diz%2C_Espa%C3%B1a%2C_2015-12-08%2C_DD_06.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Busardo_mixto_(Parabuteo_unicinctus),_Arcos_de_la_Frontera,_C%C3%A1diz,_Espa%C3%B1a,_2015-12-08,_DD_06.jpg"
   },
   "Aramides saracura": {
     "artist": "https://www.flickr.com/photos/dariosanches/",
@@ -142,6 +154,12 @@
     "license": "CC BY-SA 3.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0d/Aythya_americana_f_SamSmith.jpg/330px-Aythya_americana_f_SamSmith.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Aythya_americana_f_SamSmith.jpg"
+  },
+  "Aythya valisineria": {
+    "artist": "Frank Schulenburg",
+    "license": "CC BY-SA 3.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e1/Aythya_valisineria_at_Las_Gallinas_Wildlife_Ponds.jpg/330px-Aythya_valisineria_at_Las_Gallinas_Wildlife_Ponds.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Aythya_valisineria_at_Las_Gallinas_Wildlife_Ponds.jpg"
   },
   "Baeolophus bicolor": {
     "artist": "Basar",
@@ -271,6 +289,12 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/03/Amazon_kingfisher_%28Chloroceryle_amazona%29_female_in_flight_Cayo_2.jpg/330px-Amazon_kingfisher_%28Chloroceryle_amazona%29_female_in_flight_Cayo_2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Amazon_kingfisher_(Chloroceryle_amazona)_female_in_flight_Cayo_2.jpg"
   },
+  "Cinclus mexicanus": {
+    "artist": "David Bakken",
+    "license": "CC BY-SA 2.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ed/American_dipper_%28Cinclus_mexicanus%29_dipping_near_Kern_Flat_%2842775398820%29.jpg/330px-American_dipper_%28Cinclus_mexicanus%29_dipping_near_Kern_Flat_%2842775398820%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:American_dipper_(Cinclus_mexicanus)_dipping_near_Kern_Flat_(42775398820).jpg"
+  },
   "Cistothorus palustris": {
     "artist": "Cephas",
     "license": "CC BY-SA 3.0",
@@ -368,12 +392,24 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/34/Cyanocitta_stelleri_Big_Sur_May_2011.jpg/330px-Cyanocitta_stelleri_Big_Sur_May_2011.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Cyanocitta_stelleri_Big_Sur_May_2011.jpg"
   },
+  "Cyanocorax caeruleus": {
+    "artist": "Henri Bergius",
+    "license": "CC BY-SA 2.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2f/Cyanocorax_caeruleus.jpg/330px-Cyanocorax_caeruleus.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Cyanocorax_caeruleus.jpg"
+  },
   "Cyanocorax colliei": null,
   "Cygnus atratus": {
     "artist": "Another one of my pictures:\n\n\n\nThis photograph was taken by Medium69 (William Crochot) and released under the license stated below. You are free to use it for any purpose as long as you credit the author (William Crochot), the Source (Wikimedia Commons) and the license (CC-BY-SA 4.0) in close relation to the image.\n\n\n\n\n\nPlease do not upload an updated image here without consultation with the Author. The author would like to make corrections only at his own source RAW. This ensures that the changes are preserved.Please if you think that any changes should be required, please inform the author.Otherwise you can upload a new image with a new name. Please use one of the templates derivative or extract.",
     "license": "CC BY-SA 4.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/83/Cygnus_atratus_%28Cygne_noir%29_-_20150806_12h47_%2811043%29.jpg/330px-Cygnus_atratus_%28Cygne_noir%29_-_20150806_12h47_%2811043%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Cygnus_atratus_(Cygne_noir)_-_20150806_12h47_(11043).jpg"
+  },
+  "Cygnus buccinator": {
+    "artist": "The Cosmonaut",
+    "license": "CC BY-SA 2.5 ca",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/09/Cygnus_buccinator_-_Junction_Creek2.jpg/330px-Cygnus_buccinator_-_Junction_Creek2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Cygnus_buccinator_-_Junction_Creek2.jpg"
   },
   "Dryobates pubescens": {
     "artist": "The Cosmonaut",
@@ -516,6 +552,12 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/80/House_Finch_%28Haemorhous_mexicanus%29_-_Simcoe%2C_Ontario_01.jpg/330px-House_Finch_%28Haemorhous_mexicanus%29_-_Simcoe%2C_Ontario_01.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:House_Finch_(Haemorhous_mexicanus)_-_Simcoe,_Ontario_01.jpg"
   },
+  "Halcyon coromanda": {
+    "artist": "sodai gomi",
+    "license": "CC BY 2.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5f/Halcyon_coromanda%2C_Fukaura-machi%2C_Aomori_Pref_1.jpg/330px-Halcyon_coromanda%2C_Fukaura-machi%2C_Aomori_Pref_1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Halcyon_coromanda,_Fukaura-machi,_Aomori_Pref_1.jpg"
+  },
   "Himantopus novaezelandiae": {
     "artist": null,
     "license": "CC BY 4.0",
@@ -630,6 +672,12 @@
     "license": "CC BY 2.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/eb/Tufted_coquette_%28Lophornis_ornatus%29_-_BioDivLibrary.jpg/330px-Tufted_coquette_%28Lophornis_ornatus%29_-_BioDivLibrary.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Tufted_coquette_(Lophornis_ornatus)_-_BioDivLibrary.jpg"
+  },
+  "Lophura bulweri": {
+    "artist": "desertnaturalist",
+    "license": "CC BY 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/19/Bulwer%27s_Pheasant_%28Lophura_bulweri%29%2C_Sabah%2C_Malaysia_1.jpg/330px-Bulwer%27s_Pheasant_%28Lophura_bulweri%29%2C_Sabah%2C_Malaysia_1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Bulwer%27s_Pheasant_(Lophura_bulweri),_Sabah,_Malaysia_1.jpg"
   },
   "Malimbus racheliae": {
     "artist": "Tony King",
@@ -794,6 +842,12 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/Happy_Wren_%28Pheugopedius_felix%29_%285911746119%29.jpg/330px-Happy_Wren_%28Pheugopedius_felix%29_%285911746119%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Happy_Wren_(Pheugopedius_felix)_(5911746119).jpg"
   },
+  "Phoenicopterus ruber": {
+    "artist": "Wilfredor",
+    "license": "CC0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f9/Phoenicopterus_ruber_in_S%C3%A3o_Paulo_Zoo.jpg/330px-Phoenicopterus_ruber_in_S%C3%A3o_Paulo_Zoo.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Phoenicopterus_ruber_in_S%C3%A3o_Paulo_Zoo.jpg"
+  },
   "Phylloscopus poliogenys": null,
   "Pilherodius pileatus": {
     "artist": "Bernard DUPONT",
@@ -843,6 +897,12 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Pluvialis_fulva_2_-_Laem_Pak_Bia.jpg/330px-Pluvialis_fulva_2_-_Laem_Pak_Bia.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Pluvialis_fulva_2_-_Laem_Pak_Bia.jpg"
   },
+  "Pluvialis squatarola": {
+    "artist": "Grendelkhan",
+    "license": "CC BY-SA 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/Pluvialis_squatarola_on_one_foot_at_Caspersen_Beach.jpg/330px-Pluvialis_squatarola_on_one_foot_at_Caspersen_Beach.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Pluvialis_squatarola_on_one_foot_at_Caspersen_Beach.jpg"
+  },
   "Poecile atricapillus": {
     "artist": "Cephas",
     "license": "CC BY-SA 3.0",
@@ -880,6 +940,12 @@
     "license": "CC BY-SA 3.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fd/Quiscalus-quiscula-001.jpg/330px-Quiscalus-quiscula-001.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Quiscalus-quiscula-001.jpg"
+  },
+  "Recurvirostra americana": {
+    "artist": "Judy Gallagher",
+    "license": "CC BY 2.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/25/American_Avocet_-_Recurvirostra_americana%2C_Bombay_Hook_National_Wildlife_Refuge%2C_Smyrna%2C_Delaware.jpg/330px-American_Avocet_-_Recurvirostra_americana%2C_Bombay_Hook_National_Wildlife_Refuge%2C_Smyrna%2C_Delaware.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:American_Avocet_-_Recurvirostra_americana,_Bombay_Hook_National_Wildlife_Refuge,_Smyrna,_Delaware.jpg"
   },
   "Rhynchophanes mccownii": {
     "artist": "Ron Knight from Seaford, East Sussex, United Kingdom",
@@ -1108,6 +1174,12 @@
     "license": "CC BY 3.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d4/Tyto_alba_%28Scopoli%2C_1769%29.jpg/330px-Tyto_alba_%28Scopoli%2C_1769%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Tyto_alba_(Scopoli,_1769).jpg"
+  },
+  "Tyto furcata": {
+    "artist": "Charles J. Sharp",
+    "license": "CC BY-SA 4.0",
+    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9e/American_Barn_Owl_%28Tyto_furcata_guatemalae%29%2C_Orange_Walk.jpg/330px-American_Barn_Owl_%28Tyto_furcata_guatemalae%29%2C_Orange_Walk.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "source_url": "https://commons.wikimedia.org/wiki/File:American_Barn_Owl_(Tyto_furcata_guatemalae),_Orange_Walk.jpg"
   },
   "Tyto novaehollandiae": {
     "artist": "JJ Harrison (https://www.jjharrison.com.au/)",

@@ -55,7 +55,7 @@ in-process instead of called over HTTP.
 ### What happens on upload
 
 1. User picks/takes a photo (same `<input type="file">` + validation as
-   `POST /uploads/photo` — JPEG/PNG/WebP/GIF, 8 MB max).
+   `POST /uploads/photo` — JPEG/PNG/WebP/GIF, and HEIC since [bulk import](bulk-import.md), 25 MB max).
 2. `POST /identify/photo` — the image is classified locally (no network
    call), top 6 labels by softmax confidence are mapped to this app's
    `scientific_name` identity (the label crosswalk — see §2) and hydrated

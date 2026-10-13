@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from datetime import date
 
-from app.dao import bioclip_classifier, bird_photos, ebird, photo_metadata
+from app.dao import bioclip_classifier, bird_photos, ebird, photo_metadata, storage
 from app.dao import identify as identify_dao
 from app.dao.identification_repo import identification_repo
 from app.models.identification import (
@@ -15,6 +15,7 @@ from app.models.identification import (
     SelectCandidateResponse,
 )
 from app.models.upload import PhotoMetadata
+from app.services import uploads
 
 # A wider raw pool is only worth fetching once a region filter can actually
 # use the extra candidates to rescue one buried behind implausible ones —
@@ -151,6 +152,7 @@ async def identify_photo(
     lat: float | None = None,
     lng: float | None = None,
     observed_at: date | None = None,
+    store: bool = False,
 ) -> IdentifyResponse:
     """Photo-based identification (`docs/features/bird-id.md` §7/§9) —
     classifies via `app/dao/bioclip_classifier.py` (zero-shot, no fixed
@@ -219,12 +221,24 @@ async def identify_photo(
         candidates=candidates,
         target_species_code=None,
     )
+    # `store` (bulk import): save the stripped copy too, so the browser
+    # doesn't upload the same photo a second time. Storage not configured
+    # isn't an error here — the identification is still useful, the
+    # observation just won't have a photo (photo_url stays None).
+    photo_url = None
+    if store:
+        try:
+            photo_url, _ = await uploads.store_photo(image_bytes)
+        except storage.StorageNotConfigured:
+            photo_url = None
+
     return IdentifyResponse(
         identification_id=record.id,
         method="photo",
         sense="sight",
         candidates=candidates,
         photo_metadata=PhotoMetadata(**metadata) if metadata else None,
+        photo_url=photo_url,
     )
 
 

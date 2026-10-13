@@ -328,7 +328,7 @@ still tracked as "left to build" above.
 | `POST` | `/identify/describe` | body: `{text, hints?, sense?}` (`sense`: `"sight"` \| `"sound"`, default `"sight"`) → `{identification_id, sense, candidates: [{species_code, common_name, scientific_name, confidence, photo_url, photo_attribution, audio_url, audio_attribution}]}` |
 | `POST` | `/identify/{id}/select` | body: `{species_code}` (`null` = "none of these") → `{chosen_species, outcome, is_match}` |
 | `POST` | `/identify/photo` | not built — photo-based identification is still descoped |
-| `POST` | `/uploads/photo` | multipart `file` → `{photo_url, photo_metadata}`; stored copy has its EXIF stripped, `photo_metadata` is what it said first (see [photo-metadata](photo-metadata.md)); `503` if Supabase Storage isn't configured, `400` for an unsupported type, a file over 8 MB, or bytes that aren't a readable image |
+| `POST` | `/uploads/photo` | multipart `file` → `{photo_url, photo_metadata}`; stored copy has its EXIF stripped, `photo_metadata` is what it said first (see [photo-metadata](photo-metadata.md)); `503` if Supabase Storage isn't configured, `400` for an unsupported type, a file over 25 MB, or bytes that aren't a readable image. Accepts HEIC (stored as JPEG); the stored copy is shrunk to 2048 px on its longest side |
 | `GET` | `/geocode/search?q=` | free text → `[{display_name, lat, lng}]`, proxying Nominatim; navigates the field-notes map |
 | `GET` | `/geocode/reverse?lat=&lng=` | a point → `{display_name, lat, lng}` or `null`; auto-fills the location label after a plain map click |
 | `POST` | `/observations` | create the observation once a species is confirmed; accepts `location_name`, `lat`, `lng`, `sex`, `life_stage`, `detection_type`, `status` alongside the existing fields |

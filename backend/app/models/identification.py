@@ -57,6 +57,9 @@ class IdentifyResponse(BaseModel):
     # Photo flow only: where/when the uploaded photo says it was taken, for
     # the frontend to pre-fill When & Where. See docs/features/photo-metadata.md.
     photo_metadata: PhotoMetadata | None = None
+    # Only with `store=true` (bulk import) and Supabase configured: the
+    # stored, metadata-stripped copy. See docs/features/bulk-import.md §4.
+    photo_url: str | None = None
 
 
 class SelectCandidateRequest(BaseModel):

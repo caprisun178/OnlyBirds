@@ -6,6 +6,7 @@ Route shapes match what the frontend DAO expects
     POST  /observations
     GET   /observations/{observation_id}
     PATCH /observations/{observation_id}
+    DELETE /users/{user_id}/imports/{import_batch_id}   undo a bulk import
 """
 
 from fastapi import APIRouter, HTTPException, status
@@ -44,3 +45,11 @@ async def update_observation(observation_id: str, payload: ObservationUpdate):
     if obs is None:
         raise HTTPException(status_code=404, detail="Observation not found")
     return obs
+
+
+@router.delete("/users/{user_id}/imports/{import_batch_id}")
+async def undo_import(user_id: str, import_batch_id: str) -> dict[str, int]:
+    """Deletes every observation from one bulk import. See
+    docs/features/bulk-import.md §4."""
+    deleted = await observation_service.undo_import(user_id, import_batch_id)
+    return {"deleted": deleted}

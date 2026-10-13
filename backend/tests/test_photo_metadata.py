@@ -92,3 +92,47 @@ def test_strip_passes_gif_through_unchanged():
 def test_strip_rejects_non_image():
     with pytest.raises(photo_metadata.UnreadableImage):
         photo_metadata.strip(b"not an image")
+
+
+def test_strip_shrinks_to_max_edge_keeping_aspect():
+    clean, _ = photo_metadata.strip(make_image(size=(4000, 3000)), max_edge=2048)
+    with Image.open(io.BytesIO(clean)) as img:
+        assert img.size == (2048, 1536)
+
+
+def test_strip_never_enlarges():
+    clean, _ = photo_metadata.strip(make_image(size=(400, 300)), max_edge=2048)
+    with Image.open(io.BytesIO(clean)) as img:
+        assert img.size == (400, 300)
+
+
+def test_mpo_camera_jpeg_is_read_and_stored_as_plain_jpeg():
+    # Regression: these used to be rejected as an unsupported format.
+    from tests.photo_helpers import make_mpo
+
+    original = make_mpo(gps=RALEIGH_GPS)
+    assert photo_metadata.read(original)["lat"] == pytest.approx(RALEIGH_LAT, abs=1e-4)
+
+    clean, content_type = photo_metadata.strip(original)
+    assert content_type == "image/jpeg"
+    assert photo_metadata.read(clean) is None
+    with Image.open(io.BytesIO(clean)) as img:
+        assert img.format == "JPEG"
+
+
+def test_heic_is_read_and_stored_as_jpeg():
+    img = Image.new("RGB", (64, 48), "red")
+    exif = Image.Exif()
+    exif[ExifTags.IFD.GPSInfo] = RALEIGH_GPS
+    exif[ExifTags.IFD.Exif] = {ExifTags.Base.DateTimeOriginal: "2026:05:30 19:24:10"}
+    buf = io.BytesIO()
+    img.save(buf, format="HEIF", exif=exif.tobytes())
+    heic = buf.getvalue()
+
+    meta = photo_metadata.read(heic)
+    assert meta["lng"] == pytest.approx(RALEIGH_LNG, abs=1e-4)
+    assert meta["taken_at"] == datetime(2026, 5, 30, 19, 24, 10)
+
+    clean, content_type = photo_metadata.strip(heic)
+    assert content_type == "image/jpeg"
+    assert photo_metadata.read(clean) is None

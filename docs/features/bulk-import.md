@@ -1,9 +1,12 @@
 # Bulk photo import
 
-> **Status:** Planned, scoped — docs only, nothing built yet. Depends on
-> [Photo location & date (EXIF)](photo-metadata.md). Build that first, since
-> every imported photo goes through it. The open questions at the end need
-> answers before work starts.
+> **Status:** Built (backend + frontend) on `working/sparisi/BulkImport`.
+> Backend tests cover `store=true`, HEIC, undo and the 7-day pin rule, and the
+> import logic in `Services/bulkImport.js` was exercised in Node with
+> stubbed responses. Migration `0009` is applied to the Neon database
+> (2026-10-13). It's numbered after the `0007`/`0008` bug-report migrations
+> already applied from another branch. **Not yet done:** §6 step 7, a live
+> run in the browser with a real trip's worth of photos. Decisions are recorded under "Open questions" below.
 
 ## 1. What you're building
 
@@ -99,7 +102,7 @@ and says so.
 One nullable column, so a whole import can be listed and undone together:
 
 ```sql
--- 0007_observation_import_batch.sql
+-- 0009_observation_import_batch.sql
 
 alter table observations add column if not exists import_batch_id text;   -- null for anything not logged via bulk import
 create index if not exists observations_import_batch_idx
@@ -174,7 +177,7 @@ step, next to "Upload a photo". Possibly also on Life List later.
    GPS, response has `photo_url`; without the flag nothing is stored).
 3. The 7-day pin rule in `log_observation()` (+ tests both sides of the
    cutoff), after the Pinned birds owner agrees.
-4. Migration `0007_observation_import_batch.sql`, `import_batch_id` on the
+4. Migration `0009_observation_import_batch.sql`, `import_batch_id` on the
    models + repo, and the `DELETE` undo route (+ tests: deletes only that
    user's batch, returns the count).
 5. `Services/bulkImport.js`: queue, flags, geocode cache. Most of the
@@ -190,21 +193,21 @@ step, next to "Upload a photo". Possibly also on Life List later.
 Decide these before starting. Each has a recommendation, but they're product
 calls.
 
-1. **8 MB limit.** Phone photos fit; full-size DSLR/mirrorless JPEGs
-   (often 10–25 MB) don't. Options: (a) keep 8 MB and tell DSLR users to
-   export smaller; (b) raise the limit to ~25 MB for both endpoints and
-   **downscale the stored copy** server-side (e.g. longest edge 2048 px)
-   during the metadata strip; (c) downscale in the browser before upload,
-   but a canvas re-encode removes EXIF, so the metadata would have to be read
-   client-side first (a CDN library like `exifr`). **Recommend (b).** It
-   keeps EXIF reading in one place, and storage needs no full-resolution
-   originals.
-2. **HEIC.** Desktop users dragging in iPhone originals get rejected today.
-   Adding `pillow-heif` would accept them server-side. Recommend: yes, as part
-   of this, if the user base skews iPhone.
-3. **50-photo cap.** Raise later, or keep it and let users run several
-   imports? Recommend keeping it until the live run (step 7) shows how
-   long the review screen takes to work through at 50.
+**Decided 2026-10-13** (Sarah): questions 1–3 as recommended, plus the
+7-day pin rule in §4.
+
+1. ~~**8 MB limit.**~~ **Decided: 25 MB for both photo endpoints; the stored
+   copy is shrunk to a 2048 px longest edge** during the metadata strip
+   (`app/services/uploads.py`: `MAX_BYTES`, `STORED_MAX_EDGE`). EXIF reading
+   stays server-side in one place.
+2. ~~**HEIC.**~~ **Decided: accepted** via `pillow-heif`, registered once in
+   `app/dao/photo_metadata.py`. HEIC is stored as JPEG, since only Safari can
+   display HEIC. Windows browsers often send `.heic` files with no MIME type,
+   so both the server (`uploads.normalize_content_type`) and the browser
+   (`Services/uploads.js#validateImageFile`) fall back to the file extension.
+   In the review grid a HEIC card shows the stored JPEG once it's uploaded,
+   since the local preview won't render outside Safari.
+3. ~~**50-photo cap.**~~ **Decided: 50.** Revisit after the live run.
 4. **Folder picking.** `<input webkitdirectory>` lets a desktop user pick a
    whole folder. Cheap to add, but mobile doesn't support it. Nice-to-have,
    not MVP.
