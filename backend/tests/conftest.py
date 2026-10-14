@@ -34,6 +34,16 @@ def no_live_media_lookups(monkeypatch):
 
     monkeypatch.setattr("app.dao.wikipedia.get_summary", _no_summary)
     monkeypatch.setattr("app.dao.wikipedia.get_sections", _no_sections)
+    # Isolate species_repo too — any test not using the `client` fixture
+    # below (which resets this to its own fresh InMemorySpeciesRepo) would
+    # otherwise hit the real Postgres-backed repo, since DATABASE_URL is set
+    # in this repo's own .env. Both targets, same reason `client` patches
+    # both: `app/services/species.py` does `from app.dao.species_repo import
+    # species_repo` (a direct name import), so patching only the origin
+    # module's attribute wouldn't affect the name already bound in services.py.
+    fresh_species_repo = InMemorySpeciesRepo()
+    monkeypatch.setattr("app.dao.species_repo.species_repo", fresh_species_repo)
+    monkeypatch.setattr("app.services.species.species_repo", fresh_species_repo)
     # bird_photos' cache now writes through to a real file on disk (see its
     # module docstring) — tests exercise cache-miss paths constantly, which
     # would otherwise spam the real species_photo_cache.json with test

@@ -15,6 +15,10 @@ export const quizService = {
     return quizDAO.getFilters(regionCode);
   },
 
+  async getAnotherPhoto(scientificName, commonName, excludePhotoUrl) {
+    return quizDAO.getAnotherPhoto(scientificName, commonName, excludePhotoUrl);
+  },
+
   // Same region-picker data Life List's cascading country/state/county
   // picker already uses — reused directly, not reimplemented.
   async getRegionOptions(parentCode, type) {

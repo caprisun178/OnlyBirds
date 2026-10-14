@@ -1,11 +1,119 @@
-"""`app/dao/wikipedia.py` — section-matching logic tested directly against
-canned section lists/extract text, not live Wikipedia (offline-tests rule,
-docs/ebird-api.md). The actual HTTP calls were live-verified once by hand
-while building this (see docs/features/bird-info.md's build order) and are
-mocked everywhere else in the suite via conftest.py's autouse fixture.
+"""`app/dao/wikipedia.py` — `_fetch_summary()`'s HTTP/parsing behavior tested
+directly against a mocked transport (offline-tests rule, docs/ebird-api.md);
+`_extract_matching_sections()`'s section-matching logic tested directly
+against canned section lists/extract text, not live Wikipedia. `get_sections()`'s
+own HTTP calls were live-verified once by hand while building it (see
+docs/features/bird-info.md's build order) and are mocked everywhere else in
+the suite via conftest.py's autouse fixture — same as `get_summary()`'s.
 """
 
+import asyncio
+
+import httpx
+import pytest
+
+from app.dao import wikipedia
 from app.dao.wikipedia import _extract_matching_sections
+
+_RealAsyncClient = httpx.AsyncClient
+
+
+def _mock_client(handler):
+    """Same fake-`httpx.AsyncClient` pattern as test_commons.py — a real
+    client wired to a mock transport, no real network call."""
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            self._client = _RealAsyncClient(transport=httpx.MockTransport(handler))
+
+        async def __aenter__(self):
+            return self._client
+
+        async def __aexit__(self, *args):
+            await self._client.aclose()
+
+    return FakeAsyncClient
+
+
+def test_get_summary_returns_extract_and_source_url(monkeypatch):
+    # Title arrives already underscored — the caller's job (see
+    # app/services/species.py#_get_or_fetch_content), since the same title
+    # string is reused for get_sections()'s action-API calls too, where
+    # MediaWiki treats underscores and spaces as equivalent either way.
+    def handler(request):
+        assert "Black-capped_Chickadee" in str(request.url)
+        return httpx.Response(
+            200,
+            request=request,
+            json={
+                "type": "standard",
+                "extract": "The black-capped chickadee is a small songbird.",
+                "content_urls": {"desktop": {"page": "https://en.wikipedia.org/wiki/Black-capped_chickadee"}},
+            },
+        )
+
+    monkeypatch.setattr(wikipedia.httpx, "AsyncClient", _mock_client(handler))
+
+    result = asyncio.run(wikipedia._fetch_summary("Black-capped_Chickadee"))
+    assert result["extract"] == "The black-capped chickadee is a small songbird."
+    assert result["source_url"] == "https://en.wikipedia.org/wiki/Black-capped_chickadee"
+
+
+def test_get_summary_returns_none_on_404(monkeypatch):
+    def handler(request):
+        return httpx.Response(404, request=request, json={"type": "https://mediawiki.org/wiki/HyperSwitch/errors/not_found"})
+
+    monkeypatch.setattr(wikipedia.httpx, "AsyncClient", _mock_client(handler))
+
+    assert asyncio.run(wikipedia._fetch_summary("Nonexistent Fake Bird")) is None
+
+
+def test_get_summary_returns_none_for_disambiguation_page(monkeypatch):
+    # A common name shared with something else entirely (e.g. "Robin" also
+    # being a given name) lands on a disambiguation page, not a real answer.
+    def handler(request):
+        return httpx.Response(200, request=request, json={"type": "disambiguation", "extract": "Robin may refer to:"})
+
+    monkeypatch.setattr(wikipedia.httpx, "AsyncClient", _mock_client(handler))
+
+    assert asyncio.run(wikipedia._fetch_summary("Robin")) is None
+
+
+def test_get_summary_returns_none_when_extract_is_missing(monkeypatch):
+    def handler(request):
+        return httpx.Response(200, request=request, json={"type": "standard"})
+
+    monkeypatch.setattr(wikipedia.httpx, "AsyncClient", _mock_client(handler))
+
+    assert asyncio.run(wikipedia._fetch_summary("Some Title")) is None
+
+
+def test_get_summary_raises_wikipedia_unavailable_on_rate_limit(monkeypatch):
+    # Regression: real, observed case — a burst of profile lookups during
+    # testing hit Wikipedia's 429, and an unhandled httpx.HTTPStatusError
+    # propagated all the way up through get_profile()'s asyncio.gather(),
+    # cancelling the photo/audio lookups too. A 429 has to be a distinct,
+    # catchable outcome, same as Commons' own CommonsUnavailable — and
+    # specifically a 4xx, not a 5xx, so a fix that only special-cased
+    # `status_code >= 500` wouldn't actually catch it (see _fetch_summary's
+    # own docstring for why that distinction matters here).
+    def raise_429(request):
+        return httpx.Response(429, request=request, text="Too Many Requests")
+
+    monkeypatch.setattr(wikipedia.httpx, "AsyncClient", _mock_client(raise_429))
+
+    with pytest.raises(wikipedia.WikipediaUnavailable):
+        asyncio.run(wikipedia._fetch_summary("Black-capped Chickadee"))
+
+
+def test_get_summary_builds_the_rest_summary_url_from_the_given_title(monkeypatch):
+    def handler(request):
+        assert str(request.url) == "https://en.wikipedia.org/api/rest_v1/page/summary/Black-capped_Chickadee"
+        return httpx.Response(200, request=request, json={"type": "standard", "extract": "x"})
+
+    monkeypatch.setattr(wikipedia.httpx, "AsyncClient", _mock_client(handler))
+
+    asyncio.run(wikipedia._fetch_summary("Black-capped_Chickadee"))
 
 
 def test_matches_description_and_combined_habitat_section():

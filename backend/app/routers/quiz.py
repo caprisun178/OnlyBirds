@@ -2,6 +2,7 @@
 
     GET /quiz/question?mode=photo|audio&region_code=world&family=
     GET /quiz/filters?region_code=world
+    GET /quiz/another-photo?scientific_name=&common_name=&exclude_photo_url=
 """
 
 from fastapi import APIRouter, HTTPException, Query
@@ -33,3 +34,12 @@ async def get_filters(region_code: str = Query(default=DEFAULT_REGION)):
         return await quiz_service.get_filter_options(region_code)
     except EBirdConfigError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.get("/another-photo")
+async def get_another_photo(
+    scientific_name: str = Query(),
+    common_name: str = Query(),
+    exclude_photo_url: str = Query(),
+):
+    return await quiz_service.get_another_photo(scientific_name, common_name, exclude_photo_url)

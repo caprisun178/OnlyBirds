@@ -48,6 +48,24 @@ async def get_taxon(taxon_id: int | str) -> dict | None:
 
 _AVES_TAXON_ID = 3  # iNaturalist's taxon id for Class Aves (birds) — see obs_in_bbox()'s docstring below
 
+# iNaturalist's "Alive or Dead" annotation (controlled term id 17, confirmed
+# live against GET /v1/controlled_terms) — value 19 is "Dead". No bulk query
+# param excludes this server-side (`term_id`/`term_value_id` only do
+# *inclusion* — confirmed live: requesting term_value_id=19 alone returns
+# only the ~250K explicitly-dead-tagged results out of iNaturalist's tens of
+# millions, nowhere near "everything except dead ones"), so
+# get_nearby_observations() below filters annotated-dead records out of the
+# page it already fetched instead.
+_DEAD_ANNOTATION = {"controlled_attribute_id": 17, "controlled_value_id": 19}
+
+
+def _is_annotated_dead(record: dict) -> bool:
+    return any(
+        a.get("controlled_attribute_id") == _DEAD_ANNOTATION["controlled_attribute_id"]
+        and a.get("controlled_value_id") == _DEAD_ANNOTATION["controlled_value_id"]
+        for a in record.get("annotations", [])
+    )
+
 
 async def get_nearby_observations(
     lat: float,
@@ -101,7 +119,12 @@ async def get_nearby_observations(
     async with _client() as client:
         resp = await client.get("/observations", params=params)
         resp.raise_for_status()
-        return resp.json().get("results", [])
+        results = resp.json().get("results", [])
+    # Found-dead reports (roadkill, window strikes, museum specimens logged
+    # as a sighting, ...) are real iNaturalist records, just not what
+    # Explore Map's pins are for — see _DEAD_ANNOTATION above for why this
+    # can't be done as a request param instead.
+    return [r for r in results if not _is_annotated_dead(r)]
 
 
 async def get_species_counts(

@@ -12,8 +12,8 @@ export const observationService = {
     return { observation: created, isNewSpecies };
   },
 
-  async getSortedObservations(userId) {
-    const raw = await observationDAO.getAll(userId);
+  async getSortedObservations(userId, scientificName) {
+    const raw = await observationDAO.getAll(userId, scientificName);
     return [...raw].sort(
       (a, b) => new Date(b.observed_at) - new Date(a.observed_at),
     );
