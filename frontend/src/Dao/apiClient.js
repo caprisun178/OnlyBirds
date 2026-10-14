@@ -7,12 +7,12 @@
 // localhost gets the local backend, anything else (GitHub Pages, Vercel,
 // Netlify, ...) gets the Render dev backend. Swap the ONRENDER_URL for a
 // second hardcoded prod URL once a prod frontend deploy exists.
-const ONRENDER_URL = 'https://onlybirds.onrender.com';
+const ONRENDER_URL = 'https://onlybirds-dev.onrender.com';
 const IS_LOCAL =
   typeof window !== 'undefined' &&
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-const BASE_URL =
+export const BASE_URL =
   (typeof process !== 'undefined' && process.env && process.env.API_BASE_URL) ||
   (IS_LOCAL ? 'http://localhost:8000' : ONRENDER_URL);
 

@@ -14,5 +14,9 @@ async def health() -> dict:
     return {
         "status": "ok",
         "version": __version__,
-        "ebird_key_configured": settings.ebird_api_key is not None,
+        # Matches `dao/ebird.py#_client()`'s actual gate (truthiness, not
+        # `is not None`) — an env var present but set to an empty string
+        # passes `is not None` while every real eBird call still rejects it
+        # as unset, which made this report "configured" when it wasn't.
+        "ebird_key_configured": bool(settings.ebird_api_key),
     }

@@ -24,7 +24,16 @@ export function renderSpeciesCard(species) {
       ${species.photo_url
         ? `<img src="${escapeHtml(species.photo_url)}" alt="${escapeHtml(species.common_name)}" style="width:100%;height:160px;object-fit:cover;border-radius:var(--ob-radius-md);margin-bottom:var(--ob-space-3);" />`
         : ''}
-      <h3 class="ob-card__title">${escapeHtml(species.common_name)}</h3>
+      <h3 class="ob-card__title">
+        <span
+          data-action="view-profile"
+          data-profile-scientific-name="${escapeHtml(species.scientific_name)}"
+          data-profile-common-name="${escapeHtml(species.common_name)}"
+          role="button"
+          tabindex="0"
+          style="text-decoration: underline; text-decoration-style: dotted; cursor: pointer;"
+        >${escapeHtml(species.common_name)}</span>
+      </h3>
       <p class="ob-card__body ob-text-sm"><em>${escapeHtml(species.scientific_name)}</em></p>
       ${species.photo_attribution ? `<p class="ob-text-muted ob-text-sm">Photo: ${escapeHtml(species.photo_attribution)}</p>` : ''}
       <span class="ob-tag ob-tag--success">${dateLabel ? `Seen — ${escapeHtml(dateLabel)}` : 'Seen'}</span>

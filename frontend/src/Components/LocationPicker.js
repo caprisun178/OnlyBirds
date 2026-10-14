@@ -8,35 +8,11 @@
 // position changes via `onPositionChange`, and the Presenter decides what
 // to do with them (reverse-geocode, save to state, etc.).
 //
-// Leaflet is loaded from a CDN on first use rather than bundled — this repo
-// has no build step, so a screen pulls in what it needs at runtime.
+// Leaflet itself is loaded from a CDN (see `leaflet.js`) — this repo has no
+// build step, so a screen pulls in what it needs at runtime.
 
-const LEAFLET_CSS = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-const LEAFLET_JS = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+import { loadLeaflet, DEFAULT_CENTER, addBaseTileLayer } from './leaflet.js';
 
-let leafletLoading = null;
-
-function loadLeaflet() {
-  if (window.L) return Promise.resolve(window.L);
-  if (leafletLoading) return leafletLoading;
-
-  leafletLoading = new Promise((resolve, reject) => {
-    if (!document.querySelector(`link[href="${LEAFLET_CSS}"]`)) {
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = LEAFLET_CSS;
-      document.head.appendChild(link);
-    }
-    const script = document.createElement('script');
-    script.src = LEAFLET_JS;
-    script.onload = () => resolve(window.L);
-    script.onerror = () => reject(new Error('Could not load the map.'));
-    document.head.appendChild(script);
-  });
-  return leafletLoading;
-}
-
-const DEFAULT_CENTER = [39.8, -98.6]; // continental US — used only until we have something better
 const DEFAULT_ZOOM = 4;
 const PIN_ZOOM = 15;
 
@@ -55,10 +31,7 @@ export async function mountLocationPicker(container, { initialLatLng, onPosition
     initialLatLng ? PIN_ZOOM : DEFAULT_ZOOM,
   );
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
-  }).addTo(map);
+  addBaseTileLayer(map, L);
 
   let marker = null;
 

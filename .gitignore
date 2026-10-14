@@ -23,3 +23,6 @@ site/
 .DS_Store
 .idea/
 .vscode/
+
+# GitHub wiki preview (scripts/build_wiki.py)
+wiki-out/

@@ -13,14 +13,19 @@ from fastapi.staticfiles import StaticFiles
 from app import __version__
 from app.config import get_settings
 from app.routers import (
+    feedback,
     geocoding,
     health,
     identify,
     life_list,
+    notifications,
     observations,
+    pins,
+    quiz,
     sightings,
     species,
     stickers,
+    trip,
     uploads,
     users,
 )
@@ -53,6 +58,11 @@ def create_app() -> FastAPI:
     app.include_router(life_list.router)
     app.include_router(stickers.router)
     app.include_router(users.router)
+    app.include_router(quiz.router)
+    app.include_router(trip.router)
+    app.include_router(pins.router)
+    app.include_router(notifications.router)
+    app.include_router(feedback.router)
 
     @app.get("/", tags=["health"])
     async def root() -> dict:
