@@ -7,4 +7,3 @@
 alter table users add column if not exists username       text unique;
 alter table users add column if not exists avatar_url     text;
 alter table users add column if not exists default_region text not null default 'world';  -- eBird regionCode
-

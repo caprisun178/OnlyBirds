@@ -9,7 +9,7 @@ sources, the API, the SQL, and the code layout.
 | [Life List page](life-list.md) | Partial — region completion view works end to end (picker, checklist, seen/unseen, progress, sort, filters, pagination); Postgres persistence for the checklist cache, the "world" life list, and deep-linking a missing card into Add Observation still planned | after baseline |
 | [Add Observation](add-observation.md) | Partial — `POST /observations`, the describe & guess identification flow, and field-notes photo upload all work end to end; see the page for what's still missing | after baseline |
 | [User profiles](user-profiles.md) | Partial — backend done (`POST /users`, `GET /users/{username}`, `PATCH /users/{id}`); frontend screens planned | after baseline |
-| [Stickers](stickers.md) | Planned | after Add Observation |
+| [Stickers](stickers.md) | Partial — fixture catalog, awards, shelf and filters; durable awards and region rules remain | after Add Observation |
 | [Pinned birds](pinned-birds.md) | **Completed** — region tagging, pin + notification API, match/dedupe engine, migrations applied to the live database; frontend `PinButton` on Life List cards, `NotificationBell` with an unread preview dropdown, full `NotificationsFeed` screen, click-through to the exact sighting on the map (highlighted, not just centered) — all built and verified live end to end | after Add Observation + profiles |
 | [Bird information page](bird-info.md) | Planned, but fully scoped — every data source confirmed buildable (Wikipedia for About text plus sex-differences/migration/habitat prose, reuses the existing Commons-backed photo/audio caches, no Cornell licensing needed); see the page for the exact entry-point-by-entry-point click wiring | any time (independent) |
 | [Photo-based bird ID](bird-id.md) | **Completed** — slots into the existing describe & guess flow as a third `method` with no new database table. Model swapped from a fixed 525-label classifier to BioCLIP (zero-shot, no fixed species list) after the old ceiling caused a confirmed real-world miss (§9); candidate pool is the classifier's default set plus, when the user gives a location/date, that region's real eBird checklist added on top (never replacing it — an earlier version that replaced it caused a live regression, documented in §9). Describe-flow's generic path separately reorders toward regional plausibility (§8). Render free tier memory still unconfirmed for the new dependency weight (`torch` + `open_clip_torch`) | after Add Observation |
@@ -38,7 +38,7 @@ before starting.
 | [Life List page](life-list.md) | Sarah Parisi | | in progress (region completion view done, Postgres persistence + world list not started) | |
 | [Add Observation](add-observation.md) | Sarah Parisi | | in progress | |
 | [User profiles](user-profiles.md) | Yasmin Castro | | in progress (backend done, frontend not started) | |
-| [Stickers](stickers.md) | _unassigned_ | | not started | |
+| [Stickers](stickers.md) | Aldridge | `working/aaldridge/stickers` | in progress | Fixture-backed collection; durable awards and region rules remain |
 | [Pinned birds](pinned-birds.md) | Sarah Parisi | `working/sparisi/Feature-plan-a-trip` | done | |
 | [Bird information page](bird-info.md) | _unassigned_ | | not started | |
 | [Photo-based bird ID](bird-id.md) | Sarah Parisi | | done (coverage-widening follow-on not started) | |
@@ -112,15 +112,15 @@ How the features connect when a user logs a bird:
 
 ```text
 Add Observation → /identify/describe → user confirms species
-      → POST /observations   (source = manual, region + geom derived)
-      → Services: first time this user has seen this species?
-            yes → insert life_list_entries row
-                → evaluate_stickers(user_id)
-                      → insert user_stickers rows + push sticker_awarded notifications
-                → profile life-list total / sticker count recompute  (they are COUNT queries)
-      → evaluate_pins(observation)
-            → other users who pinned this species, whose pin region contains the
-              observation's region → insert pin_hit notifications
-      → Life List page now shows that species' card filled in (was a MissingBird)
-      → Explore map shows the new sighting
+   → POST /observations   (source = manual, status = logged)
+   → derive region from coordinates, persist the observation
+   → derive the life list from logged observations
+   → if this adds a species, evaluate_stickers(user_id, observation.id)
+      → record newly earned rules in the in-memory award ledger
+   → evaluate_pins(observation) for logged sightings
+      → matching pins create pin_hit notifications
+   → GET /users/{id}/stickers returns earned state and progress
+   → Life List and Explore Map reflect the new sighting
+
+Durable sticker awards and region-based sticker rules are still future work.
 ```

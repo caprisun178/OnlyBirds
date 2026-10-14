@@ -34,4 +34,5 @@ export const apiClient = {
   put: (path, body) => request('PUT', path, body),
   patch: (path, body) => request('PATCH', path, body),
   delete: (path) => request('DELETE', path),
+  assetUrl: (path) => new URL(path, BASE_URL).toString(),
 };

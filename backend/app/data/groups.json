@@ -1,0 +1,20 @@
+[
+  {
+    "code": "owls",
+    "kind": "set",
+    "species_codes": [],
+    "taxon_groups": ["owls"]
+  },
+  {
+    "code": "eagles",
+    "kind": "set",
+    "species_codes": ["baldeag", "goleag"],
+    "taxon_groups": ["eagles"]
+  },
+  {
+    "code": "raptors",
+    "kind": "set",
+    "species_codes": [],
+    "taxon_groups": ["raptors", "eagles", "hawks", "falcons"]
+  }
+]
