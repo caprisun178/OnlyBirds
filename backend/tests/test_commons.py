@@ -37,6 +37,30 @@ def test_strip_html_strips_ordinary_link_markup():
     assert _strip_html(raw) == "Mdf"
 
 
+@pytest.mark.parametrize("title, categories", [
+    # Real live photos the old substring match rejected — "nid" (French
+    # "nest") inside "-nidae"/"unidentified", "mount" inside "mountain":
+    ("File:Tachycineta bicolor CT3.jpg", ["Category:Hirundinidae in Canada"]),
+    ("File:Amazon kingfisher in flight.jpg", ["Category:Alcedinidae of Belize"]),
+    ("File:Selasphorus rufus at Crocosmia.jpg", ["Category:Unidentified Crocosmia"]),
+    ("File:Green-throated mountain-gem.jpg", []),
+    ("File:Sandhill crane.jpg", ["Category:Antigone canadensis"]),
+])
+def test_is_unwanted_photo_ignores_keywords_inside_other_words(title, categories):
+    assert not commons._is_unwanted_photo(title, categories)
+
+
+@pytest.mark.parametrize("title, categories", [
+    ("File:Passerina cyanea (AM LB8255).jpg", ["Category:Cardinalidae in Auckland Museum"]),
+    ("File:Thryomanes bewickii 2zz.jpg", ["Category:Thryomanes bewickii (museum specimens)"]),
+    ("File:Chaetura pelagica 2zz.jpg", ["Category:Apodiformes skeletons"]),
+    ("File:Ammodramus maritimus map.svg", []),
+    ("File:Some bird.jpg", ["Category:Maps of Ammodramus maritimus"]),
+])
+def test_is_unwanted_photo_catches_whole_words_and_plurals(title, categories):
+    assert commons._is_unwanted_photo(title, categories)
+
+
 def test_format_attribution_includes_artist_and_license():
     result = {"artist": "Jane Doe", "license": "CC BY-SA 3.0"}
     assert format_attribution(result) == "Jane Doe / Wikimedia Commons (CC BY-SA 3.0)"

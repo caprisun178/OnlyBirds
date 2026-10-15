@@ -36,28 +36,39 @@ _HEADERS = {"User-Agent": "OnlyBirds/0.1 (+https://github.com/)"}
 # `_search`.
 _UNWANTED_PHOTO_KEYWORDS = (
     "egg", "eggs", "nest", "skull", "skeleton", "specimen", "taxidermy",
-    "mount", "mounted", "illustration", "drawing", "painting", "diagram",
+    "taxidermied", "mounted", "illustration", "drawing", "painting", "diagram",
+    "museum", "engraving", "lithograph",
     # "map" alone, not just "distribution map"/"range map" — a real,
     # reported miss: a Seaside Sparrow quiz question showed a range-map
     # image instead of a photo. Its actual Commons title/category didn't
     # contain either two-word phrase (e.g. "Ammodramus maritimus map.svg",
-    # or just categorized "Category:Maps of Ammodramus maritimus") — substring
-    # matching means plain "map" also catches "maps" (plural), so this
-    # subsumes the two phrases above; kept both for clarity/history.
+    # or just categorized "Category:Maps of Ammodramus maritimus") — plain
+    # "map" also catches "maps" (see `_UNWANTED_PHOTO_RE`'s plural suffix),
+    # so this subsumes the two phrases above; kept both for clarity/history.
     "map", "distribution map", "range map", "herbarium", "type specimen",
     "dead", "carcass", "roadkill",
     # French — common for GLAM uploads from French-speaking institutions
     # (MHNT/Muséum de Toulouse among them):
-    "œuf", "oeuf", "nid", "crâne", "crane", "squelette", "spécimen",
+    "œuf", "oeuf", "nid", "crâne", "squelette", "spécimen", "muséum",
     "naturalisé", "empaillé", "dessin", "carte de répartition",
     "mort", "cadavre",
+)
+# Whole words only, with an optional plural "s"/"es" — plain substring
+# matching was rejecting good live photos: "nid" (nest) matched every
+# "-nidae" family category (Hirundinidae, Alcedinidae, Phasianidae) and
+# "unidentified", and "mount" matched "mountain". For the same reason the
+# list no longer has "mount" (a place name, e.g. "Mount Rainier" — taxidermy
+# mounts are still caught by "mounted"/"taxidermy") or unaccented "crane"
+# (French "crâne", skull — but also the bird).
+_UNWANTED_PHOTO_RE = re.compile(
+    r"\b(?:" + "|".join(re.escape(k) for k in _UNWANTED_PHOTO_KEYWORDS) + r")(?:e?s)?\b"
 )
 _PHOTO_CANDIDATE_LIMIT = 10
 
 
 def _is_unwanted_photo(title: str, categories: list[str]) -> bool:
     haystack = (title + " " + " ".join(categories)).lower()
-    return any(keyword in haystack for keyword in _UNWANTED_PHOTO_KEYWORDS)
+    return _UNWANTED_PHOTO_RE.search(haystack) is not None
 
 
 _HIDDEN_SPAN_RE = re.compile(

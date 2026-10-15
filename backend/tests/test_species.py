@@ -12,7 +12,9 @@ for anything outside this app's own logged history (most of the quiz's
 
 import asyncio
 
-from app.dao import bird_photos, commons, species_repo, wikipedia
+import httpx
+
+from app.dao import bird_photos, commons, inaturalist, species_repo, wikipedia
 
 
 def test_photos_endpoint_returns_a_guaranteed_photo_per_species(client, monkeypatch):
@@ -230,3 +232,37 @@ def test_get_stock_photos_looks_up_each_species_concurrently(monkeypatch):
     )
     assert sorted(calls) == ["Corvus brachyrhynchos", "Turdus migratorius"]
     assert len(results) == 2
+
+
+def test_profile_flags_an_extinct_species(client, monkeypatch):
+    async def fake_taxon(scientific_name):
+        return {"name": "Ectopistes migratorius", "extinct": True}
+
+    monkeypatch.setattr(inaturalist, "find_species_taxon", fake_taxon)
+
+    resp = client.get("/species/profile", params={"scientific_name": "Ectopistes migratorius"})
+    assert resp.status_code == 200
+    assert resp.json()["extinct"] is True
+
+
+def test_profile_extinct_is_false_for_a_living_species_and_none_when_unknown(client, monkeypatch):
+    async def fake_taxon(scientific_name):
+        return {"name": scientific_name, "extinct": False} if scientific_name == "Passerina cyanea" else None
+
+    monkeypatch.setattr(inaturalist, "find_species_taxon", fake_taxon)
+
+    assert client.get("/species/profile", params={"scientific_name": "Passerina cyanea"}).json()["extinct"] is False
+    assert client.get("/species/profile", params={"scientific_name": "Nonexistus fakeus"}).json()["extinct"] is None
+
+
+def test_profile_survives_an_inaturalist_failure_on_the_extinct_lookup(client, monkeypatch):
+    # Runs inside get_profile()'s asyncio.gather() — an uncaught iNat error
+    # would cancel the photo/audio/Wikipedia lookups alongside it.
+    async def failing_taxon(scientific_name):
+        raise httpx.ConnectError("iNaturalist down")
+
+    monkeypatch.setattr(inaturalist, "find_species_taxon", failing_taxon)
+
+    resp = client.get("/species/profile", params={"scientific_name": "Passerina cyanea"})
+    assert resp.status_code == 200
+    assert resp.json()["extinct"] is None

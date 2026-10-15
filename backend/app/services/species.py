@@ -12,11 +12,18 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timedelta, timezone
 
+import httpx
+
 from app.dao import bird_audio, bird_photos, inaturalist, wikipedia
 from app.dao.species_repo import species_repo
 from app.models.species import SpeciesContent, SpeciesPhoto, SpeciesProfile, SpeciesRef
 
 _CONTENT_STALE_AFTER = timedelta(days=30)  # Wikipedia summaries change rarely, but not never
+
+# scientific name -> iNaturalist's `extinct` flag (or `None`: no exact match).
+# In-process only — extinction status effectively never changes, so there's
+# nothing to expire; a failed lookup isn't cached, so a later call retries.
+_extinct_cache: dict[str, bool | None] = {}
 
 
 def _to_ref(taxon: dict) -> SpeciesRef:
@@ -58,10 +65,11 @@ async def get_profile(
         common_name = common_name or (taxonomy["common_name"] if taxonomy else None)
         family = family or (taxonomy["family"] if taxonomy else None)
 
-    content, photo, audio = await asyncio.gather(
+    content, photo, audio, extinct = await asyncio.gather(
         _get_or_fetch_content(scientific_name, common_name),
         bird_photos.get_stock_photo(scientific_name, common_name or scientific_name),
         bird_audio.get_audio({"scientific_name": scientific_name}),
+        _get_extinct(scientific_name),
     )
 
     return SpeciesProfile(
@@ -77,7 +85,25 @@ async def get_profile(
         sex_differences=content.sex_differences,
         migration=content.migration,
         habitat=content.habitat,
+        extinct=extinct,
     )
+
+
+async def _get_extinct(scientific_name: str) -> bool | None:
+    """iNaturalist's `extinct` flag for this species, for the Bird Info
+    page's "Extinct" tag. Never raises — like `_get_or_fetch_content()`, it
+    runs inside `get_profile()`'s `asyncio.gather()`, and an iNat hiccup
+    shouldn't take the rest of the page down with it; it just means no tag.
+    """
+    if scientific_name in _extinct_cache:
+        return _extinct_cache[scientific_name]
+    try:
+        taxon = await inaturalist.find_species_taxon(scientific_name)
+    except httpx.HTTPError:
+        return None
+    extinct = bool(taxon.get("extinct")) if taxon else None
+    _extinct_cache[scientific_name] = extinct
+    return extinct
 
 
 async def _get_or_fetch_content(scientific_name: str, common_name: str | None) -> SpeciesContent:

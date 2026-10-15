@@ -478,7 +478,7 @@ export function mount(container, props = {}) {
     return `
       <div class="ob-card ob-card--flat ob-stack" style="gap: var(--ob-space-2);">
         <p class="ob-text-sm ob-text-muted" style="margin: 0; text-transform: uppercase; letter-spacing: 0.03em;">${escapeHtml(headingLabel)}</p>
-        <img src="${escapeHtml(profile.photoUrl)}" alt="${escapeHtml(profile.commonName)}" style="display:block; width:100%; height:180px; object-fit:cover; border-radius:var(--ob-radius-md); background:var(--ob-color-surface-alt);" />
+        <img src="${escapeHtml(profile.photoUrl)}" alt="${escapeHtml(profile.commonName)}" style="display:block; width:100%; height:180px; object-fit:contain; border-radius:var(--ob-radius-md); background:var(--ob-color-surface-alt);" />
         <div>
           <p style="margin: 0;"><strong>${escapeHtml(profile.commonName)}</strong> <em class="ob-text-muted">${escapeHtml(profile.scientificName)}</em></p>
           ${profile.family ? `<p class="ob-text-sm ob-text-muted" style="margin: 0;">${escapeHtml(profile.family)}</p>` : ''}

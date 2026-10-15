@@ -34,6 +34,12 @@ def no_live_media_lookups(monkeypatch):
 
     monkeypatch.setattr("app.dao.wikipedia.get_summary", _no_summary)
     monkeypatch.setattr("app.dao.wikipedia.get_sections", _no_sections)
+
+    async def _no_taxon(scientific_name):
+        return None
+
+    monkeypatch.setattr("app.dao.inaturalist.find_species_taxon", _no_taxon)
+    monkeypatch.setattr("app.services.species._extinct_cache", {})
     # Isolate species_repo too — any test not using the `client` fixture
     # below (which resets this to its own fresh InMemorySpeciesRepo) would
     # otherwise hit the real Postgres-backed repo, since DATABASE_URL is set
