@@ -169,6 +169,19 @@ export function mount(container, props = {}) {
     }
     render();
     loadRevealProfiles();
+    scrollToReveal();
+  }
+
+  // Once per answer, not on every render() — the profile panels load in
+  // afterwards and re-render, and re-scrolling then would yank the page
+  // away from wherever the user has scrolled to by that point. Lands on the
+  // top of the reveal (not the very bottom) so "Correct!/Not quite." and
+  // "Next question" stay on screen; the panels load in below them.
+  function scrollToReveal() {
+    const reveal = container.querySelector('[data-reveal]');
+    if (!reveal) return;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    reveal.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
   }
 
   function loadRevealProfiles() {
@@ -432,7 +445,7 @@ export function mount(container, props = {}) {
     const q = state.question;
     const wasCorrect = state.selectedAnswer === q.correct_scientific_name;
     return `
-      <div class="ob-stack" style="gap: var(--ob-space-3);">
+      <div class="ob-stack" data-reveal style="gap: var(--ob-space-3); scroll-margin-top: var(--ob-space-4);">
         <div class="ob-cluster" style="justify-content: space-between; align-items: center;">
           <p class="ob-text-sm" style="margin: 0;">
             ${wasCorrect ? '<strong>Correct!</strong>' : '<strong>Not quite.</strong>'}

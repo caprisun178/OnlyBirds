@@ -63,6 +63,7 @@ nav:
       - Community: features/community.md
       - Competitions: features/competitions.md
       - Seeded sighting data: features/data-seeding.md
+      - Running without eBird: features/ebird-independence.md
       - Progressive Web App: features/pwa.md
   - Backend API: backend.md
   - eBird API: ebird-api.md
