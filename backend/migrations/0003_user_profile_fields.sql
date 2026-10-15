@@ -1,6 +1,6 @@
 -- 0003_user_profile_fields.sql
 
--- Adds profile fields to p users. See docs/features/user-profiles.md.
+-- Adds profile fields to users. See docs/features/user-profiles.md.
 -- Used "if not exists" as a safety net in case of overlap
 -- with another in-flight branch .
 
