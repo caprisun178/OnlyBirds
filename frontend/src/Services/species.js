@@ -43,6 +43,8 @@ export const speciesService = {
       sexDifferences: p.sex_differences,
       migration: p.migration,
       habitat: p.habitat,
+      // true / false / null (iNaturalist had no exact match — unknown)
+      extinct: p.extinct,
     };
   },
 };

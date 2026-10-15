@@ -46,6 +46,20 @@ async def get_taxon(taxon_id: int | str) -> dict | None:
         return results[0] if results else None
 
 
+async def find_species_taxon(scientific_name: str) -> dict | None:
+    """The raw /taxa record whose name exactly matches `scientific_name`
+    (case-insensitive), or `None` — `q` is a fuzzy autocomplete, so its top
+    hit isn't necessarily the species asked for."""
+    async with _client() as client:
+        resp = await client.get("/taxa", params={"q": scientific_name, "per_page": 5})
+        resp.raise_for_status()
+        wanted = scientific_name.strip().lower()
+        for taxon in resp.json().get("results", []):
+            if (taxon.get("name") or "").lower() == wanted:
+                return taxon
+        return None
+
+
 _AVES_TAXON_ID = 3  # iNaturalist's taxon id for Class Aves (birds) — see obs_in_bbox()'s docstring below
 
 # iNaturalist's "Alive or Dead" annotation (controlled term id 17, confirmed

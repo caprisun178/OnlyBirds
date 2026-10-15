@@ -145,12 +145,6 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/74/Asthenes_baeri_-_Short-billed_canastero.jpg/330px-Asthenes_baeri_-_Short-billed_canastero.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Asthenes_baeri_-_Short-billed_canastero.jpg"
   },
-  "Astur atricapillus": {
-    "artist": "Jean-Baptiste Huet",
-    "license": "Public domain",
-    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0c/Astur_atricapillus_-_1700-1880_-_Print_-_Iconographia_Zoologica_-_Special_Collections_University_of_Amsterdam_-_UBA01_IZ18300023.tif/lossy-page1-330px-Astur_atricapillus_-_1700-1880_-_Print_-_Iconographia_Zoologica_-_Special_Collections_University_of_Amsterdam_-_UBA01_IZ18300023.tif.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-    "source_url": "https://commons.wikimedia.org/wiki/File:Astur_atricapillus_-_1700-1880_-_Print_-_Iconographia_Zoologica_-_Special_Collections_University_of_Amsterdam_-_UBA01_IZ18300023.tif"
-  },
   "Astur cooperii": {
     "artist": "Quinten Wiegersma",
     "license": "CC BY 4.0",
@@ -249,12 +243,6 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/21/Cacicus_sclateri_1888.jpg/330px-Cacicus_sclateri_1888.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Cacicus_sclateri_1888.jpg"
   },
-  "Calicalicus madagascariensis": {
-    "artist": "John Gerrard Keulemans",
-    "license": "Public domain",
-    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8d/Calicalicus_madagascariensis_1868.jpg/330px-Calicalicus_madagascariensis_1868.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-    "source_url": "https://commons.wikimedia.org/wiki/File:Calicalicus_madagascariensis_1868.jpg"
-  },
   "Calidris alpina": null,
   "Calidris canutus": {
     "artist": "Chuck Homler d/b/a Focus On Wildlife",
@@ -307,12 +295,6 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/04/Greater_sage-grouse_%28Centrocercus_urophasianus%29.jpg/330px-Greater_sage-grouse_%28Centrocercus_urophasianus%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Greater_sage-grouse_(Centrocercus_urophasianus).jpg"
   },
-  "Chaetura pelagica": {
-    "artist": "Photo by David J. Stang",
-    "license": "CC BY-SA 4.0",
-    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/Chaetura_pelagica_2zz.jpg/330px-Chaetura_pelagica_2zz.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-    "source_url": "https://commons.wikimedia.org/wiki/File:Chaetura_pelagica_2zz.jpg"
-  },
   "Charadrius hiaticula": {
     "artist": "Charles J. Sharp",
     "license": "CC BY-SA 4.0",
@@ -342,12 +324,6 @@
     "license": "CC BY-SA 3.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c2/Coccothraustes-vespertinus-002.jpg/330px-Coccothraustes-vespertinus-002.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Coccothraustes-vespertinus-002.jpg"
-  },
-  "Coccyzus americanus": {
-    "artist": "Jos Zwarts",
-    "license": "CC BY-SA 4.0",
-    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/10/Geelsnavelkoekoek_Coccyzus_americanus_Jos_Zwarts.jpg/330px-Geelsnavelkoekoek_Coccyzus_americanus_Jos_Zwarts.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-    "source_url": "https://commons.wikimedia.org/wiki/File:Geelsnavelkoekoek_Coccyzus_americanus_Jos_Zwarts.jpg"
   },
   "Colaptes auratus": {
     "artist": "Cephas",
@@ -543,12 +519,6 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/69/American_kestrel_%28Falco_sparverius_cinnamominus%29_male_Leona_Amarga.jpg/330px-American_kestrel_%28Falco_sparverius_cinnamominus%29_male_Leona_Amarga.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:American_kestrel_(Falco_sparverius_cinnamominus)_male_Leona_Amarga.jpg"
   },
-  "Francolinus francolinus": {
-    "artist": null,
-    "license": "Public domain",
-    "media_url": "https://upload.wikimedia.org/wikipedia/commons/2/22/Francolinus_francolinus_hm_white_background.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
-    "source_url": "https://commons.wikimedia.org/wiki/File:Francolinus_francolinus_hm_white_background.jpg"
-  },
   "Geothlypis tolmiei": {
     "artist": "Tim from Ithaca",
     "flagged": false,
@@ -586,12 +556,6 @@
     "license": "CC BY-SA 4.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/80/House_Finch_%28Haemorhous_mexicanus%29_-_Simcoe%2C_Ontario_01.jpg/330px-House_Finch_%28Haemorhous_mexicanus%29_-_Simcoe%2C_Ontario_01.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:House_Finch_(Haemorhous_mexicanus)_-_Simcoe,_Ontario_01.jpg"
-  },
-  "Himantopus novaezelandiae": {
-    "artist": null,
-    "license": "CC BY 4.0",
-    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/Himantopus_novaezelandiae_%28AM_LB11077-6%29.jpg/330px-Himantopus_novaezelandiae_%28AM_LB11077-6%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-    "source_url": "https://commons.wikimedia.org/wiki/File:Himantopus_novaezelandiae_(AM_LB11077-6).jpg"
   },
   "Hirundo lucida": {
     "artist": "Steve Garvie from Dunfermline, Fife, Scotland",
@@ -831,12 +795,6 @@
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f3/Passer_domesticus_%28male%29_version_2%2C_Geneve%2C_Switzerland.jpg/330px-Passer_domesticus_%28male%29_version_2%2C_Geneve%2C_Switzerland.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Passer_domesticus_(male)_version_2,_Geneve,_Switzerland.jpg"
   },
-  "Passerina cyanea": {
-    "artist": null,
-    "license": "CC BY 4.0",
-    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/53/Passerina_cyanea_%28AM_LB8255%29.jpg/330px-Passerina_cyanea_%28AM_LB8255%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-    "source_url": "https://commons.wikimedia.org/wiki/File:Passerina_cyanea_(AM_LB8255).jpg"
-  },
   "Pericrocotus flammeus": {
     "artist": "A.DiCorpo",
     "license": "CC BY-SA 3.0",
@@ -848,12 +806,6 @@
     "license": "CC BY 4.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e9/Petrochelidon_fulva_66960564.jpg/330px-Petrochelidon_fulva_66960564.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Petrochelidon_fulva_66960564.jpg"
-  },
-  "Petrochelidon pyrrhonota": {
-    "artist": "Richard Bowdler Sharpe",
-    "license": "Public domain",
-    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9f/Hybrid_Hirundo_rustica_erythrogaster%C3%97_Petrochelidon_pyrrhonota_swainsoni_1894.jpg/330px-Hybrid_Hirundo_rustica_erythrogaster%C3%97_Petrochelidon_pyrrhonota_swainsoni_1894.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-    "source_url": "https://commons.wikimedia.org/wiki/File:Hybrid_Hirundo_rustica_erythrogaster%C3%97_Petrochelidon_pyrrhonota_swainsoni_1894.jpg"
   },
   "Peucaea cassinii": {
     "artist": "Dominic Sherony",
@@ -881,12 +833,6 @@
     "source_url": "https://commons.wikimedia.org/wiki/File:Happy_Wren_(Pheugopedius_felix)_(5911746119).jpg"
   },
   "Phylloscopus poliogenys": null,
-  "Pipilo erythrophthalmus": {
-    "artist": "John White",
-    "license": "Public domain",
-    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d6/After_John_White_-_Towhee_%28Pipilo_erythrophthalmus_erythrophthalmus_Linn%29_or_%28Pipilo_erythrophthalmus_alleni%29%2C_SL%2C5270.91.jpg/330px-After_John_White_-_Towhee_%28Pipilo_erythrophthalmus_erythrophthalmus_Linn%29_or_%28Pipilo_erythrophthalmus_alleni%29%2C_SL%2C5270.91.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-    "source_url": "https://commons.wikimedia.org/wiki/File:After_John_White_-_Towhee_(Pipilo_erythrophthalmus_erythrophthalmus_Linn)_or_(Pipilo_erythrophthalmus_alleni),_SL,5270.91.jpg"
-  },
   "Piranga ludoviciana": {
     "artist": "Amado Demesa from DF, M\u00e9xico",
     "license": "CC BY-SA 2.0",
@@ -999,12 +945,6 @@
     "license": "CC BY-SA 4.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/85/Sayornis_saya_GNP_01.jpg/330px-Sayornis_saya_GNP_01.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Sayornis_saya_GNP_01.jpg"
-  },
-  "Seiurus aurocapilla": {
-    "artist": "Batchelder, 1918",
-    "license": "CC0",
-    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e9/Naturalis_Biodiversity_Center_-_RMNH.AVES.153028_1_-_Seiurus_aurocapilla_furvior_Batchelder%2C_1918_-_Parulidae_-_bird_skin_specimen.jpeg/330px-Naturalis_Biodiversity_Center_-_RMNH.AVES.153028_1_-_Seiurus_aurocapilla_furvior_Batchelder%2C_1918_-_Parulidae_-_bird_skin_specimen.jpeg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-    "source_url": "https://commons.wikimedia.org/wiki/File:Naturalis_Biodiversity_Center_-_RMNH.AVES.153028_1_-_Seiurus_aurocapilla_furvior_Batchelder,_1918_-_Parulidae_-_bird_skin_specimen.jpeg"
   },
   "Selasphorus rufus": {
     "artist": "eyesplash Mikul on Flickr",
@@ -1188,12 +1128,6 @@
     "license": "CC BY 3.0",
     "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/76/Threskiornis_spinicollis_-_Centenary_Lakes.jpg/330px-Threskiornis_spinicollis_-_Centenary_Lakes.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
     "source_url": "https://commons.wikimedia.org/wiki/File:Threskiornis_spinicollis_-_Centenary_Lakes.jpg"
-  },
-  "Thryomanes bewickii": {
-    "artist": "Photo by David J. Stang",
-    "license": "CC BY-SA 4.0",
-    "media_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e1/Thryomanes_bewickii_2zz.jpg/330px-Thryomanes_bewickii_2zz.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-    "source_url": "https://commons.wikimedia.org/wiki/File:Thryomanes_bewickii_2zz.jpg"
   },
   "Thryothorus ludovicianus": {
     "artist": "gailhampshire from Cradley, Malvern, U.K",
