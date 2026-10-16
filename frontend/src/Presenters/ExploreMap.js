@@ -42,6 +42,7 @@ import { observationService } from '../Services/observations.js';
 import { mountSightingsMap } from '../Components/SightingsMap.js';
 import { renderSightingDetail } from '../Components/SightingDetail.js';
 import { escapeHtml } from '../Components/htmlUtils.js';
+import { getCurrentUserId } from '../Services/auth.js';
 
 const DAYS_BACK_OPTIONS = [7, 14, 30];
 // Each unit offers its own clean, native-feeling set of radii (standard
@@ -68,9 +69,9 @@ const SPECIES_SUGGESTIONS_SHOWN = 8;
 
 export function mount(container, props = {}) {
   // onNavigate optional — omitted when this screen is previewed standalone.
-  // `userId` defaults the same way AddObservation/LifeList/ObservationList
-  // do — this screen isn't behind real auth yet either.
-  const { onNavigate, embedded = false, userId = 'u1' } = props;
+  // `userId` is the signed-in user, or null — this screen works signed out,
+  // just without "new for you" and "Only my sightings".
+  const { onNavigate, embedded = false, userId = getCurrentUserId() } = props;
 
   const state = {
     lat: null,
@@ -149,7 +150,7 @@ export function mount(container, props = {}) {
   } else {
     attemptSilentGeolocation();
   }
-  loadSeenSpecies();
+  if (userId) loadSeenSpecies();
 
   // ---- Data ---------------------------------------------------------------
 
@@ -858,8 +859,8 @@ export function mount(container, props = {}) {
           </select>
         </div>
         <label class="ob-field" style="flex-direction:row; align-items:center; gap: var(--ob-space-2);">
-          <input id="mine-only-filter" type="checkbox" ${state.mineOnly ? 'checked' : ''} ${state.lat == null ? 'disabled' : ''} />
-          Only my sightings
+          <input id="mine-only-filter" type="checkbox" ${state.mineOnly ? 'checked' : ''} ${state.lat == null || !userId ? 'disabled' : ''} />
+          Only my sightings${userId ? '' : ' <span class="ob-text-muted ob-text-sm">(sign in)</span>'}
         </label>
         <label class="ob-field" style="flex-direction:row; align-items:center; gap: var(--ob-space-2);">
           <input id="photos-only-filter" type="checkbox" ${state.photosOnly ? 'checked' : ''} ${state.lat == null ? 'disabled' : ''} />

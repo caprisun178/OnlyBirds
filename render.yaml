@@ -38,3 +38,7 @@ services:
         sync: false
       - key: REPORT_EMAIL_TO
         sync: false
+      - key: GOOGLE_CLIENT_ID         # set in dashboard — Google Cloud > Credentials > OAuth client (Web); see backend/.env.example
+        sync: false
+      - key: SESSION_SECRET           # set in dashboard — long random string, NOT the same as your local one
+        sync: false

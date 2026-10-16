@@ -7,9 +7,10 @@
 
 import { notificationsService } from '../Services/notifications.js';
 import { escapeHtml } from '../Components/htmlUtils.js';
+import { getCurrentUserId } from '../Services/auth.js';
 
 export function mount(container, props = {}) {
-  const { onNavigate, userId = 'u1' } = props;
+  const { onNavigate, userId = getCurrentUserId() } = props;
 
   const state = {
     loading: true,

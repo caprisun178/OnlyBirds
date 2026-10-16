@@ -3,10 +3,10 @@
 // Observation, Login) and Explore Map embedded directly below it, so you
 // can start filtering sightings the moment the app loads — no separate
 // welcome page to click through first. No router yet, so navigation goes
-// through an optional onNavigate callback (it just logs for now). Auth/
-// login is separate in-progress work — the header's Login button has
-// nowhere to go yet, so it hits the same "no screen yet" fallback every
-// other not-yet-built route already does.
+// through an optional onNavigate callback (it just logs for now). Signed
+// out, the header shows "Log in" and disables the user-only links; signed
+// in, it shows Profile, the notification bell and Sign out instead
+// (Services/auth.js).
 //
 // Deliberately no `ob-container` here (unlike AddObservation/LifeList/
 // ObservationList, which each opt into it on their own top-level element) —
@@ -19,9 +19,14 @@
 import { mount as mountExploreMap } from './ExploreMap.js';
 import { renderNotificationBell } from '../Components/NotificationBell.js';
 import { notificationsService } from '../Services/notifications.js';
+import { authService, getCurrentUserId } from '../Services/auth.js';
 
 export function mount(container, props = {}) {
-  const { onNavigate = (route) => console.log('navigate to:', route), userId = 'u1' } = props;
+  const { onNavigate = (route) => console.log('navigate to:', route), userId = getCurrentUserId() } = props;
+  const signedIn = userId !== null;
+  // Signed out, user-only routes stay visible (so people see what signing
+  // in gets them) but disabled; preview.js would bounce them to Login anyway.
+  const userOnly = signedIn ? '' : 'disabled title="Sign in to use this"';
 
   // The bell's own little piece of state — open/closed, its preview list,
   // and the badge count. Kept separate from the rest of this screen (which
@@ -36,14 +41,16 @@ export function mount(container, props = {}) {
       <header class="ob-cluster" style="justify-content: space-between; align-items: center;">
         <h1 style="margin: 0;">Only Birds</h1>
         <nav class="ob-cluster" aria-label="Main">
-          <button type="button" class="ob-btn ob-btn--ghost" data-route="life-list">Life List</button>
-          <button type="button" class="ob-btn ob-btn--ghost" data-route="add-observation">Add Observation</button>
-          <button type="button" class="ob-btn ob-btn--ghost" data-route="stickers">Stickers</button>
+          <button type="button" class="ob-btn ob-btn--ghost" data-route="life-list" ${userOnly}>Life List</button>
+          <button type="button" class="ob-btn ob-btn--ghost" data-route="add-observation" ${userOnly}>Add Observation</button>
+          <button type="button" class="ob-btn ob-btn--ghost" data-route="stickers" ${userOnly}>Stickers</button>
           <button type="button" class="ob-btn ob-btn--ghost" data-route="plan-a-trip">Plan a Trip</button>
           <button type="button" class="ob-btn ob-btn--ghost" data-route="test-your-skill">Test Your Skill</button>
-          <button type="button" class="ob-btn ob-btn--ghost" data-route="profile">Profile</button>
-          <span data-role="notification-bell">${renderNotificationBell(bell)}</span>
-          <button type="button" class="ob-btn ob-btn--primary" data-route="login">Log in</button>
+          ${signedIn
+            ? `<button type="button" class="ob-btn ob-btn--ghost" data-route="profile">Profile</button>
+               <span data-role="notification-bell">${renderNotificationBell(bell)}</span>
+               <button type="button" class="ob-btn ob-btn--subtle" data-action="sign-out">Sign out</button>`
+            : '<button type="button" class="ob-btn ob-btn--primary" data-route="login">Log in</button>'}
         </nav>
       </header>
       <div data-role="explore-map"></div>
@@ -61,13 +68,19 @@ export function mount(container, props = {}) {
       onNavigate(el.dataset.route);
     });
   });
+  // preview.js's onAuthChange listener remounts Home signed out.
+  container.querySelector('[data-action="sign-out"]')?.addEventListener('click', () => {
+    closeDropdown();
+    authService.signOut();
+  });
   wireBell();
 
   mountExploreMap(container.querySelector('[data-role="explore-map"]'), { ...props, onNavigate, embedded: true });
 
   // Fetched after the initial render (not blocking it) — see the `bell`
-  // comment above for why this only ever patches its own span.
-  loadUnreadCount();
+  // comment above for why this only ever patches its own span. No bell
+  // (and nothing to count) while signed out.
+  if (signedIn) loadUnreadCount();
 
   function updateBellDom() {
     const bellSpan = container.querySelector('[data-role="notification-bell"]');

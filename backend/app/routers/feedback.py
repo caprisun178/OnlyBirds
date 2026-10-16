@@ -8,17 +8,21 @@ credentials, wrong host/port, the provider rejecting the login, ...) — see
 docs/features/report-a-problem.md.
 """
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.dao.email import EmailNotConfigured, EmailSendFailed
 from app.models.report import ReportCreate
+from app.routers.deps import current_user_id
 from app.services import feedback as feedback_service
 
 router = APIRouter(prefix="/feedback", tags=["feedback"])
 
 
 @router.post("", status_code=status.HTTP_202_ACCEPTED)
-async def create_report(report: ReportCreate) -> dict:
+async def create_report(report: ReportCreate, current: str | None = Depends(current_user_id)) -> dict:
+    # Signed-out users can still report problems; a signed-in one is
+    # attributed from their session, not whatever user_id was sent.
+    report = report.model_copy(update={"user_id": current})
     try:
         await feedback_service.send_report(report)
     except EmailNotConfigured as exc:

@@ -386,7 +386,7 @@ no placeholder fallback for audio the way there is for photos.
 | `Presenters/` | `frontend/src/Presenters/AddObservation.js` | the whole wizard: describe (when/where + map/address search + sight-or-sound + photo-or-text) → identify (candidates, manual search fallback) → confirm (when/where again, editable + photo upload + other field notes) → done |
 | `Components/` | `frontend/src/Components/CandidateList.js` | presentational candidate grid; shows `photo_attribution` as a caption, and (sound mode) an `<audio controls>` player per candidate — see the accessibility note below |
 | `Components/` | `frontend/src/Components/LocationPicker.js` | owns a live Leaflet map + marker; loads Leaflet from a CDN at runtime; reports position changes via a callback rather than importing Dao/Services itself |
-| `testData/` | `frontend/src/testData/testProfile.js` | stand-in "current user" until `user-profiles.md` ships |
+| `Services/` | `frontend/src/Services/auth.js` | the signed-in user (`getCurrentUserId()`) — see [User profiles § Auth](user-profiles.md#auth) |
 
 Still to build: `region`/`geom` on `observations` and pin-engine calls. The
 sticker engine already runs after a logged observation adds a new life-list

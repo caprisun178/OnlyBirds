@@ -4,16 +4,17 @@ and species-list APIs. See docs/features/life-list.md.
 """
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.dao.ebird import EBirdConfigError
 from app.models.life_list import LifeListEntry, RegionChecklistResponse, RegionOption
+from app.routers.deps import optional_self, require_self
 from app.services import life_list as life_list_service
 
 router = APIRouter(tags=["life-list"])
 
 
-@router.get("/users/{user_id}/life-list", response_model=list[LifeListEntry])
+@router.get("/users/{user_id}/life-list", response_model=list[LifeListEntry], dependencies=[Depends(require_self)])
 async def get_life_list(user_id: str):
     return await life_list_service.get_life_list(user_id)
 
@@ -32,7 +33,7 @@ async def list_regions(
 
 
 @router.get("/regions/{region_code}/checklist", response_model=RegionChecklistResponse)
-async def region_checklist(region_code: str, user_id: str | None = None):
+async def region_checklist(region_code: str, user_id: str | None = Depends(optional_self)):
     try:
         return await life_list_service.get_region_checklist(region_code, user_id)
     except EBirdConfigError as exc:

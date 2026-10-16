@@ -7,16 +7,17 @@ Returns 503 while `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` aren't set —
 see docs/features/add-observation.md.
 """
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from app.dao.storage import StorageNotConfigured
 from app.models.upload import PhotoUploadResponse
+from app.routers.deps import require_user
 from app.services import uploads as upload_service
 
 router = APIRouter(prefix="/uploads", tags=["uploads"])
 
 
-@router.post("/photo", response_model=PhotoUploadResponse)
+@router.post("/photo", response_model=PhotoUploadResponse, dependencies=[Depends(require_user)])
 async def upload_photo(file: UploadFile = File(...)):
     content = await file.read()
     try:

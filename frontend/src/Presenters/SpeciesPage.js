@@ -16,9 +16,10 @@ import { speciesService } from '../Services/species.js';
 import { pinsService } from '../Services/pins.js';
 import { lifeListService } from '../Services/lifeList.js';
 import { escapeHtml } from '../Components/htmlUtils.js';
+import { getCurrentUserId } from '../Services/auth.js';
 
 export function mount(container, props = {}) {
-  const { scientificName, commonName: initialCommonName, onNavigate, userId = 'u1' } = props;
+  const { scientificName, commonName: initialCommonName, onNavigate, userId = getCurrentUserId() } = props;
 
   const state = {
     loading: true,
@@ -31,7 +32,7 @@ export function mount(container, props = {}) {
 
   render();
   loadProfile();
-  loadStatus();
+  if (userId) loadStatus(); // seen/pinned are per-user — nothing to load signed out
 
   function render() {
     container.innerHTML = `
@@ -62,7 +63,7 @@ export function mount(container, props = {}) {
           </div>
           <div class="ob-cluster" style="gap: var(--ob-space-2);">
             ${p.extinct ? '<span class="ob-tag ob-tag--danger">Extinct</span>' : ''}
-            <span class="ob-tag ${state.seenAt ? 'ob-tag--success' : ''}">${state.seenAt ? `Seen — first on ${escapeHtml(formatDate(state.seenAt))}` : 'Not seen yet'}</span>
+            ${userId ? `<span class="ob-tag ${state.seenAt ? 'ob-tag--success' : ''}">${state.seenAt ? `Seen — first on ${escapeHtml(formatDate(state.seenAt))}` : 'Not seen yet'}</span>` : ''}
           </div>
         </div>
 
@@ -73,7 +74,9 @@ export function mount(container, props = {}) {
         ${p.audioUrl && p.audioAttribution ? `<p class="ob-text-muted ob-text-sm" style="margin:0;">${escapeHtml(p.audioAttribution)}</p>` : ''}
 
         <div class="ob-cluster">
-          <button type="button" class="ob-btn ${state.pinned ? 'ob-btn--primary' : 'ob-btn--ghost'} ob-btn--sm" data-action="toggle-pin" aria-pressed="${state.pinned}">${state.pinned ? 'Pinned' : 'Pin this species'}</button>
+          ${userId
+            ? `<button type="button" class="ob-btn ${state.pinned ? 'ob-btn--primary' : 'ob-btn--ghost'} ob-btn--sm" data-action="toggle-pin" aria-pressed="${state.pinned}">${state.pinned ? 'Pinned' : 'Pin this species'}</button>`
+            : '<button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" disabled title="Sign in to use this">Sign in to pin this species</button>'}
         </div>
         ${state.pinError ? `<div class="ob-alert ob-alert--danger ob-text-sm">${escapeHtml(state.pinError)}</div>` : ''}
 
