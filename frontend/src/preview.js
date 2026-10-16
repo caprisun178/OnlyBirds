@@ -57,13 +57,36 @@ const SCREENS = {
 // props — e.g. `onNavigate('observation-log', { scientificName, commonName })`
 // from a Life List species card, to open that species' log pre-filtered.
 function navigate(route, params) {
-  const mountScreen = SCREENS[route];
-  if (!mountScreen) {
+  if (!SCREENS[route]) {
     console.log('navigate to:', route, '(no screen yet)');
     return;
   }
+  if (current) {
+    backStack.push(current);
+    if (backStack.length > MAX_BACK_STACK) backStack.shift();
+  }
+  show(route, params);
+}
+
+// "← Back" (`onBack` prop) — returns to whichever screen navigated here,
+// e.g. the Bird Info page opened from Life List goes back to Life List, not
+// always to Home. The previous screen is re-mounted fresh with the same
+// params it was opened with (screens don't keep their state between
+// mounts). Falls back to Home when there's nothing to go back to.
+const MAX_BACK_STACK = 20;
+const backStack = [];
+let current = null;
+
+function goBack() {
+  const prev = backStack.pop();
+  if (prev) show(prev.route, prev.params);
+  else show('home');
+}
+
+function show(route, params) {
+  current = { route, params };
   app.innerHTML = '';
-  mountScreen(app, params);
+  SCREENS[route](app, { ...params, onBack: goBack });
   reportWidget.setScreen(route);
 }
 

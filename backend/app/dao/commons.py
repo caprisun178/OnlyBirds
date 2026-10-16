@@ -238,3 +238,97 @@ async def search_audio(query: str) -> dict | None:
     """A call/song recording — Commons hosts a lot of Xeno-canto's archive
     under the same file-search API used for photos."""
     return await _search(query, "audio", thumbnail=False)
+
+
+_MAP_WORD_RE = re.compile(r"\bmaps?\b")
+
+# Wikipedia's {{legend}} template, as rendered into a file's description:
+# a swatch div with `background:#rrggbb`, then the label text. Range-map
+# captions use it for the season key ("Breeding", "Migration", ...).
+_LEGEND_ITEM_RE = re.compile(
+    r'<div class="legend"[^>]*>\s*<div[^>]*background:\s*(#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?)\b[^>]*>.*?</div>\s*(.*?)</div>',
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def _parse_map_legend(description_html: str | None) -> tuple[str | None, list[dict]]:
+    """Splits a range map's description into (caption, legend) — the prose
+    before the first legend entry, and `[{color, label}]`. `color` is always
+    a validated hex code, so the frontend can put it straight into a style."""
+    if not description_html:
+        return None, []
+    legend = [
+        {"color": color.lower(), "label": label}
+        for color, label_html in _LEGEND_ITEM_RE.findall(description_html)
+        if (label := _strip_html(label_html))
+    ]
+    first = description_html.find('<div class="legend"')
+    caption = _strip_html(description_html if first == -1 else description_html[:first])
+    return caption, legend
+
+
+async def search_range_map(scientific_name: str) -> dict | None:
+    """A range/distribution map for the Bird Info page — most bird species
+    on Commons have one, conventionally titled "<Scientific name> map.svg"
+    (Wikipedia's species infobox maps), usually colored by season
+    (breeding / non-breeding / year-round / migration). Returns
+    `{media_url, source_url, artist, license, caption, legend}` or `None`;
+    raises `CommonsUnavailable` like `_search()`.
+
+    Its own search rather than `_search()`: the photo filter deliberately
+    rejects maps, and a range map is mostly an SVG ("drawing"), not a
+    "bitmap". `legend` (`[{color, label}]`, see `_parse_map_legend()`) comes
+    from the file's own description — the only reliable place a map's color
+    key is spelled out, since not every map uses the same colors.
+    """
+    settings = get_settings()
+    params = {
+        "action": "query",
+        "generator": "search",
+        "gsrsearch": f'intitle:"{scientific_name}" intitle:map',
+        "gsrnamespace": "6",  # File namespace
+        "gsrlimit": "8",
+        "prop": "imageinfo",
+        "iiprop": "url|extmetadata|mime",
+        "iiextmetadatafilter": "Artist|LicenseShortName|ImageDescription",
+        # Commons renders an SVG to a PNG at this width — browsers can show
+        # the raw SVG too, but some of these are several MB of path data.
+        "iiurlwidth": "640",
+        "format": "json",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=settings.http_timeout_seconds) as client:
+            resp = await client.get(_API_URL, params=params, headers=_HEADERS)
+            resp.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise CommonsUnavailable(str(exc)) from exc
+
+    pages = resp.json().get("query", {}).get("pages", {})
+    name = scientific_name.lower()
+    canonical = {f"file:{name} map.svg", f"file:{name} range map.svg", f"file:{name} distribution map.svg"}
+
+    def rank(page: dict) -> tuple[int, int, int]:
+        title = page.get("title", "").lower()
+        mime = ((page.get("imageinfo") or [{}])[0]).get("mime", "")
+        # canonical infobox-style title first, then any SVG, then search rank
+        return (0 if title in canonical else 1, 0 if mime == "image/svg+xml" else 1, page.get("index", 0))
+
+    candidates = [
+        p for p in pages.values()
+        if p.get("imageinfo")
+        and name in p.get("title", "").lower()
+        and _MAP_WORD_RE.search(p.get("title", "").lower())
+    ]
+    if not candidates:
+        return None
+    info = min(candidates, key=rank)["imageinfo"][0]
+    meta = info.get("extmetadata", {})
+    caption, legend = _parse_map_legend(meta.get("ImageDescription", {}).get("value"))
+    return {
+        "media_url": info.get("thumburl") or info.get("url"),
+        "source_url": info.get("descriptionurl"),
+        "artist": _strip_html(meta.get("Artist", {}).get("value")),
+        "license": meta.get("LicenseShortName", {}).get("value"),
+        "caption": caption,
+        "legend": legend,
+    }

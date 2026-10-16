@@ -47,6 +47,11 @@ class SpeciesContent(BaseModel):
     fetched_at: datetime | None = None
 
 
+class RangeMapLegendItem(BaseModel):
+    color: str  # hex, validated in commons.py#_parse_map_legend()
+    label: str  # e.g. "Breeding", "Migration", "Nonbreeding", "Year-round"
+
+
 class SpeciesProfile(BaseModel):
     """The Bird Info page's full response (`GET /species/profile`) — see
     docs/features/bird-info.md. `common_name`/`family` are `None` when the
@@ -67,3 +72,10 @@ class SpeciesProfile(BaseModel):
     sex_differences: str | None = None
     migration: str | None = None
     habitat: str | None = None
+    # Wikimedia Commons range map, colored by season — see
+    # app/dao/bird_range_maps.py. All `None` / empty when Commons has none.
+    range_map_url: str | None = None
+    range_map_attribution: str | None = None
+    range_map_source_url: str | None = None
+    range_map_caption: str | None = None
+    range_map_legend: list[RangeMapLegendItem] = Field(default_factory=list)

@@ -230,3 +230,28 @@ def test_get_stock_photos_looks_up_each_species_concurrently(monkeypatch):
     )
     assert sorted(calls) == ["Corvus brachyrhynchos", "Turdus migratorius"]
     assert len(results) == 2
+
+
+def test_profile_includes_a_seasonal_range_map_when_commons_has_one(client, monkeypatch):
+    async def fake_range_map(scientific_name):
+        return {
+            "media_url": "https://upload.wikimedia.org/map.png",
+            "source_url": "https://commons.wikimedia.org/wiki/File:Passerina_cyanea_map.svg",
+            "artist": "Cephas",
+            "license": "CC BY-SA 4.0",
+            "caption": "Range map of Indigo Bunting",
+            "legend": [{"color": "#ff9955", "label": "Breeding"}, {"color": "#ffdd55", "label": "Migration"}],
+        }
+
+    monkeypatch.setattr(commons, "search_range_map", fake_range_map)
+
+    body = client.get("/species/profile", params={"scientific_name": "Passerina cyanea"}).json()
+    assert body["range_map_url"] == "https://upload.wikimedia.org/map.png"
+    assert body["range_map_attribution"] == "Cephas / Wikimedia Commons (CC BY-SA 4.0)"
+    assert body["range_map_legend"][1] == {"color": "#ffdd55", "label": "Migration"}
+
+
+def test_profile_has_no_range_map_when_commons_has_none(client):
+    body = client.get("/species/profile", params={"scientific_name": "Passerina cyanea"}).json()
+    assert body["range_map_url"] is None
+    assert body["range_map_legend"] == []

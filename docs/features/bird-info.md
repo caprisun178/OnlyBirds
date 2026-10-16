@@ -55,11 +55,23 @@ Also reached by **searching** directly (see below).
 | Habitat | where it's typically found | Wikipedia article body, same section as migration — often one combined section |
 | Your status | "Seen — first on 3 May 2024" or "Not seen yet", plus the pin toggle | our `life_list_entries` (derived) / `pinned_birds` — both already exist |
 
-Deliberately **not** in v1: a migration **map**. That needs eBird's
-*Status & Trends* product, which — confirmed while building
-[Plan a Trip](plan-a-trip.md)'s `region_for_point()` — is a separately
-gated product, not reachable with the regular API key. The three text rows
-above (migration/habitat/sex differences) are prose, not that — not worth
+**Range by season (added 2026-10-15):** a static range map from Wikimedia
+Commons, `app/dao/bird_range_maps.py` → `commons.search_range_map()`. Most
+species have one, titled "<Scientific name> map.svg" (Wikipedia's infobox
+maps), colored by season. The color key is parsed out of the file's own
+description (Wikipedia's `{{legend}}` template, e.g. Breeding / Migration /
+Nonbreeding / Year-round), since maps don't all use the same colors; with
+no legend, the page shows the caption and a source link. Coverage isn't
+complete (e.g. no match for *Hirundo rustica*), and the section is simply
+hidden then. Attribution (author + license) is shown under the map.
+
+This is the **capstone stand-in**. A real migration map (where the birds
+are, week by week) still needs eBird's *Status & Trends* product, which —
+confirmed while building [Plan a Trip](plan-a-trip.md)'s
+`region_for_point()` — is a separately gated product, not reachable with
+the regular API key; or our own maps built from open data (see
+[Running without eBird](ebird-independence.md)). The three text rows above
+(migration/habitat/sex differences) are prose, not that — not worth
 blocking either on the other.
 
 !!! note "Why these three are prose, not structured fields"
@@ -195,7 +207,12 @@ lookup-by-code endpoint that half of its real callers can't use.
   "about_source_url": "https://en.wikipedia.org/wiki/Black-capped_chickadee",
   "sex_differences": "The sexes look alike, though males average slightly larger...",
   "migration": "Generally a non-migratory, year-round resident across its range...",
-  "habitat": "Found in deciduous and mixed forests, parks, and woodland edges..."
+  "habitat": "Found in deciduous and mixed forests, parks, and woodland edges...",
+  "range_map_url": "https://upload.wikimedia.org/.../640px-Poecile_atricapillus_map.svg.png",
+  "range_map_attribution": "Cephas / Wikimedia Commons (CC BY-SA 4.0)",
+  "range_map_source_url": "https://commons.wikimedia.org/wiki/File:Poecile_atricapillus_map.svg",
+  "range_map_caption": "Range map of Black-capped Chickadee (Poecile atricapillus)",
+  "range_map_legend": []
 }
 ```
 

@@ -43,6 +43,12 @@ export const speciesService = {
       sexDifferences: p.sex_differences,
       migration: p.migration,
       habitat: p.habitat,
+      // Commons range map colored by season; rangeMapLegend is [{ color, label }]
+      rangeMapUrl: p.range_map_url,
+      rangeMapAttribution: p.range_map_attribution,
+      rangeMapSourceUrl: p.range_map_source_url,
+      rangeMapCaption: p.range_map_caption,
+      rangeMapLegend: p.range_map_legend || [],
     };
   },
 };

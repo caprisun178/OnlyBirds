@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timedelta, timezone
 
-from app.dao import bird_audio, bird_photos, inaturalist, wikipedia
+from app.dao import bird_audio, bird_photos, bird_range_maps, inaturalist, wikipedia
 from app.dao.species_repo import species_repo
 from app.models.species import SpeciesContent, SpeciesPhoto, SpeciesProfile, SpeciesRef
 
@@ -58,10 +58,11 @@ async def get_profile(
         common_name = common_name or (taxonomy["common_name"] if taxonomy else None)
         family = family or (taxonomy["family"] if taxonomy else None)
 
-    content, photo, audio = await asyncio.gather(
+    content, photo, audio, range_map = await asyncio.gather(
         _get_or_fetch_content(scientific_name, common_name),
         bird_photos.get_stock_photo(scientific_name, common_name or scientific_name),
         bird_audio.get_audio({"scientific_name": scientific_name}),
+        bird_range_maps.get_range_map(scientific_name),
     )
 
     return SpeciesProfile(
@@ -77,6 +78,11 @@ async def get_profile(
         sex_differences=content.sex_differences,
         migration=content.migration,
         habitat=content.habitat,
+        range_map_url=range_map["map_url"] if range_map else None,
+        range_map_attribution=range_map["attribution"] if range_map else None,
+        range_map_source_url=range_map["source_url"] if range_map else None,
+        range_map_caption=range_map["caption"] if range_map else None,
+        range_map_legend=range_map["legend"] if range_map else [],
     )
 
 

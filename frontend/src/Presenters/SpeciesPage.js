@@ -4,7 +4,7 @@
 // docs/features/bird-info.md.
 //
 //   import { mount } from './Presenters/SpeciesPage.js';
-//   mount(container, { scientificName, commonName, onNavigate, userId });
+//   mount(container, { scientificName, commonName, onNavigate, onBack, userId });
 //
 // `commonName` is optional — several entry points (SightingDetail.js,
 // PlanATrip.js's likely-species cards) already have it on hand and passing
@@ -17,8 +17,10 @@ import { pinsService } from '../Services/pins.js';
 import { lifeListService } from '../Services/lifeList.js';
 import { escapeHtml } from '../Components/htmlUtils.js';
 
+const HEX_COLOR = /^#[0-9a-f]{3}([0-9a-f]{3})?$/i; // range-map legend swatches go into a style attribute
+
 export function mount(container, props = {}) {
-  const { scientificName, commonName: initialCommonName, onNavigate, userId = 'u1' } = props;
+  const { scientificName, commonName: initialCommonName, onNavigate, onBack, userId = 'u1' } = props;
 
   const state = {
     loading: true,
@@ -36,7 +38,7 @@ export function mount(container, props = {}) {
   function render() {
     container.innerHTML = `
       <div class="ob-container ob-stack">
-        ${onNavigate ? '<button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="back" style="align-self:flex-start;">← Back</button>' : ''}
+        ${onBack || onNavigate ? '<button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="back" style="align-self:flex-start;">← Back</button>' : ''}
         ${state.loading ? renderLoading() : state.error ? renderError() : renderProfile()}
       </div>
     `;
@@ -77,6 +79,7 @@ export function mount(container, props = {}) {
         ${renderTextBlock('About', p.about, p.aboutSourceUrl)}
         ${renderTextBlock('Male vs. female', p.sexDifferences)}
         ${renderTextBlock('Migration', p.migration)}
+        ${renderRangeMap(p)}
         ${renderTextBlock('Habitat', p.habitat)}
         ${!p.about && !p.sexDifferences && !p.migration && !p.habitat
           ? '<p class="ob-text-muted ob-text-sm">No Wikipedia article content found for this species yet.</p>'
@@ -96,6 +99,33 @@ export function mount(container, props = {}) {
     `;
   }
 
+  // Season-colored range map from Wikimedia Commons (the capstone stand-in
+  // for a real migration map — see docs/features/bird-info.md). The legend
+  // comes from the file's own description, since maps don't all share one
+  // color scheme; with no legend, the caption + source link have to do.
+  function renderRangeMap(p) {
+    if (!p.rangeMapUrl) return '';
+    const legend = p.rangeMapLegend.filter((item) => HEX_COLOR.test(item.color));
+    return `
+      <div class="ob-stack" style="gap: var(--ob-space-2);">
+        <h2 class="ob-card__title" style="font-size: 1.05rem; margin: 0;">Range by season</h2>
+        <img src="${escapeHtml(p.rangeMapUrl)}" alt="Range map of ${escapeHtml(p.commonName || scientificName)}" loading="lazy" style="width:100%; height:360px; object-fit:contain; background:var(--ob-color-surface-alt); border-radius: var(--ob-radius-sm);" />
+        ${legend.length ? `
+          <ul class="ob-cluster" style="list-style:none; margin:0; padding:0; gap: var(--ob-space-3);">
+            ${legend.map((item) => `
+              <li class="ob-cluster ob-text-sm" style="gap: var(--ob-space-1);">
+                <span aria-hidden="true" style="display:inline-block; width:14px; height:14px; border-radius:3px; border:1px solid var(--ob-color-border, #333); background:${item.color};"></span>
+                ${escapeHtml(item.label)}
+              </li>`).join('')}
+          </ul>` : ''}
+        ${p.rangeMapCaption ? `<p class="ob-text-sm" style="margin:0; white-space: pre-wrap;">${escapeHtml(p.rangeMapCaption)}</p>` : ''}
+        <p class="ob-text-muted ob-text-sm" style="margin:0;">
+          ${escapeHtml(p.rangeMapAttribution || 'Wikimedia Commons')}${p.rangeMapSourceUrl ? ` · <a href="${escapeHtml(p.rangeMapSourceUrl)}" target="_blank" rel="noopener noreferrer">Source</a>` : ''}
+        </p>
+      </div>
+    `;
+  }
+
   function formatDate(iso) {
     try {
       return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
@@ -105,7 +135,7 @@ export function mount(container, props = {}) {
   }
 
   function wire() {
-    container.querySelector('[data-action="back"]')?.addEventListener('click', () => onNavigate?.('home'));
+    container.querySelector('[data-action="back"]')?.addEventListener('click', () => (onBack ? onBack() : onNavigate?.('home')));
     container.querySelector('[data-action="toggle-pin"]')?.addEventListener('click', togglePin);
   }
 

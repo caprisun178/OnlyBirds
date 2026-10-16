@@ -315,3 +315,74 @@ def test_search_does_not_filter_audio_results(monkeypatch):
     result = asyncio.run(commons._search("Turdus migratorius", "audio", thumbnail=False))
     assert result["media_url"] == "https://upload.wikimedia.org/1.jpg"
     assert result["flagged"] is False  # never a quality concern for audio — see _search()'s docstring
+
+
+# Captured at import, before the autouse `no_live_media_lookups` fixture
+# stubs `commons.search_range_map` for every test.
+_real_search_range_map = commons.search_range_map
+
+_LEGEND_HTML = (
+    'Range map of Indigo Bunting (<i>Passerina cyanea</i>). '
+    '<div class="legend" style="line-height:23px;"><div class="legend-content" '
+    'style="width:34px;border:thin solid #333;background:#FF9955;color:#202122;">'
+    '<span typeof="mw:Entity">&nbsp;</span></div> Breeding</div>'
+    '<div class="legend" style="line-height:23px;"><div class="legend-content" '
+    'style="width:34px;background:#ffdd55;">&nbsp;</div> Migration</div>'
+)
+
+
+def test_parse_map_legend_splits_caption_from_season_key():
+    caption, legend = commons._parse_map_legend(_LEGEND_HTML)
+    assert caption == "Range map of Indigo Bunting (Passerina cyanea)."
+    assert legend == [
+        {"color": "#ff9955", "label": "Breeding"},
+        {"color": "#ffdd55", "label": "Migration"},
+    ]
+
+
+def test_parse_map_legend_without_a_legend_block():
+    assert commons._parse_map_legend("Range map of Black-capped Chickadee") == (
+        "Range map of Black-capped Chickadee", [],
+    )
+    assert commons._parse_map_legend(None) == (None, [])
+
+
+def test_parse_map_legend_ignores_a_non_hex_background():
+    # `color` goes straight into a style attribute on the page — anything
+    # that isn't a plain hex code must never come through.
+    html = '<div class="legend"><div style="background:url(javascript:x)">.</div> Breeding</div>'
+    assert commons._parse_map_legend(html)[1] == []
+
+
+def _map_page(index, title, mime="image/svg+xml", description=None):
+    page = _page(index, title, description=description)
+    page["imageinfo"][0]["mime"] = mime
+    return page
+
+
+def test_search_range_map_prefers_the_canonical_infobox_map(monkeypatch):
+    def handler(request):
+        return httpx.Response(200, request=request, json={"query": {"pages": {
+            "1": _map_page(1, "File:Passerina cyanea and Passerina amoena map.png", mime="image/png"),
+            "2": _map_page(2, "File:Passerina cyanea map.svg", description=_LEGEND_HTML),
+            "3": _map_page(3, "File:Passerina cyanea in flight.jpg", mime="image/jpeg"),
+        }}})
+
+    monkeypatch.setattr(commons.httpx, "AsyncClient", _mock_client(handler))
+
+    result = asyncio.run(_real_search_range_map("Passerina cyanea"))
+    assert result["source_url"] == "https://commons.wikimedia.org/wiki/File:Passerina cyanea map.svg"
+    assert [item["label"] for item in result["legend"]] == ["Breeding", "Migration"]
+
+
+def test_search_range_map_rejects_files_that_are_not_maps_of_this_species(monkeypatch):
+    def handler(request):
+        return httpx.Response(200, request=request, json={"query": {"pages": {
+            "1": _map_page(1, "File:Hirundo rustica in flight.jpg", mime="image/jpeg"),
+            "2": _map_page(2, "File:Hirundo neoxena map.svg"),
+            "3": _map_page(3, "File:Hirundo rustica Mapleton park.jpg", mime="image/jpeg"),
+        }}})
+
+    monkeypatch.setattr(commons.httpx, "AsyncClient", _mock_client(handler))
+
+    assert asyncio.run(_real_search_range_map("Hirundo rustica")) is None
