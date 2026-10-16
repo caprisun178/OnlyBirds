@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 
 from app.models.observation import Observation, Source
 from app.models.species import SpeciesRef
+from app.models.trip import Hotspot, LikelySpecies
 
 
 def _parse_dt(value: str | None) -> datetime:
@@ -41,10 +42,10 @@ def from_ebird(record: dict) -> Observation:
         species=species,
         lat=record.get("lat", 0.0),
         lng=record.get("lng", 0.0),
+        location_name=record.get("locName"),
         observed_at=_parse_dt(record.get("obsDt")),
         source=Source.ebird,
         source_observation_id=record.get("subId"),
-        notes=record.get("locName"),
     )
 
 
@@ -63,12 +64,13 @@ def from_inaturalist(record: dict) -> Observation:
 
     lat, lng = _inat_coords(record)
     photos = record.get("photos") or []
-    photo_url = photos[0].get("url") if photos else None
+    photo_url = _upgrade_inat_photo_size(photos[0].get("url")) if photos else None
 
     return Observation(
         species=species,
         lat=lat,
         lng=lng,
+        location_name=record.get("place_guess"),
         observed_at=_parse_dt(
             record.get("time_observed_at") or record.get("observed_on")
         ),
@@ -77,6 +79,21 @@ def from_inaturalist(record: dict) -> Observation:
         photo_url=photo_url,
         notes=record.get("description"),
     )
+
+
+def _upgrade_inat_photo_size(url: str | None) -> str | None:
+    """iNaturalist's observation API only ever hands back the 75x75 "square"
+    thumbnail in `photos[].url` — extremely blurry stretched to fill a card
+    or detail-panel image. The full-resolution original always lives at the
+    same path, just under a different filename ("small" 240px, "medium"
+    500px, "large" 1024px, "original"); confirmed live (`original_dimensions`
+    on the same photo object reports the real size, e.g. 776x618, while only
+    "square.jpg" is linked). Swaps in "medium" — plenty sharp for a few-
+    hundred-px thumbnail without pulling a full-res original for that.
+    """
+    if not url or "/square.jpg" not in url:
+        return url
+    return url.replace("/square.jpg", "/medium.jpg")
 
 
 def _inat_coords(record: dict) -> tuple[float, float]:
@@ -92,3 +109,40 @@ def _inat_coords(record: dict) -> tuple[float, float]:
         except ValueError:
             pass
     return 0.0, 0.0
+
+
+def from_inat_species_count(record: dict) -> LikelySpecies:
+    """One element of iNaturalist's `/observations/species_counts`
+    response — a distinct species, not a sighting event.
+    `taxon.default_photo` here is a different field than `from_inaturalist`'s
+    observation-level `photos[]`: iNaturalist already hands back a
+    properly-sized `medium_url` directly (no `/square.jpg` thumbnail to
+    upgrade, so `_upgrade_inat_photo_size()` doesn't apply here).
+    """
+    taxon = record.get("taxon") or {}
+    source_ids: dict[str, str] = {}
+    if taxon.get("id") is not None:
+        source_ids["inat"] = str(taxon["id"])
+    species = SpeciesRef(
+        scientific_name=taxon.get("name"),
+        common_name=taxon.get("preferred_common_name"),
+        taxon_group=taxon.get("iconic_taxon_name"),
+        source_ids=source_ids,
+    )
+    photo = taxon.get("default_photo") or {}
+    return LikelySpecies(
+        species=species,
+        observation_count=record.get("count", 0),
+        photo_url=photo.get("medium_url"),
+    )
+
+
+def from_ebird_hotspot(record: dict) -> Hotspot:
+    """One element of eBird's `GET /ref/hotspot/geo` response."""
+    return Hotspot(
+        loc_id=record["locId"],
+        name=record.get("locName", "Unnamed location"),
+        lat=record["lat"],
+        lng=record["lng"],
+        species_all_time=record.get("numSpeciesAllTime", 0),
+    )

@@ -7,12 +7,12 @@
 // localhost gets the local backend, anything else (GitHub Pages, Vercel,
 // Netlify, ...) gets the Render dev backend. Swap the ONRENDER_URL for a
 // second hardcoded prod URL once a prod frontend deploy exists.
-const ONRENDER_URL = 'https://onlybirds.onrender.com';
+const ONRENDER_URL = 'https://onlybirds-dev.onrender.com';
 const IS_LOCAL =
   typeof window !== 'undefined' &&
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-const BASE_URL =
+export const BASE_URL =
   (typeof process !== 'undefined' && process.env && process.env.API_BASE_URL) ||
   (IS_LOCAL ? 'http://localhost:8000' : ONRENDER_URL);
 
@@ -23,7 +23,9 @@ async function request(method, path, body) {
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!resp.ok) {
-    throw new Error(`${method} ${path} -> ${resp.status}`);
+    const err = new Error(`${method} ${path} -> ${resp.status}`);
+    err.status = resp.status; // lets callers branch on e.g. 404 without parsing the message
+    throw err;
   }
   return resp.status === 204 ? null : resp.json();
 }
@@ -34,4 +36,5 @@ export const apiClient = {
   put: (path, body) => request('PUT', path, body),
   patch: (path, body) => request('PATCH', path, body),
   delete: (path) => request('DELETE', path),
+  assetUrl: (path) => new URL(path, BASE_URL).toString(),
 };

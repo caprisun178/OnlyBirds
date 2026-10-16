@@ -37,6 +37,30 @@ def test_strip_html_strips_ordinary_link_markup():
     assert _strip_html(raw) == "Mdf"
 
 
+@pytest.mark.parametrize("title, categories", [
+    # Real live photos the old substring match rejected — "nid" (French
+    # "nest") inside "-nidae"/"unidentified", "mount" inside "mountain":
+    ("File:Tachycineta bicolor CT3.jpg", ["Category:Hirundinidae in Canada"]),
+    ("File:Amazon kingfisher in flight.jpg", ["Category:Alcedinidae of Belize"]),
+    ("File:Selasphorus rufus at Crocosmia.jpg", ["Category:Unidentified Crocosmia"]),
+    ("File:Green-throated mountain-gem.jpg", []),
+    ("File:Sandhill crane.jpg", ["Category:Antigone canadensis"]),
+])
+def test_is_unwanted_photo_ignores_keywords_inside_other_words(title, categories):
+    assert not commons._is_unwanted_photo(title, categories)
+
+
+@pytest.mark.parametrize("title, categories", [
+    ("File:Passerina cyanea (AM LB8255).jpg", ["Category:Cardinalidae in Auckland Museum"]),
+    ("File:Thryomanes bewickii 2zz.jpg", ["Category:Thryomanes bewickii (museum specimens)"]),
+    ("File:Chaetura pelagica 2zz.jpg", ["Category:Apodiformes skeletons"]),
+    ("File:Ammodramus maritimus map.svg", []),
+    ("File:Some bird.jpg", ["Category:Maps of Ammodramus maritimus"]),
+])
+def test_is_unwanted_photo_catches_whole_words_and_plurals(title, categories):
+    assert commons._is_unwanted_photo(title, categories)
+
+
 def test_format_attribution_includes_artist_and_license():
     result = {"artist": "Jane Doe", "license": "CC BY-SA 3.0"}
     assert format_attribution(result) == "Jane Doe / Wikimedia Commons (CC BY-SA 3.0)"
@@ -176,7 +200,10 @@ def test_search_skips_top_ranked_specimen_photo_by_description_metadata(monkeypa
 
 def test_search_falls_back_to_top_result_when_every_candidate_is_unwanted(monkeypatch):
     # Better an imperfect real photo than nothing — the filter narrows, it
-    # doesn't ever turn a real result into None.
+    # doesn't ever turn a real result into None. `flagged=True` is how a
+    # caller that actually needs a real bird photo (not just "some image")
+    # can tell this was a forced pick, not a clean match — see
+    # app/services/quiz.py's use of this.
     def handler(request):
         pages = {
             "1": _page(1, "File:Robin egg.jpg"),
@@ -188,6 +215,113 @@ def test_search_falls_back_to_top_result_when_every_candidate_is_unwanted(monkey
 
     result = asyncio.run(commons._search("Turdus migratorius", "bitmap", thumbnail=True))
     assert result["media_url"] == "https://upload.wikimedia.org/1.jpg"  # top-ranked, despite being unwanted
+    assert result["flagged"] is True
+
+
+def test_search_clean_match_is_not_flagged(monkeypatch):
+    def handler(request):
+        pages = {
+            "1": _page(1, "File:Robin egg in nest.jpg"),
+            "2": _page(2, "File:Turdus migratorius in Central Park.jpg"),
+        }
+        return httpx.Response(200, request=request, json={"query": {"pages": pages}})
+
+    monkeypatch.setattr(commons.httpx, "AsyncClient", _mock_client(handler))
+
+    result = asyncio.run(commons._search("Turdus migratorius", "bitmap", thumbnail=True))
+    assert result["flagged"] is False
+
+
+def test_search_skips_a_range_map(monkeypatch):
+    # Real, reported case: a Seaside Sparrow quiz question showed a range
+    # map instead of a photo. Its actual title didn't contain either
+    # "distribution map" or "range map" as an exact phrase — just "map" —
+    # which the old keyword list missed entirely.
+    def handler(request):
+        pages = {
+            "1": _page(1, "File:Ammodramus maritimus map.svg"),
+            "2": _page(2, "File:Seaside Sparrow in marsh grass.jpg"),
+        }
+        return httpx.Response(200, request=request, json={"query": {"pages": pages}})
+
+    monkeypatch.setattr(commons.httpx, "AsyncClient", _mock_client(handler))
+
+    result = asyncio.run(commons._search("Ammodramus maritimus", "bitmap", thumbnail=True))
+    assert result["media_url"] == "https://upload.wikimedia.org/2.jpg"
+    assert result["flagged"] is False
+
+
+def test_search_excludes_given_media_urls(monkeypatch):
+    # Backs Test Your Skill's "try another photo" — a different file than
+    # one already shown, not a quality judgment on the excluded one.
+    def handler(request):
+        pages = {
+            "1": _page(1, "File:Turdus migratorius A.jpg"),
+            "2": _page(2, "File:Turdus migratorius B.jpg"),
+        }
+        return httpx.Response(200, request=request, json={"query": {"pages": pages}})
+
+    monkeypatch.setattr(commons.httpx, "AsyncClient", _mock_client(handler))
+
+    result = asyncio.run(
+        commons._search(
+            "Turdus migratorius", "bitmap", thumbnail=True,
+            exclude_media_urls=frozenset({"https://upload.wikimedia.org/1.jpg"}),
+        )
+    )
+    assert result["media_url"] == "https://upload.wikimedia.org/2.jpg"
+
+
+def test_search_returns_none_when_everything_is_excluded(monkeypatch):
+    def handler(request):
+        pages = {"1": _page(1, "File:Turdus migratorius A.jpg")}
+        return httpx.Response(200, request=request, json={"query": {"pages": pages}})
+
+    monkeypatch.setattr(commons.httpx, "AsyncClient", _mock_client(handler))
+
+    result = asyncio.run(
+        commons._search(
+            "Turdus migratorius", "bitmap", thumbnail=True,
+            exclude_media_urls=frozenset({"https://upload.wikimedia.org/1.jpg"}),
+        )
+    )
+    assert result is None
+
+
+def test_search_requests_full_unhidden_categories_for_a_photo_search(monkeypatch):
+    # Regression: real live-data case. A generator search for 10 candidate
+    # photos shares ONE `categories` budget across all 10 pages combined
+    # (MediaWiki's un-raised default: 10 total, not 10 each) — a 1894
+    # hybrid-swallow engraving's categories (including the literal
+    # "Petrochelidon pyrrhonota (illustrations)" this filter already looks
+    # for) got silently dropped from the response purely because other
+    # candidates in the same batch used up the shared budget first, letting
+    # the engraving through as an un-flagged "real photo." `cllimit=max`
+    # raises that shared budget; `clshow=!hidden` keeps Commons' own
+    # license/maintenance bookkeeping categories from eating into it.
+    def handler(request):
+        url = str(request.url)
+        assert "cllimit=max" in url
+        assert "clshow=%21hidden" in url or "clshow=!hidden" in url
+        pages = {"1": _page(1, "File:Turdus migratorius in Central Park.jpg")}
+        return httpx.Response(200, request=request, json={"query": {"pages": pages}})
+
+    monkeypatch.setattr(commons.httpx, "AsyncClient", _mock_client(handler))
+
+    asyncio.run(commons._search("Turdus migratorius", "bitmap", thumbnail=True))
+
+
+def test_search_does_not_request_categories_params_for_audio(monkeypatch):
+    def handler(request):
+        url = str(request.url)
+        assert "cllimit" not in url
+        assert "clshow" not in url
+        pages = {"1": _page(1, "File:American Robin nestling begging calls.ogg")}
+        return httpx.Response(200, request=request, json={"query": {"pages": pages}})
+
+    monkeypatch.setattr(commons.httpx, "AsyncClient", _mock_client(handler))
+
+    asyncio.run(commons._search("Turdus migratorius", "audio", thumbnail=False))
 
 
 def test_search_does_not_filter_audio_results(monkeypatch):
@@ -204,3 +338,4 @@ def test_search_does_not_filter_audio_results(monkeypatch):
 
     result = asyncio.run(commons._search("Turdus migratorius", "audio", thumbnail=False))
     assert result["media_url"] == "https://upload.wikimedia.org/1.jpg"
+    assert result["flagged"] is False  # never a quality concern for audio — see _search()'s docstring

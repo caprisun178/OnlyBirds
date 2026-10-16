@@ -28,5 +28,27 @@ def get_pool() -> ConnectionPool:
             raise RuntimeError("DATABASE_URL is not set")
         # Small pool — Neon's free tier caps concurrent connections, and this
         # is one API process, not a fleet.
-        _pool = ConnectionPool(conninfo=settings.database_url, min_size=1, max_size=5, open=True)
+        #
+        # `check=ConnectionPool.check_connection`: Neon (like most managed/
+        # serverless Postgres) silently closes connections that sit idle too
+        # long — the pool doesn't find out until it hands one of those out
+        # and the next query fails with `OperationalError: consuming input
+        # failed: SSL connection has been closed unexpectedly` (a real crash
+        # seen live, on `/sightings/nearby`, after the pool's connection sat
+        # idle between requests). Worse: since that's an unhandled exception,
+        # it bypasses CORSMiddleware entirely (the 500 Starlette's own
+        # ServerErrorMiddleware sends back has no Access-Control-Allow-Origin
+        # header, having escaped the middleware that would have added one) —
+        # so the browser reports a bare, misleading "Failed to fetch" with no
+        # indication a real backend error happened at all. `check_connection`
+        # pings each connection with a cheap query before handing it out and
+        # transparently replaces it if that fails, so a stale connection
+        # never reaches application code in the first place.
+        _pool = ConnectionPool(
+            conninfo=settings.database_url,
+            min_size=1,
+            max_size=5,
+            open=True,
+            check=ConnectionPool.check_connection,
+        )
     return _pool

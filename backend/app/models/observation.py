@@ -39,6 +39,12 @@ class ObservationBase(BaseModel):
     sex: Sex | None = None
     life_stage: LifeStage | None = None
     detection_type: DetectionType | None = None  # "sight" or "sound" — how the bird was identified, per the wizard's saw-it/heard-it choice
+    # eBird region code (e.g. "US-NC-067") covering `lat`/`lng` — never set by
+    # the API caller; `app/services/observation.py#log_observation()`
+    # overwrites it with `ebird.region_for_point()`'s result before
+    # persisting. Lives here (not computed on read) so Pinned Birds' match
+    # query can filter on it directly. See docs/features/pinned-birds.md.
+    region: str | None = None
 
 
 class ObservationCreate(ObservationBase):

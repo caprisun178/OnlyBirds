@@ -11,7 +11,7 @@ function initials(username) {
 
 export function renderAvatar({ username, avatarUrl, size = 'md' }) {
   const dims = { sm: 32, md: 56, lg: 96 }[size] || 56;
-  const style = `width:${dims}px;height:${dims}px;border-radius:var(--ob-radius-md, 9999px);`;
+  const style = `width:${dims}px;height:${dims}px;border-radius:var(--ob-radius-pill, 9999px);`;
 
   if (avatarUrl) {
     return `<img class="ob-avatar" style="${style} object-fit:cover;" src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(username || '')}'s avatar" />`;

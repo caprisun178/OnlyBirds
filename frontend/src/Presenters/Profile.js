@@ -68,13 +68,13 @@ export function mount(container, props = {}) {
 
     return `
       <div class="ob-card ob-stack">
-      <div class="ob-cluster" style="align-items:center; --ob-cluster-gap: var(--ob-space-4);">
-  ${renderAvatar({ username, avatarUrl: avatar_url, size: 'lg' })}
-  <div class="ob-stack" style="--ob-stack-gap: var(--ob-space-1);">
-    <h2 style="margin:0;">${escapeHtml(username || 'Unnamed birder')}</h2>
-    <p class="ob-text-muted ob-text-sm" style="margin:0;">Default region: ${escapeHtml(default_region)}</p>
-  </div>
-  </div>
+        <div class="ob-cluster" style="align-items:center; --ob-cluster-gap: var(--ob-space-4);">
+          ${renderAvatar({ username, avatarUrl: avatar_url, size: 'lg' })}
+          <div class="ob-stack" style="--ob-stack-gap: var(--ob-space-1);">
+            <h2 style="margin:0;">${escapeHtml(username || 'Unnamed birder')}</h2>
+            <p class="ob-text-muted ob-text-sm" style="margin:0;">Default region: ${escapeHtml(default_region)}</p>
+          </div>
+        </div>
 
         <div class="ob-cluster">
           <span class="ob-tag ob-tag--info">Life list: ${life_list_total}</span>
@@ -83,7 +83,7 @@ export function mount(container, props = {}) {
 
         <div>
           <button type="button" class="ob-btn ob-btn--primary" data-action="toggle-picker">
-         Change default region
+            Change default region
           </button>
         </div>
 
@@ -131,8 +131,11 @@ export function mount(container, props = {}) {
   function wire() {
     container.querySelector('[data-action="toggle-picker"]')?.addEventListener('click', () => {
       state.pickerOpen = !state.pickerOpen;
-      render();
-      if (state.pickerOpen && state.countries.length === 0) loadCountries();
+      if (state.pickerOpen) {
+        openPicker();
+      } else {
+        render();
+      }
     });
 
     container.querySelector('[data-action="go-life-list"]')?.addEventListener('click', () => onNavigate('life-list'));
@@ -141,13 +144,31 @@ export function mount(container, props = {}) {
     wireRegionPicker();
   }
 
-  async function loadCountries() {
+  // Opens the picker on the user's current default region. eBird codes nest
+  // by prefix (US -> US-NC -> US-NC-063), so the code itself tells us which
+  // level each select should start on; 'world' leaves all three blank.
+  async function openPicker() {
+    const parts = (state.profile?.default_region || '').split('-');
+    const isWorld = state.profile?.default_region === 'world';
+    state.pickerCountry = isWorld ? '' : parts[0] || '';
+    state.pickerState = !isWorld && parts.length >= 2 ? parts.slice(0, 2).join('-') : '';
+    state.pickerCounty = !isWorld && parts.length >= 3 ? parts.slice(0, 3).join('-') : '';
+    state.states = [];
+    state.counties = [];
     state.pickerLoading = true;
     render();
     try {
-      state.countries = await lifeListService.getRegionOptions('world', 'country');
+      if (state.countries.length === 0) {
+        state.countries = await lifeListService.getRegionOptions('world', 'country');
+      }
+      if (state.pickerCountry) {
+        state.states = await lifeListService.getRegionOptions(state.pickerCountry, 'subnational1');
+      }
+      if (state.pickerState) {
+        state.counties = await lifeListService.getRegionOptions(state.pickerState, 'subnational2');
+      }
     } catch (err) {
-      // Leave countries empty — the picker just shows no options.
+      // Leave whatever didn't load empty — the picker just shows no options there.
     } finally {
       state.pickerLoading = false;
       render();
@@ -198,6 +219,7 @@ export function mount(container, props = {}) {
     saveBtn?.addEventListener('click', async () => {
       const code = state.pickerCounty || state.pickerState || state.pickerCountry;
       if (!code) return;
+      state.error = null;
       state.saving = true;
       render();
       try {

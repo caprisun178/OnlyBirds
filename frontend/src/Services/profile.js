@@ -1,35 +1,29 @@
 // Services/profile.js — shapes the user profile for the screen.
 // See docs/features/user-profiles.md.
 
-import { userDao } from '../Dao/user.js';
+import { usersDAO } from '../Dao/users.js';
 import { getCurrentUserId } from './auth.js';
-
-// Placeholder until the sign-up flow exists: ensures a `users` row exists for
-// this id/username, the same way logging an observation does today.
-async function ensureUser(userId) {
-  return userDao.create({ auth_provider_id: userId });
-}
 
 export const profileService = {
   async getCurrentProfile() {
     const userId = getCurrentUserId();
     try {
-      return await userDao.getByUsername(userId);
+      return await usersDAO.getProfile(userId);
     } catch (err) {
-      // Not created yet (404) — create it, using the id as a placeholder
-      // username until the user picks a real one.
-      if (String(err.message).includes('404')) {
-        return ensureUser(userId);
-    }
+      // No `users` row yet (they haven't logged an observation, which is what
+      // creates one today) — create it. Placeholder until a sign-up flow exists.
+      if (err.status === 404) {
+        return usersDAO.create({ auth_provider_id: userId });
+      }
       throw err;
     }
   },
 
   async updateDefaultRegion(userId, regionCode) {
-    return userDao.update(userId, { default_region: regionCode });
+    return usersDAO.update(userId, { default_region: regionCode });
   },
 
   async updateAvatar(userId, avatarUrl) {
-    return userDao.update(userId, { avatar_url: avatarUrl });
+    return usersDAO.update(userId, { avatar_url: avatarUrl });
   },
 };

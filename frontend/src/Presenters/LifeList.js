@@ -9,10 +9,12 @@
 // See docs/features/life-list.md.
 
 import { lifeListService } from '../Services/lifeList.js';
+import { pinsService } from '../Services/pins.js';
 import { renderSpeciesCard } from '../Components/SpeciesCard.js';
 import { renderMissingBird } from '../Components/MissingBird.js';
 import { renderProgressBar } from '../Components/ProgressBar.js';
 import { escapeHtml } from '../Components/htmlUtils.js';
+import { mount as mountObservationList } from './ObservationList.js';
 
 // Default view shows only the top DEFAULT_LIMIT species (taxonomic order,
 // i.e. eBird's own regional frequency ordering) rather than the whole
@@ -28,6 +30,7 @@ export function mount(container, props = {}) {
   const state = {
     loading: true,
     error: null,
+    activeTab: 'checklist', // 'checklist' | 'observations' — see renderTabs()
     view: 'grid', // 'grid' | 'list'
     sort: 'taxonomic', // 'taxonomic' | 'recent' | 'alphabetical'
     limit: DEFAULT_LIMIT, // how many of the (already-filtered) species are visible; grows via "Show more"
@@ -35,11 +38,12 @@ export function mount(container, props = {}) {
     regionLabel: props.regionLabel || props.region || 'United States',
     data: null, // { regionCode, total, seen, species }
 
-    // Filters — seen/unseen and bird type (eBird family) narrow the species
-    // list before it's sliced to `limit`. Region is already a "filter" via
-    // the region picker below.
+    // Filters — seen/unseen, bird type (eBird family), and a name search
+    // narrow the species list before it's sliced to `limit`. Region is
+    // already a "filter" via the region picker below.
     seenFilter: 'all', // 'all' | 'seen' | 'unseen'
     typeFilter: '', // '' (all types) or a family_common_name
+    searchQuery: '', // matched against common + scientific name, case-insensitive
     families: [], // distinct family_common_name values in the current checklist
 
     // Region picker: cascading country -> state/province -> county selects,
@@ -59,11 +63,18 @@ export function mount(container, props = {}) {
     // region"'s country -> state picker. Loaded eagerly (unlike `states`
     // above, which only loads once the picker's country dropdown is used).
     quickStates: [],
+
+    // Scientific names (lowercased) the user has pinned — see
+    // Components/MissingBird.js's pin button. A Set, not the raw pin list,
+    // since every lookup here is just "is this species pinned?".
+    pinnedNames: new Set(),
+    pinError: null,
   };
 
   render();
   loadChecklist();
   loadQuickStates();
+  loadPins();
 
   async function loadChecklist() {
     state.loading = true;
@@ -75,6 +86,7 @@ export function mount(container, props = {}) {
       state.families = lifeListService.getFamilies(data.species);
       state.seenFilter = 'all';
       state.typeFilter = '';
+      state.searchQuery = '';
       state.limit = DEFAULT_LIMIT;
     } catch (err) {
       state.error = err.message || 'Could not load the checklist for this region.';
@@ -101,30 +113,86 @@ export function mount(container, props = {}) {
     render();
   }
 
+  // Search re-renders on every keystroke (live filtering), unlike the
+  // dropdown filters above — a full `render()` would otherwise kick focus
+  // out of the input after each character, since this presenter always
+  // rebuilds the whole container from scratch. Preserving focus + cursor
+  // position across that rebuild is simpler here than teaching this
+  // presenter partial re-renders just for one field.
+  function applySearch(query) {
+    state.searchQuery = query;
+    state.limit = DEFAULT_LIMIT;
+    const input = container.querySelector('#species-search');
+    const hadFocus = input && document.activeElement === input;
+    const selectionStart = input?.selectionStart;
+    const selectionEnd = input?.selectionEnd;
+    render();
+    if (hadFocus) {
+      const newInput = container.querySelector('#species-search');
+      newInput?.focus();
+      newInput?.setSelectionRange(selectionStart, selectionEnd);
+    }
+  }
+
   // The sorted (seen-first by default) species list, narrowed by the
-  // seen/unseen and bird-type filters. `limit` slices this, not the raw data.
+  // seen/unseen filter, bird-type filter, and name search. `limit` slices
+  // this, not the raw data.
   function filteredSpecies() {
+    const query = state.searchQuery.trim().toLowerCase();
     return state.data.species.filter((sp) => {
       if (state.seenFilter === 'seen' && !sp.seen) return false;
       if (state.seenFilter === 'unseen' && sp.seen) return false;
       if (state.typeFilter && sp.family_common_name !== state.typeFilter) return false;
+      if (query && !sp.common_name.toLowerCase().includes(query) && !sp.scientific_name.toLowerCase().includes(query)) {
+        return false;
+      }
       return true;
     });
   }
 
   function render() {
     container.innerHTML = `
-      <div class="ob-stack">
+      <div class="ob-container ob-stack">
         ${onNavigate ? '<button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="back-to-home" style="align-self:flex-start;">← Back to home</button>' : ''}
         <h1>Life List</h1>
-        ${state.error ? `<div class="ob-alert ob-alert--danger">${escapeHtml(state.error)}</div>` : ''}
-        ${state.loading ? renderLoading() : renderLoaded()}
+        ${renderTabs()}
+        ${state.activeTab === 'checklist' ? `
+          ${state.error ? `<div class="ob-alert ob-alert--danger">${escapeHtml(state.error)}</div>` : ''}
+          ${state.pinError ? `<div class="ob-alert ob-alert--danger">${escapeHtml(state.pinError)}</div>` : ''}
+          ${state.loading ? renderLoading() : renderLoaded()}
+        ` : '<div data-role="observations-tab"></div>'}
       </div>
     `;
     if (onNavigate) {
       container.querySelector('[data-action="back-to-home"]').addEventListener('click', () => onNavigate('home'));
     }
     wire();
+
+    // ObservationList owns its own fetch/state/re-renders from here on,
+    // entirely independent of this presenter's render() — same "mount a
+    // sub-container, let it run itself" pattern Home.js uses for ExploreMap.
+    // Unlike Home, this presenter's render() *does* get called again after
+    // mount (loadPins()/loadQuickStates() resolving in the background), so
+    // this remounts ObservationList fresh each time — a real tradeoff (an
+    // in-progress edit there would be lost if one of those resolves at an
+    // unlucky moment), accepted because that window is brief (one-time,
+    // right after initial load) and the alternative (teaching this
+    // presenter targeted DOM patches everywhere, like Home.js's bell) is a
+    // bigger refactor than this feature needs.
+    if (state.activeTab === 'observations') {
+      mountObservationList(container.querySelector('[data-role="observations-tab"]'), {
+        userId, embedded: true, onNavigate,
+      });
+    }
+  }
+
+  function renderTabs() {
+    return `
+      <div class="ob-cluster" role="tablist" aria-label="Life List sections">
+        <button type="button" class="ob-btn ${state.activeTab === 'checklist' ? 'ob-btn--primary' : 'ob-btn--ghost'}" role="tab" aria-selected="${state.activeTab === 'checklist'}" data-tab="checklist">Checklist</button>
+        <button type="button" class="ob-btn ${state.activeTab === 'observations' ? 'ob-btn--primary' : 'ob-btn--ghost'}" role="tab" aria-selected="${state.activeTab === 'observations'}" data-tab="observations">My Observations</button>
+      </div>
+    `;
   }
 
   function renderLoading() {
@@ -155,6 +223,17 @@ export function mount(container, props = {}) {
         ${renderProgressBar(state.data.seen, state.data.total)}
 
         ${state.pickerOpen ? renderRegionPicker() : ''}
+
+        <div class="ob-field">
+          <label class="ob-label ob-visually-hidden" for="species-search">Search species</label>
+          <input
+            id="species-search"
+            type="search"
+            class="ob-input"
+            placeholder="Search by common or scientific name…"
+            value="${escapeHtml(state.searchQuery)}"
+          />
+        </div>
 
         <div class="ob-cluster" style="justify-content: space-between;">
           <div class="ob-cluster" role="group" aria-label="Grid or list view">
@@ -250,7 +329,9 @@ export function mount(container, props = {}) {
   function renderSpeciesList(matches) {
     const visibleSpecies = matches.slice(0, state.limit);
     const cards = visibleSpecies
-      .map((sp) => (sp.seen ? renderSpeciesCard(sp) : renderMissingBird(sp)))
+      .map((sp) => (sp.seen
+        ? renderSpeciesCard(sp)
+        : renderMissingBird(sp, { pinned: state.pinnedNames.has(sp.scientific_name.toLowerCase()) })))
       .join('');
     return state.view === 'grid'
       ? `<div class="ob-grid" style="--ob-grid-min: 220px;">${cards}</div>`
@@ -274,6 +355,14 @@ export function mount(container, props = {}) {
   // ---- Wiring -------------------------------------------------------------
 
   function wire() {
+    container.querySelectorAll('[data-tab]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (state.activeTab === btn.dataset.tab) return;
+        state.activeTab = btn.dataset.tab;
+        render();
+      });
+    });
+
     const toggleBtn = container.querySelector('[data-action="toggle-picker"]');
     if (toggleBtn) {
       toggleBtn.addEventListener('click', () => {
@@ -292,6 +381,9 @@ export function mount(container, props = {}) {
 
     const sortSelect = container.querySelector('#sort-select');
     if (sortSelect) sortSelect.addEventListener('change', () => applySort(sortSelect.value));
+
+    const searchInput = container.querySelector('#species-search');
+    searchInput?.addEventListener('input', () => applySearch(searchInput.value));
 
     const seenFilterSelect = container.querySelector('#seen-filter');
     if (seenFilterSelect) {
@@ -320,10 +412,48 @@ export function mount(container, props = {}) {
 
     wireSpeciesCards();
     wireRegionPicker();
+    wirePinButtons();
+    wireMissingBirdProfileCards();
+  }
+
+  function wirePinButtons() {
+    container.querySelectorAll('[data-action="toggle-pin"]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        // The whole MissingBird card is now its own click target (Bird
+        // Info — see wireMissingBirdProfileCards() below); without this,
+        // clicking "Pin" would bubble up and also open the profile page.
+        e.stopPropagation();
+        togglePin(btn.dataset.pinScientificName, btn.dataset.pinCommonName);
+      });
+    });
+  }
+
+  // MissingBird.js's whole card (not seen yet) opens the Bird Info page —
+  // docs/features/bird-info.md §1, row 2. `data-profile-scientific-name` is
+  // its own attribute, distinct from `data-scientific-name` (seen cards,
+  // just below) and `data-pin-scientific-name` (the pin button inside this
+  // same card) — see that component's own comment for why reusing either
+  // of those names here would double-wire the click.
+  function wireMissingBirdProfileCards() {
+    if (!onNavigate) return;
+    container.querySelectorAll('[data-profile-scientific-name]').forEach((el) => {
+      const open = () => onNavigate('species-profile', {
+        scientificName: el.dataset.profileScientificName,
+        commonName: el.dataset.profileCommonName,
+      });
+      el.addEventListener('click', open);
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          open();
+        }
+      });
+    });
   }
 
   // Seen-species cards open that species' observation log. Missing-bird
-  // placeholders aren't clickable yet (see Components/MissingBird.js).
+  // placeholders aren't clickable here — they open the Bird Info page
+  // instead (wireMissingBirdProfileCards() above).
   function wireSpeciesCards() {
     if (!onNavigate) return;
     container.querySelectorAll('[data-scientific-name]').forEach((el) => {
@@ -344,6 +474,31 @@ export function mount(container, props = {}) {
         }
       });
     });
+    wireSpeciesNameProfileLinks();
+  }
+
+  // The species name inside a seen card is its own, separate click target
+  // (Bird Info — docs/features/bird-info.md §1, row 1) — `stopPropagation()`
+  // so clicking the name doesn't *also* fire the whole card's
+  // navigate-to-observation-log handler wired just above.
+  function wireSpeciesNameProfileLinks() {
+    if (!onNavigate) return;
+    container.querySelectorAll('[data-action="view-profile"]').forEach((el) => {
+      const open = (e) => {
+        e.stopPropagation();
+        onNavigate('species-profile', {
+          scientificName: el.dataset.profileScientificName,
+          commonName: el.dataset.profileCommonName,
+        });
+      };
+      el.addEventListener('click', open);
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          open(e);
+        }
+      });
+    });
   }
 
   async function loadQuickStates() {
@@ -353,6 +508,36 @@ export function mount(container, props = {}) {
     } catch (err) {
       // Leave it empty — the quick filter just won't have state options.
     }
+  }
+
+  async function loadPins() {
+    try {
+      const pins = await pinsService.list(userId);
+      state.pinnedNames = new Set(pins.map((p) => p.scientific_name.toLowerCase()));
+      render();
+    } catch (err) {
+      // Leave it empty — pin buttons just show as unpinned until this loads.
+    }
+  }
+
+  // Pinning/unpinning is a discrete click, not live-as-you-type, so a full
+  // render() (same as every other button handler in this file) is fine —
+  // no focus to preserve.
+  async function togglePin(scientificName, commonName) {
+    state.pinError = null;
+    const key = scientificName.toLowerCase();
+    try {
+      if (state.pinnedNames.has(key)) {
+        await pinsService.unpin(userId, scientificName);
+        state.pinnedNames.delete(key);
+      } else {
+        await pinsService.pin(userId, { scientificName, commonName });
+        state.pinnedNames.add(key);
+      }
+    } catch (err) {
+      state.pinError = err.message || 'Could not update that pin. Try again in a moment.';
+    }
+    render();
   }
 
   function changeRegion(code, label) {
