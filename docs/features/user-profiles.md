@@ -1,6 +1,6 @@
 # User profiles
 
-> **Status:** Partial — backend done (POST /users, GET /users/{username}, PATCH /users/{id}); frontend planned done soon.
+> **Status:** Partial — backend done (POST /users, GET /users/by-id/{id}, GET /users/{username}, PATCH /users/{id}); frontend own-profile screen done (avatar, life list + sticker counts, default-region picker). Still planned: avatar upload, public profile view, real auth.
 
 ## 1. What you're building
 
@@ -119,11 +119,11 @@ select count(*) from user_stickers where user_id = $1;   -- sticker count
 |---|---|---|
 | `dao/` | `app/dao/user_repo.py` (**new**) | CRUD on `users`; the two `count(*)` queries |
 | `services/` | `app/services/user.py` (**new**) | assemble the profile response (row + counts); validate a `username` is free |
-| `routers/` | `app/routers/users.py` (**new**) | `POST /users`, `GET /users/{username}`, `PATCH /users/{id}` |
-| `Dao/` | `frontend/src/Dao/user.js` (extend) | profile fetch + `PATCH` |
+| `routers/` | `app/routers/users.py` (**new**) | `POST /users`, `GET /users/by-id/{id}`, `GET /users/{username}`, `PATCH /users/{id}` |
+| `Dao/` | `frontend/src/Dao/users.js` | profile fetch by id, create, `PATCH` |
 | `Services/` | `frontend/src/Services/profile.js` (**new**) | UI-shaped profile model |
-| `Presenters/` | `Presenters/Profile.js` (**new**) | own-profile edit form + public view |
-| `Components/` | `Avatar`, `RegionPicker`, `StatCount` | presentational; `RegionPicker` is shared with the Life List |
+| `Presenters/` | `Presenters/Profile.js` (**new**) | own-profile edit form (public view still planned) |
+| `Components/` | `Avatar`, `RegionPicker` | presentational; `RegionPicker` is meant to be shared with the Life List (which still has its own inline copy) |
 
 ## 6. Build order
 

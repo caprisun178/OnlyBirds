@@ -23,7 +23,9 @@ async function request(method, path, body) {
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!resp.ok) {
-    throw new Error(`${method} ${path} -> ${resp.status}`);
+    const err = new Error(`${method} ${path} -> ${resp.status}`);
+    err.status = resp.status; // lets callers branch on e.g. 404 without parsing the message
+    throw err;
   }
   return resp.status === 204 ? null : resp.json();
 }

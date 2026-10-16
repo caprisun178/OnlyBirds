@@ -33,6 +33,7 @@ import { mount as mountPlanATrip } from './Presenters/PlanATrip.js';
 import { mount as mountNotificationsFeed } from './Presenters/NotificationsFeed.js';
 import { mount as mountTestYourSkill } from './Presenters/TestYourSkill.js';
 import { mount as mountSpeciesPage } from './Presenters/SpeciesPage.js';
+import { mount as mountProfile } from './Presenters/Profile.js';
 import { mount as mountReportButton } from './Components/ReportButton.js';
 
 const app = document.getElementById('app');
@@ -51,6 +52,7 @@ const SCREENS = {
   notifications: (container, params) => mountNotificationsFeed(container, { onNavigate: navigate, ...params }),
   'test-your-skill': (container, params) => mountTestYourSkill(container, { onNavigate: navigate, ...params }),
   'species-profile': (container, params) => mountSpeciesPage(container, { onNavigate: navigate, ...params }),
+  profile: (container, params) => mountProfile(container, { onNavigate: navigate, ...params }),
 };
 
 // `params` is an optional plain object spread onto the target screen's
