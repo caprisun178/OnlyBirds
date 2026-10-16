@@ -14,11 +14,10 @@
 // `state.fieldNotes` fields, so nothing typed in one is lost in the other.
 //
 //   import { mount } from './Presenters/AddObservation.js';
-//   mount(document.getElementById('app'), { userId: 'u1' });
+//   mount(document.getElementById('app'));
 //
-// If no `userId` prop is given, falls back to the test profile
-// (testData/testProfile.js) so this screen works before real auth/profile
-// (user-profiles.md) exists.
+// If no `userId` prop is given, uses the signed-in user (Services/auth.js).
+// Sign-in-only: preview.js sends signed-out visits to the Login screen.
 
 import { identifyService } from '../Services/identify.js';
 import { speciesService } from '../Services/species.js';
@@ -26,7 +25,7 @@ import { observationService } from '../Services/observations.js';
 import { uploadsService } from '../Services/uploads.js';
 import { geocodingService } from '../Services/geocoding.js';
 import { recentLocationsService } from '../Services/recentLocations.js';
-import { getCurrentUser } from '../testData/testProfile.js';
+import { getCurrentUserId } from '../Services/auth.js';
 import { renderCandidateList, escapeHtml } from '../Components/CandidateList.js';
 import { mountLocationPicker } from '../Components/LocationPicker.js';
 
@@ -53,7 +52,7 @@ function nowForDatetimeLocal() {
 }
 
 export function mount(container, props = {}) {
-  const userId = props.userId || getCurrentUser().id;
+  const userId = props.userId || getCurrentUserId();
   const { onNavigate } = props; // optional — omitted when this screen is previewed standalone
 
   // The map is a live widget, not markup rebuilt from `state` — it lives

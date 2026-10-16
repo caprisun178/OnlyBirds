@@ -25,9 +25,10 @@
 import { quizService } from '../Services/quiz.js';
 import { speciesService } from '../Services/species.js';
 import { escapeHtml } from '../Components/htmlUtils.js';
+import { getCurrentUserId } from '../Services/auth.js';
 
 export function mount(container, props = {}) {
-  const { onNavigate, userId = 'u1' } = props;
+  const { onNavigate, userId = getCurrentUserId() } = props;
 
   const state = {
     mode: 'photo', // 'photo' | 'audio'
@@ -91,6 +92,7 @@ export function mount(container, props = {}) {
   });
 
   async function loadDefaultRegion() {
+    if (!userId) return; // signed out — no saved default, stay at "Anywhere"
     try {
       const code = await quizService.getDefaultRegion(userId);
       if (code && code !== 'world') {

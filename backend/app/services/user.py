@@ -51,3 +51,12 @@ async def get_profile_by_id(auth_id: str) -> UserProfile | None:
 async def update_user(auth_id: str, changes: UserUpdate) -> UserProfile | None:
     user = await user_repo.update(auth_id, changes)
     return await _to_profile(user) if user else None
+
+async def sign_in_user(auth_id: str, email: str | None = None, picture: str | None = None) -> UserProfile:
+    """Get-or-create the user behind a sign-in (app/services/auth.py). The
+    first sign-in creates the row; `picture` only fills an empty avatar, so a
+    photo the user uploaded themselves is never overwritten."""
+    user = await user_repo.create(UserCreate(auth_provider_id=auth_id, email=email))
+    if user.avatar_url is None and picture:
+        user = await user_repo.update(auth_id, UserUpdate(avatar_url=picture))
+    return await _to_profile(user)

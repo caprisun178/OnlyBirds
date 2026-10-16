@@ -16,13 +16,38 @@ export const BASE_URL =
   (typeof process !== 'undefined' && process.env && process.env.API_BASE_URL) ||
   (IS_LOCAL ? 'http://localhost:8000' : ONRENDER_URL);
 
+// Session token from sign-in (Services/auth.js sets it; null = signed out).
+// Kept here rather than read from Services/auth.js so this Dao doesn't
+// import upward into the Services layer.
+let authToken = null;
+let onUnauthorized = () => {};
+
+export function setAuthToken(token) {
+  authToken = token || null;
+}
+
+// Called when a request made *with* a token comes back 401 — the session
+// expired or was revoked. Services/auth.js uses it to sign the user out.
+export function setOnUnauthorized(handler) {
+  onUnauthorized = handler;
+}
+
+export function authHeaders() {
+  return authToken ? { Authorization: `Bearer ${authToken}` } : {};
+}
+
+export function handleUnauthorized(status) {
+  if (status === 401 && authToken) onUnauthorized();
+}
+
 async function request(method, path, body) {
   const resp = await fetch(`${BASE_URL}${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!resp.ok) {
+    handleUnauthorized(resp.status);
     const err = new Error(`${method} ${path} -> ${resp.status}`);
     err.status = resp.status; // lets callers branch on e.g. 404 without parsing the message
     throw err;

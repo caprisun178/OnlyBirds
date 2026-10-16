@@ -24,6 +24,7 @@
 import { observationService } from '../Services/observations.js';
 import { uploadsService } from '../Services/uploads.js';
 import { escapeHtml } from '../Components/htmlUtils.js';
+import { getCurrentUserId } from '../Services/auth.js';
 
 const SEX_OPTIONS = [
   ['', 'Not specified'],
@@ -45,7 +46,7 @@ const DETECTION_OPTIONS = [
 ];
 
 export function mount(container, props = {}) {
-  const userId = props.userId || 'u1';
+  const userId = props.userId || getCurrentUserId();
   // onNavigate optional — screen previewed standalone. region/regionLabel
   // are just carried through from the Life List card that opened this
   // screen, so "back" can return to the same region instead of resetting.

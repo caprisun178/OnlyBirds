@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from app import __version__
 from app.config import get_settings
 from app.routers import (
+    auth,
     feedback,
     geocoding,
     health,
@@ -49,6 +50,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(health.router)
+    app.include_router(auth.router)
     app.include_router(species.router)
     app.include_router(sightings.router)
     app.include_router(observations.router)

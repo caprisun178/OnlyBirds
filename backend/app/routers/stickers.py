@@ -1,8 +1,9 @@
 """Sticker catalog and user collection endpoints."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.models.sticker import Sticker, StickerShelf
+from app.routers.deps import require_self
 from app.services import stickers as sticker_service
 
 router = APIRouter(tags=["stickers"])
@@ -14,7 +15,7 @@ async def get_stickers():
     return await sticker_service.list_stickers()
 
 
-@router.get("/users/{user_id}/stickers", response_model=StickerShelf)
+@router.get("/users/{user_id}/stickers", response_model=StickerShelf, dependencies=[Depends(require_self)])
 async def get_user_stickers(user_id: str):
     """Return earned and locked stickers for a user."""
     return await sticker_service.get_sticker_shelf(user_id)

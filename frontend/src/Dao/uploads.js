@@ -5,7 +5,7 @@
 // deployed switch previously drifted to a localhost-only hardcode, so photo
 // uploads silently tried to reach a backend that doesn't exist on any
 // deployed frontend (raw "Failed to fetch", no HTTP status to show).
-import { BASE_URL } from './apiClient.js';
+import { BASE_URL, authHeaders, handleUnauthorized } from './apiClient.js';
 
 export const uploadsDAO = {
   async uploadPhoto(file) {
@@ -13,9 +13,11 @@ export const uploadsDAO = {
     formData.append('file', file);
     const resp = await fetch(`${BASE_URL}/uploads/photo`, {
       method: 'POST',
+      headers: authHeaders(), // no Content-Type: the browser sets the multipart boundary itself
       body: formData,
     });
     if (!resp.ok) {
+      handleUnauthorized(resp.status);
       const body = await resp.json().catch(() => null);
       throw new Error(body?.detail || `Upload failed (${resp.status})`);
     }

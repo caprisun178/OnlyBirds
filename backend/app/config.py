@@ -58,6 +58,16 @@ class Settings(BaseSettings):
     smtp_password: str | None = None
     report_email_to: str | None = None
 
+    # Sign in with Google (see docs/features/user-profiles.md#auth). The
+    # client id is public — the frontend fetches it from GET /auth/config so
+    # it only lives here. The session secret signs our own session tokens and
+    # must stay private; rotating it signs everyone out. POST /auth/google is
+    # disabled (503) until both are set, and every user-scoped endpoint then
+    # returns 401 — i.e. the app runs as "everyone is signed out."
+    google_client_id: str | None = None
+    session_secret: str | None = None
+    session_ttl_days: int = 30
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

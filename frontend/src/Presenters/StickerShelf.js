@@ -1,5 +1,6 @@
 import { getStickerShelf } from '../Services/stickers.js';
 import { renderStickerCard } from '../Components/StickerCard.js';
+import { getCurrentUserId } from '../Services/auth.js';
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>'"]/g, (character) => ({
@@ -12,7 +13,7 @@ function escapeHtml(value) {
 }
 
 export async function mount(container, props = {}) {
-  const { userId = 'u1', onNavigate } = props;
+  const { userId = getCurrentUserId(), onNavigate } = props;
   const state = { shelf: null, rarity: 'all', status: 'all', error: null };
 
   function render() {
