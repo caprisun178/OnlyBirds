@@ -161,11 +161,18 @@ export function mount(container, props = {}) {
       if (state.countries.length === 0) {
         state.countries = await lifeListService.getRegionOptions('world', 'country');
       }
-      if (state.pickerCountry) {
-        state.states = await lifeListService.getRegionOptions(state.pickerCountry, 'subnational1');
+      // Re-check the selection after each await: if the user changed a
+      // select while this was loading, their change wins and its own
+      // handler fetches the right options — don't overwrite them here.
+      const country = state.pickerCountry;
+      if (country) {
+        const states = await lifeListService.getRegionOptions(country, 'subnational1');
+        if (state.pickerCountry === country) state.states = states;
       }
-      if (state.pickerState) {
-        state.counties = await lifeListService.getRegionOptions(state.pickerState, 'subnational2');
+      const stateCode = state.pickerState;
+      if (stateCode) {
+        const counties = await lifeListService.getRegionOptions(stateCode, 'subnational2');
+        if (state.pickerState === stateCode) state.counties = counties;
       }
     } catch (err) {
       // Leave whatever didn't load empty — the picker just shows no options there.
