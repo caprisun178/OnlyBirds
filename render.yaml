@@ -42,3 +42,5 @@ services:
         sync: false
       - key: SESSION_SECRET           # set in dashboard — long random string, NOT the same as your local one
         sync: false
+      - key: ADMIN_EMAILS             # set in dashboard — comma-separated Google emails allowed on admin screens
+        sync: false

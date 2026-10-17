@@ -101,4 +101,10 @@ async def sign_in_with_google(credential: str) -> AuthSession:
     # Their Google photo becomes the avatar until they upload their own.
     profile = await user_service.sign_in_user(user_id, claims.get("email"), claims.get("picture"))
     token, expires_at = create_session_token(user_id)
-    return AuthSession(token=token, expires_at=expires_at, name=claims.get("name"), profile=profile)
+    return AuthSession(
+        token=token,
+        expires_at=expires_at,
+        name=claims.get("name"),
+        profile=profile,
+        is_admin=await user_service.is_admin(user_id),
+    )

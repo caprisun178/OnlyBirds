@@ -68,6 +68,15 @@ class Settings(BaseSettings):
     session_secret: str | None = None
     session_ttl_days: int = 30
 
+    # Who can use the admin screens (GET/PATCH /admin/...): comma-separated
+    # Google account emails, matched case-insensitively against the email
+    # stored at sign-in. Empty = nobody is an admin.
+    admin_emails: str = ""
+
+    @property
+    def admin_email_list(self) -> set[str]:
+        return {e.strip().lower() for e in self.admin_emails.split(",") if e.strip()}
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

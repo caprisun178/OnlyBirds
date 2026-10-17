@@ -32,11 +32,12 @@ import { mount as mountObservationList } from './Presenters/ObservationList.js';
 import { mount as mountPlanATrip } from './Presenters/PlanATrip.js';
 import { mount as mountNotificationsFeed } from './Presenters/NotificationsFeed.js';
 import { mount as mountTestYourSkill } from './Presenters/TestYourSkill.js';
+import { mount as mountBugBacklog } from './Presenters/BugBacklog.js';
 import { mount as mountSpeciesPage } from './Presenters/SpeciesPage.js';
 import { mount as mountProfile } from './Presenters/Profile.js';
 import { mount as mountLogin } from './Presenters/Login.js';
 import { mount as mountReportButton } from './Components/ReportButton.js';
-import { isSignedIn, onAuthChange } from './Services/auth.js';
+import { authService, isAdmin, isSignedIn, onAuthChange } from './Services/auth.js';
 
 const app = document.getElementById('app');
 
@@ -53,6 +54,7 @@ const SCREENS = {
   'plan-a-trip': (container, params) => mountPlanATrip(container, { onNavigate: navigate, ...params }),
   notifications: (container, params) => mountNotificationsFeed(container, { onNavigate: navigate, ...params }),
   'test-your-skill': (container, params) => mountTestYourSkill(container, { onNavigate: navigate, ...params }),
+  'admin-bug-backlog': (container, params) => mountBugBacklog(container, { onNavigate: navigate, ...params }),
   'species-profile': (container, params) => mountSpeciesPage(container, { onNavigate: navigate, ...params }),
   profile: (container, params) => mountProfile(container, { onNavigate: navigate, ...params }),
   login: (container, params) => mountLogin(container, { onNavigate: navigate, ...params }),
@@ -71,6 +73,10 @@ const SIGN_IN_REQUIRED = new Set([
   'profile',
 ]);
 
+// Admin screens: signed-in users whose email is in the server's
+// ADMIN_EMAILS. Everyone else is sent to Home.
+const ADMIN_ONLY = new Set(['admin-bug-backlog']);
+
 let currentRoute = null;
 let currentParams;
 
@@ -83,8 +89,12 @@ function navigate(route, params) {
     console.log('navigate to:', route, '(no screen yet)');
     return;
   }
-  if (SIGN_IN_REQUIRED.has(route) && !isSignedIn()) {
+  if ((SIGN_IN_REQUIRED.has(route) || ADMIN_ONLY.has(route)) && !isSignedIn()) {
     navigate('login', { next: route, nextParams: params });
+    return;
+  }
+  if (ADMIN_ONLY.has(route) && !isAdmin()) {
+    navigate('home');
     return;
   }
   currentRoute = route;
@@ -99,9 +109,13 @@ function navigate(route, params) {
 // user-based parts disappear. Sign-in doesn't need this: Login navigates
 // onward itself.
 onAuthChange((session) => {
-  if (session || !currentRoute || currentRoute === 'login') return;
-  if (SIGN_IN_REQUIRED.has(currentRoute)) navigate('home');
+  if (!currentRoute || currentRoute === 'login') return;
+  if (!session && SIGN_IN_REQUIRED.has(currentRoute)) navigate('home');
+  // Also covers admin status changing (authService.refresh() below): the
+  // guard in navigate() moves a non-admin off an admin screen, and Home
+  // re-renders with or without its Bug Backlog link.
   else navigate(currentRoute, currentParams);
 });
 
 navigate('home');
+authService.refresh();

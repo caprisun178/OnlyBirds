@@ -75,6 +75,13 @@ plan) work without it but are checked when present. Public reads
 need no sign-in. `POST /feedback` works signed out; signed in, the report is
 attributed from the session, not the body.
 
+**Admins.** `/admin/...` (the Bug Backlog) requires a signed-in user whose
+Google email is in `ADMIN_EMAILS` (comma-separated, case-insensitive): **401**
+signed out, **403** otherwise. The check runs on every request against the email
+stored at sign-in, so editing `ADMIN_EMAILS` takes effect immediately. The
+frontend gets `is_admin` from `POST /auth/google` and `GET /auth/me`, re-checked
+once at startup, and uses it only to show or hide the Bug Backlog link and route.
+
 **Signed out (frontend).** `preview.js`'s `SIGN_IN_REQUIRED` routes
 (Add Observation, Life List, observation log, Stickers, Notifications, Profile)
 redirect to Login and come back afterwards. Home disables those links and hides

@@ -21,6 +21,16 @@ class AuthSession(BaseModel):
     expires_at: datetime
     name: str | None = None
     profile: UserProfile
+    # Whether to show admin screens. Display only — the backend checks
+    # ADMIN_EMAILS on every admin request regardless.
+    is_admin: bool = False
+
+
+class Me(UserProfile):
+    """GET /auth/me: the signed-in user's own profile plus `is_admin`
+    (kept off UserProfile itself, which is also the public profile)."""
+
+    is_admin: bool = False
 
 
 class AuthConfig(BaseModel):

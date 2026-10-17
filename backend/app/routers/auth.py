@@ -2,7 +2,7 @@
 
     GET  /auth/config    {google_client_id} — public; null while unconfigured
     POST /auth/google    {credential} -> {token, expires_at, name, profile}
-    GET  /auth/me        the signed-in user's profile (401 if signed out)
+    GET  /auth/me        the signed-in user's profile + is_admin (401 if signed out)
 
 Sign-out has no endpoint: session tokens are stateless, so the frontend just
 discards its copy.
@@ -12,8 +12,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.config import get_settings
-from app.models.auth import AuthConfig, AuthSession, GoogleSignIn
-from app.models.user import UserProfile
+from app.models.auth import AuthConfig, AuthSession, GoogleSignIn, Me
 from app.routers.deps import require_user
 from app.services import auth as auth_service
 from app.services import user as user_service
@@ -40,10 +39,10 @@ async def sign_in_with_google(payload: GoogleSignIn):
         raise HTTPException(status_code=502, detail=f"Google error: {exc}") from exc
 
 
-@router.get("/me", response_model=UserProfile)
+@router.get("/me", response_model=Me)
 async def me(user_id: str = Depends(require_user)):
     profile = await user_service.get_profile_by_id(user_id)
     if profile is None:
         # Valid token for a user whose row is gone (e.g. DB reset).
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sign in required")
-    return profile
+    return Me(**profile.model_dump(), is_admin=await user_service.is_admin(user_id))

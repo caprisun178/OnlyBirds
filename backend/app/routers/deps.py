@@ -11,11 +11,14 @@ user-scoped endpoints only act on the caller's own data:
     optional_self        for an optional `?user_id=` query param (e.g. "mark
                          the species I've seen"): fine when absent, else the
                          same check as require_self
+    require_admin        the admin screens: 401 if signed out, 403 unless
+                         the user's email is in ADMIN_EMAILS
 """
 
 from fastapi import Depends, Header, HTTPException, Query, status
 
 from app.services import auth as auth_service
+from app.services import user as user_service
 
 
 async def current_user_id(authorization: str | None = Header(default=None)) -> str | None:
@@ -62,3 +65,9 @@ async def optional_self(
         await require_user(None)  # raises the same 401 as everywhere else
     ensure_self(current, user_id)
     return user_id
+
+
+async def require_admin(current: str = Depends(require_user)) -> str:
+    if not await user_service.is_admin(current):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admins only")
+    return current

@@ -4,6 +4,7 @@ from urllib.parse import parse_qs, unquote, urlsplit
 import pytest
 from fastapi.testclient import TestClient
 
+from app.dao.bug_report_repo import InMemoryBugReportRepo
 from app.dao.notification_repo import InMemoryNotificationRepo
 from app.dao.observation_repo import InMemoryObservationRepo
 from app.dao.pin_repo import InMemoryPinRepo
@@ -147,10 +148,27 @@ def client(monkeypatch):
     monkeypatch.setattr("app.dao.notification_repo.notification_repo", fresh_notifications)
     monkeypatch.setattr("app.services.pins.notification_repo", fresh_notifications)
     monkeypatch.setattr("app.services.notifications.notification_repo", fresh_notifications)
+    fresh_bug_reports = InMemoryBugReportRepo()
+    monkeypatch.setattr("app.dao.bug_report_repo.bug_report_repo", fresh_bug_reports)
+    monkeypatch.setattr("app.services.feedback.bug_report_repo", fresh_bug_reports)
     fresh_species = InMemorySpeciesRepo()
     monkeypatch.setattr("app.dao.species_repo.species_repo", fresh_species)
     monkeypatch.setattr("app.services.species.species_repo", fresh_species)
     with SignedInClient(app) as c:
+        yield c
+
+
+TEST_ADMIN_EMAIL = "admin@example.com"
+
+
+@pytest.fixture()
+def admin_client(client, monkeypatch):
+    """Same isolated app as `client`, signed in as a user whose email is in
+    ADMIN_EMAILS — for the /admin/... routes."""
+    monkeypatch.setattr(get_settings(), "admin_emails", TEST_ADMIN_EMAIL)
+    client.post("/users", json={"auth_provider_id": "admin", "email": TEST_ADMIN_EMAIL})
+    token, _ = create_session_token("admin")
+    with TestClient(app, headers={"Authorization": f"Bearer {token}"}) as c:
         yield c
 
 

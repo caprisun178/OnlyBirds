@@ -19,7 +19,7 @@ import { googleIdentity } from '../Dao/googleIdentity.js';
 const STORAGE_KEY = 'ob-session';
 const listeners = new Set();
 
-let session = restore(); // { token, expiresAt, userId, name } | null
+let session = restore(); // { token, expiresAt, userId, name, isAdmin } | null
 setAuthToken(session?.token);
 // A 401 on a request that carried our token means the session is no longer
 // valid server-side (expired, or SESSION_SECRET rotated) — sign out locally.
@@ -66,6 +66,12 @@ export function getDisplayName() {
   return session?.name ?? null;
 }
 
+// Whether to show admin screens (ADMIN_EMAILS on the server). Display only:
+// the backend re-checks on every admin request.
+export function isAdmin() {
+  return session?.isAdmin === true;
+}
+
 // Subscribe to sign-in / sign-out. Returns an unsubscribe function.
 export function onAuthChange(fn) {
   listeners.add(fn);
@@ -90,8 +96,24 @@ export const authService = {
       expiresAt: result.expires_at,
       userId: result.profile.id,
       name: result.name || null,
+      isAdmin: result.is_admin === true,
     });
     return result.profile;
+  },
+
+  // Re-reads admin status from the server (GET /auth/me) — called once at
+  // startup so a saved session picks up ADMIN_EMAILS changes without
+  // signing out and back in. Listeners only hear about it if it changed.
+  async refresh() {
+    if (!session) return;
+    try {
+      const me = await authDAO.me();
+      const nextIsAdmin = me.is_admin === true;
+      if (session && nextIsAdmin !== isAdmin()) setSession({ ...session, isAdmin: nextIsAdmin });
+    } catch {
+      // A 401 already signed us out via apiClient; anything else (offline,
+      // server asleep) just keeps the saved value.
+    }
   },
 
   signOut,

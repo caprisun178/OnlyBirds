@@ -133,3 +133,4 @@ Add each deployed web origin to `CORS_ORIGINS` on the Render service.
 | `SUPABASE_ANON_KEY` | frontend | Vercel | no (public) |
 | `GOOGLE_CLIENT_ID` | backend (served to the frontend via `GET /auth/config`) | `backend/.env`, Render | no (public) |
 | `SESSION_SECRET` | backend | `backend/.env`, Render | **yes** |
+| `ADMIN_EMAILS` | backend | `backend/.env`, Render | no |

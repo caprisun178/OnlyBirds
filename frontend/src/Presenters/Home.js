@@ -19,7 +19,7 @@
 import { mount as mountExploreMap } from './ExploreMap.js';
 import { renderNotificationBell } from '../Components/NotificationBell.js';
 import { notificationsService } from '../Services/notifications.js';
-import { authService, getCurrentUserId } from '../Services/auth.js';
+import { authService, getCurrentUserId, isAdmin } from '../Services/auth.js';
 
 export function mount(container, props = {}) {
   const { onNavigate = (route) => console.log('navigate to:', route), userId = getCurrentUserId() } = props;
@@ -46,6 +46,7 @@ export function mount(container, props = {}) {
           <button type="button" class="ob-btn ob-btn--ghost" data-route="stickers" ${userOnly}>Stickers</button>
           <button type="button" class="ob-btn ob-btn--ghost" data-route="plan-a-trip">Plan a Trip</button>
           <button type="button" class="ob-btn ob-btn--ghost" data-route="test-your-skill">Test Your Skill</button>
+          ${isAdmin() ? '<button type="button" class="ob-btn ob-btn--ghost" data-route="admin-bug-backlog">Bug Backlog</button>' : ''}
           ${signedIn
             ? `<button type="button" class="ob-btn ob-btn--ghost" data-route="profile">Profile</button>
                <span data-role="notification-bell">${renderNotificationBell(bell)}</span>

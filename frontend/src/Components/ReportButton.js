@@ -54,7 +54,7 @@ export function mount() {
     return `
       <div class="ob-card ob-stack" style="width: 300px; box-shadow: var(--ob-shadow-md);">
         ${sent
-          ? `<p class="ob-text-sm" style="margin:0;">Thanks — sent.</p>`
+          ? `<p class="ob-text-sm" style="margin:0;">Thanks — logged.</p>`
           : `
             <div class="ob-field">
               <label class="ob-label" for="report-message">What's off?</label>
