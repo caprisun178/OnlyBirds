@@ -7,6 +7,7 @@ the life list is derived from observations.)
 
 from __future__ import annotations
 
+from app.config import get_settings
 from app.dao.user_repo import user_repo
 from app.models.user import User, UserCreate, UserProfile, UserUpdate
 from app.services.life_list import get_life_list
@@ -51,3 +52,24 @@ async def get_profile_by_id(auth_id: str) -> UserProfile | None:
 async def update_user(auth_id: str, changes: UserUpdate) -> UserProfile | None:
     user = await user_repo.update(auth_id, changes)
     return await _to_profile(user) if user else None
+
+
+async def is_admin(auth_id: str) -> bool:
+    """Whether this user's sign-in email is in ADMIN_EMAILS. Checked per
+    request against the stored email (not baked into the session token), so
+    removing someone from ADMIN_EMAILS takes effect immediately."""
+    admins = get_settings().admin_email_list
+    if not admins:
+        return False
+    user = await user_repo.get_by_auth_id(auth_id)
+    return bool(user and user.email and user.email.lower() in admins)
+
+
+async def sign_in_user(auth_id: str, email: str | None = None, picture: str | None = None) -> UserProfile:
+    """Get-or-create the user behind a sign-in (app/services/auth.py). The
+    first sign-in creates the row; `picture` only fills an empty avatar, so a
+    photo the user uploaded themselves is never overwritten."""
+    user = await user_repo.create(UserCreate(auth_provider_id=auth_id, email=email))
+    if user.avatar_url is None and picture:
+        user = await user_repo.update(auth_id, UserUpdate(avatar_url=picture))
+    return await _to_profile(user)

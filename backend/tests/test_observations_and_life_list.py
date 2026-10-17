@@ -58,6 +58,29 @@ def test_list_is_newest_first_and_scoped_by_user(client):
     assert rows[0]["observed_at"] > rows[1]["observed_at"]
 
 
+def test_list_scoped_by_scientific_name(client):
+    # A species-scoped fetch (Life List's "view this species' own log") only
+    # returns that species' rows, not the user's entire history filtered
+    # down — see app/routers/observations.py's own note on why this moved
+    # server-side.
+    client.post("/observations", json=OBS)  # Common Raven
+    client.post(
+        "/observations",
+        json={**OBS, "species": {"scientific_name": "Cyanocitta cristata", "common_name": "Blue Jay"}},
+    )
+
+    rows = client.get("/users/u1/observations", params={"scientific_name": "Corvus corax"}).json()
+    assert len(rows) == 1
+    assert rows[0]["species"]["scientific_name"] == "Corvus corax"
+
+
+def test_list_scoped_by_scientific_name_returns_empty_for_a_species_never_logged(client):
+    client.post("/observations", json=OBS)
+
+    rows = client.get("/users/u1/observations", params={"scientific_name": "Nonexistarius birdus"}).json()
+    assert rows == []
+
+
 def test_life_list_dedupes_species_to_earliest_sighting(client):
     client.post("/observations", json={**OBS, "observed_at": "2026-05-01T00:00:00+00:00"})
     client.post("/observations", json={**OBS, "observed_at": "2026-03-01T00:00:00+00:00"})

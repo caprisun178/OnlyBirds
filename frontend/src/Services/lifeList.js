@@ -14,6 +14,13 @@ export const lifeListService = {
     return new Set(entries.map((e) => e.species?.scientific_name).filter(Boolean));
   },
 
+  // The full entries (with each one's first-seen date), for SpeciesPage.js's
+  // "Seen — first on ..." badge — getSeenScientificNames() above only keeps
+  // names, not dates, which isn't enough for that one caller.
+  async getAll(userId) {
+    return lifeListDAO.getAll(userId);
+  },
+
   async getRegionOptions(parentCode, type) {
     return regionsDAO.getChildren(parentCode, type);
   },

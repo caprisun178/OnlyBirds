@@ -1,0 +1,15 @@
+-- 0007_observations_near_idx.sql
+--
+-- `observation_repo.py#_list_near_sync()` — Explore Map's main data load —
+-- filters `where status = 'logged' and lat between ... and lng between ...
+-- and observed_at >= ...` with no supporting index on any of those three
+-- columns, so every call does a full sequential scan of `observations`
+-- before the Python-side haversine filter even runs. Low cost today (25
+-- rows), but this is the hottest read path in the app and will degrade
+-- badly as observations accumulate.
+--
+-- No PostGIS geom column yet (see that function's own comment), so this is
+-- a plain btree, not a true 2D spatial index — still lets Postgres narrow
+-- by `status` then range-scan `lat` without touching every row, rather
+-- than a full scan.
+create index if not exists observations_near_idx on observations (status, lat, lng);

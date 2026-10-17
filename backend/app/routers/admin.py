@@ -4,20 +4,18 @@ app/services/feedback.py.
     GET   /admin/bug-reports            -> list[BugReport], newest first
     PATCH /admin/bug-reports/{id}       {status?, owner?} -> BugReport
 
-**No real access control yet.** There's no auth/roles in this app at all
-(see docs/features/user-profiles.md — still "Planned"), so these routes are
-reachable by anyone who knows the URL, same as every other endpoint today.
-"Admin-only" currently just means it's linked from Home's nav as a distinct,
-clearly-labeled screen, not hidden behind any real permission check — gate
-this for real (a role check) once real auth lands.
+Admins only: every route here requires a signed-in user whose Google email
+is in ADMIN_EMAILS (401 signed out, 403 otherwise) — see
+app/routers/deps.py#require_admin and docs/features/user-profiles.md#auth.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.models.report import BugReport, BugReportUpdate
+from app.routers.deps import require_admin
 from app.services import feedback as feedback_service
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
 
 
 @router.get("/bug-reports", response_model=list[BugReport])

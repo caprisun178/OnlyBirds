@@ -42,6 +42,7 @@ import { observationService } from '../Services/observations.js';
 import { mountSightingsMap } from '../Components/SightingsMap.js';
 import { renderSightingDetail } from '../Components/SightingDetail.js';
 import { escapeHtml } from '../Components/htmlUtils.js';
+import { getCurrentUserId } from '../Services/auth.js';
 
 const DAYS_BACK_OPTIONS = [7, 14, 30];
 // Each unit offers its own clean, native-feeling set of radii (standard
@@ -68,9 +69,9 @@ const SPECIES_SUGGESTIONS_SHOWN = 8;
 
 export function mount(container, props = {}) {
   // onNavigate optional — omitted when this screen is previewed standalone.
-  // `userId` defaults the same way AddObservation/LifeList/ObservationList
-  // do — this screen isn't behind real auth yet either.
-  const { onNavigate, embedded = false, userId = 'u1' } = props;
+  // `userId` is the signed-in user, or null — this screen works signed out,
+  // just without "new for you" and "Only my sightings".
+  const { onNavigate, embedded = false, userId = getCurrentUserId() } = props;
 
   const state = {
     lat: null,
@@ -88,6 +89,7 @@ export function mount(container, props = {}) {
     speciesQuery: '', // free-text species-name filter, client-side over `sightings` — not reset on location/filter changes, since "find this bird" is a persistent intent while panning around
     speciesFilterFocused: false, // gates the suggestions dropdown's visibility — suppressed once the input loses focus, not just once the query is cleared
     mineOnly: false, // narrows to the logged-in user's own sightings (user_id match) — distinct from source: 'manual', which is every OnlyBirds user's logged sightings, not just this one
+    photosOnly: false, // narrows to sightings with a photo_url — eBird/iNaturalist sightings often have none, same as a manual one logged without a photo
 
     searchQuery: '',
     searchResults: [],
@@ -148,7 +150,7 @@ export function mount(container, props = {}) {
   } else {
     attemptSilentGeolocation();
   }
-  loadSeenSpecies();
+  if (userId) loadSeenSpecies();
 
   // ---- Data ---------------------------------------------------------------
 
@@ -259,7 +261,14 @@ export function mount(container, props = {}) {
         lng: state.lng,
         radiusKm: state.radiusKm,
         daysBack: state.daysBack,
-        source: state.source,
+        // "Only my sightings" can only ever match a manual (OnlyBirds-
+        // logged) sighting — eBird/iNaturalist results never carry a
+        // user_id at all, so filteredSightings()'s `s.user_id !== userId`
+        // check always excludes every one of them regardless of the
+        // `source` dropdown. Requesting `source: 'all'` (or 'ebird'/'inat')
+        // while this is checked used to fetch both live external APIs just
+        // to throw every result away client-side — skip them outright.
+        source: state.mineOnly ? 'manual' : state.source,
       });
     } catch (err) {
       state.error = err.message || 'Could not load sightings for this area.';
@@ -284,6 +293,7 @@ export function mount(container, props = {}) {
     const query = state.speciesQuery.trim().toLowerCase();
     return state.sightings.filter((s) => {
       if (state.mineOnly && s.user_id !== userId) return false;
+      if (state.photosOnly && !s.photo_url) return false;
       if (!query) return true;
       const common = s.species?.common_name?.toLowerCase() || '';
       const sci = s.species?.scientific_name?.toLowerCase() || '';
@@ -425,6 +435,16 @@ export function mount(container, props = {}) {
   // a checkbox toggle shouldn't remount the whole Leaflet map either.
   function toggleMineOnly(checked) {
     state.mineOnly = checked;
+    // Turning this on/off changes which `source` loadSightings() actually
+    // requests (see its own comment) — a plain client-side re-filter isn't
+    // enough: turning it on means eBird/iNat were never fetched to begin
+    // with (nothing to filter, not just nothing shown), and turning it back
+    // off means those need fetching now, not just un-hiding.
+    loadSightings();
+  }
+
+  function togglePhotosOnly(checked) {
+    state.photosOnly = checked;
     mapController?.setSightings(filteredSightings());
     updateStatusLineDom();
     updateRegionSummaryDom();
@@ -839,8 +859,12 @@ export function mount(container, props = {}) {
           </select>
         </div>
         <label class="ob-field" style="flex-direction:row; align-items:center; gap: var(--ob-space-2);">
-          <input id="mine-only-filter" type="checkbox" ${state.mineOnly ? 'checked' : ''} ${state.lat == null ? 'disabled' : ''} />
-          Only my sightings
+          <input id="mine-only-filter" type="checkbox" ${state.mineOnly ? 'checked' : ''} ${state.lat == null || !userId ? 'disabled' : ''} />
+          Only my sightings${userId ? '' : ' <span class="ob-text-muted ob-text-sm">(sign in)</span>'}
+        </label>
+        <label class="ob-field" style="flex-direction:row; align-items:center; gap: var(--ob-space-2);">
+          <input id="photos-only-filter" type="checkbox" ${state.photosOnly ? 'checked' : ''} ${state.lat == null ? 'disabled' : ''} />
+          Only sightings with photos
         </label>
       </div>
     `;
@@ -1089,6 +1113,9 @@ export function mount(container, props = {}) {
 
     const mineOnlyCheckbox = container.querySelector('#mine-only-filter');
     mineOnlyCheckbox?.addEventListener('change', () => toggleMineOnly(mineOnlyCheckbox.checked));
+
+    const photosOnlyCheckbox = container.querySelector('#photos-only-filter');
+    photosOnlyCheckbox?.addEventListener('change', () => togglePhotosOnly(photosOnlyCheckbox.checked));
   }
 
   // The map is a live widget, not markup rebuilt from `state` — every
@@ -1196,6 +1223,24 @@ export function mount(container, props = {}) {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           open();
+        }
+      });
+    }
+
+    // The species name — opens the Bird Info page (docs/features/bird-info.md
+    // §1, row 4). SightingDetail.js is shared with PlanATrip.js's own
+    // hotspot drill-down, which wires this same attribute separately.
+    const nameEl = el?.querySelector('[data-action="view-profile"]');
+    if (nameEl && onNavigate) {
+      const openProfile = () => onNavigate('species-profile', {
+        scientificName: nameEl.dataset.profileScientificName,
+        commonName: nameEl.dataset.profileCommonName,
+      });
+      nameEl.addEventListener('click', openProfile);
+      nameEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openProfile();
         }
       });
     }

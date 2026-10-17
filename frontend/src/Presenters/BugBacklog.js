@@ -4,11 +4,9 @@
 // by status, change status (not started / investigating / not fixed /
 // fixed), and take ownership of a report (PATCH /admin/bug-reports/{id}).
 //
-// No real access control yet — see app/routers/admin.py's own docstring for
-// why: there's no auth/roles anywhere in this app (user-profiles.md is
-// still "Planned"). "Admin-only" currently just means it's a distinct,
-// clearly-labeled screen linked from Home's nav, nothing stronger. Gate it
-// for real once real auth exists.
+// Admins only: the backend rejects anyone whose Google email isn't in
+// ADMIN_EMAILS (app/routers/deps.py#require_admin), and preview.js's
+// ADMIN_ONLY guard + Home's nav hide this screen from everyone else.
 //
 //   import { mount } from './Presenters/BugBacklog.js';
 //   mount(document.getElementById('app'));
@@ -71,7 +69,7 @@ export function mount(container, props = {}) {
       <div class="ob-container ob-stack">
         ${onNavigate ? '<button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="back-to-home" style="align-self:flex-start;">← Back to home</button>' : ''}
         <h1>Bug backlog</h1>
-        <p class="ob-text-muted ob-text-sm">Every bug submitted through the floating report button. Not started bugs always sort to the top. No real access control yet — see this screen's own file comment.</p>
+        <p class="ob-text-muted ob-text-sm">Every bug submitted through the floating report button. Not started bugs always sort to the top.</p>
         ${state.error ? `<div class="ob-alert ob-alert--danger">${escapeHtml(state.error)}</div>` : ''}
         ${state.loading ? renderLoading() : renderBody()}
       </div>

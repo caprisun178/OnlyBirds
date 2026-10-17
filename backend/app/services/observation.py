@@ -8,27 +8,24 @@ from app.models.observation import Observation, ObservationCreate, ObservationUp
 
 
 async def log_observation(payload: ObservationCreate) -> Observation:
-    # Deferred import: app.services.pins imports app.services.life_list,
-    # which imports this module (get_observation/list_observations) — a
-    # module-level import here would be a circular import. Only this one
-    # call site needs it, so a local import is enough to break the cycle.
+    # Deferred imports avoid cycles through life_list and pins services.
+    from app.services.life_list import get_life_list
     from app.services.pins import evaluate_pins
+    from app.services.stickers import evaluate_stickers
 
-    # Region is server-computed, never trusted from the caller — see
-    # ObservationBase.region's docstring. Only possible when lat/lng are
-    # given (still optional — see ObservationBase); skipped otherwise rather
-    # than guessing. A region lookup is a courtesy, not a requirement: the
-    # observation is still logged if it fails or eBird isn't configured
-    # (region_for_point() itself degrades to "world" rather than raising).
+    before_count = len(await get_life_list(payload.user_id))
+
+    # Region is server-computed, never trusted from the caller.
     if payload.lat is not None and payload.lng is not None:
         region = await ebird.region_for_point(payload.lat, payload.lng)
         payload = payload.model_copy(update={"region": region})
 
     observation = await observation_repo.add(payload)
+    entries = await get_life_list(payload.user_id)
+    if len(entries) > before_count:
+        await evaluate_stickers(payload.user_id, observation.id, entries)
 
-    # Runs after every logged observation (not just lifers) — someone else
-    # seeing a common bird is still a sighting a pinning user might chase.
-    # See docs/features/pinned-birds.md#match--notify.
+    # Pin matches are checked for every logged sighting, not just new species.
     if observation.status == "logged":
         await evaluate_pins(observation)
 
@@ -39,9 +36,10 @@ async def get_observation(observation_id: str) -> Observation | None:
     return await observation_repo.get(observation_id)
 
 
-async def list_observations(user_id: str) -> list[Observation]:
-    """Newest first."""
-    rows = await observation_repo.list_for_user(user_id)
+async def list_observations(user_id: str, scientific_name: str | None = None) -> list[Observation]:
+    """Newest first. `scientific_name` scopes this to one species — see
+    `observation_repo.py#list_for_user`'s own note."""
+    rows = await observation_repo.list_for_user(user_id, scientific_name)
     return sorted(rows, key=lambda o: o.observed_at, reverse=True)
 
 

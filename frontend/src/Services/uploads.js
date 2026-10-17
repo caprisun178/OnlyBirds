@@ -3,8 +3,10 @@
 // files get rejected before spending a round trip.
 import { uploadsDAO } from '../Dao/uploads.js';
 
-const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
-const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+// Exported so other image-upload flows (Services/identify.js's photo-ID
+// upload) can reuse the exact same limits instead of redeclaring them.
+export const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
+export const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 
 export const uploadsService = {
   async uploadPhoto(file) {

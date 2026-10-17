@@ -105,12 +105,12 @@ def _score_generic(bird: dict, tokens: set[str], hints: dict | None) -> float:
     return score
 
 
-def _candidates_for_generic(text: str, hints: dict | None) -> list[dict]:
+def _candidates_for_generic(text: str, hints: dict | None, limit: int = 6) -> list[dict]:
     tokens = _words(text)
     scored = [(b, _score_generic(b, tokens, hints)) for b in all_birds()]
     scored.sort(key=lambda pair: (-pair[1], pair[0]["code"]))
 
-    top = scored[:6]
+    top = scored[:limit]
     max_score = max((s for _, s in top), default=0.0) or 1.0
     out = []
     for bird, score in top:
@@ -148,17 +148,34 @@ async def _with_media(candidates: list[dict], sense: str) -> list[dict]:
     return out
 
 
-async def describe(
-    text: str, hints: dict | None = None, sense: str = "sight"
+async def get_candidates(
+    text: str, hints: dict | None = None, pool_size: int = 6
 ) -> tuple[list[dict], str | None]:
-    """Returns (candidates, target_species_code). `target_species_code` is set
-    only when the text named a species outright, so the confirm step can grade
-    the user's pick against it. `sense` ("sight" | "sound") only changes which
-    media the candidates carry — the matching/scoring logic is the same
-    either way; see `docs/features/add-observation.md`."""
+    """Returns (candidates, target_species_code), **without** media attached
+    (see `attach_media()` below — split out so a caller can reorder/trim the
+    pool first and only pay for photo/audio lookups on what it actually
+    keeps). `target_species_code` is set only when the text named a species
+    outright, so the confirm step can grade the user's pick against it.
+
+    `pool_size` only affects the **generic** (no named target) path — the
+    named path's "species + 5 similar" group is a fixed, hand-curated set
+    (`_fill_to_six`), not a ranked pool there's any benefit widening. A
+    larger `pool_size` lets a caller apply a secondary re-rank (e.g.
+    regional plausibility, `app/services/identify.py`) over more candidates
+    than the final 6 shown, so a correct match that scored 7th-12th on text
+    overlap alone can still surface instead of being cut before that signal
+    is even considered.
+    """
     matched = _find_named_species(text)
     if matched:
         candidates, target_code = _candidates_for_named(matched), matched["code"]
     else:
-        candidates, target_code = _candidates_for_generic(text, hints), None
-    return await _with_media(candidates, sense), target_code
+        candidates, target_code = _candidates_for_generic(text, hints, limit=pool_size), None
+    return candidates, target_code
+
+
+async def attach_media(candidates: list[dict], sense: str) -> list[dict]:
+    """Public name for what used to be the back half of `describe()` — see
+    `get_candidates()`'s docstring for why hydration is now a separate call
+    the service layer makes only on the final, trimmed candidate list."""
+    return await _with_media(candidates, sense)

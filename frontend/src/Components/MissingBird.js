@@ -32,8 +32,25 @@ export function renderMissingBird(species, { pinned = false } = {}) {
   // *it* declared. The button sits outside that wrapper instead, at full
   // strength, so "not seen yet" still reads as de-emphasized while "pin
   // this" stays a clear, fully-visible action.
+  //
+  // The whole card now opens the Bird Info page (docs/features/bird-info.md
+  // §1, row 2) — `data-profile-scientific-name`, a third attribute name
+  // distinct from both `data-scientific-name` (SpeciesCard.js's seen-card
+  // click target) and `data-pin-scientific-name` (the pin button below), on
+  // purpose: reusing either of those exact names on a second, differently-
+  // wired element is the exact bug this app already shipped and fixed once
+  // (see this file's own history / bird-info.md's note on it) — two
+  // listeners firing off one click because they happened to share a
+  // selector, not because anyone meant to wire two handlers to one click.
   return `
-    <article class="ob-card ob-card--flat ob-text-center">
+    <article
+      class="ob-card ob-card--flat ob-text-center"
+      style="cursor:pointer;"
+      data-profile-scientific-name="${escapeHtml(species.scientific_name)}"
+      data-profile-common-name="${escapeHtml(species.common_name)}"
+      role="button"
+      tabindex="0"
+    >
       <div style="opacity: 0.6;">
         <div aria-hidden="true" style="height:80px;border-radius:var(--ob-radius-sm);background:var(--ob-color-surface-alt);"></div>
         <h3 class="ob-card__title">${escapeHtml(species.common_name)}</h3>

@@ -7,7 +7,7 @@
 
 services:
   - type: web
-    name: onlybirds-api
+    name: onlybirds-dev
     runtime: python
     plan: free                       # sleeps after 15 min idle; fine for dev
     rootDir: backend
@@ -37,4 +37,10 @@ services:
       - key: SMTP_PASSWORD
         sync: false
       - key: REPORT_EMAIL_TO
+        sync: false
+      - key: GOOGLE_CLIENT_ID         # set in dashboard — Google Cloud > Credentials > OAuth client (Web); see backend/.env.example
+        sync: false
+      - key: SESSION_SECRET           # set in dashboard — long random string, NOT the same as your local one
+        sync: false
+      - key: ADMIN_EMAILS             # set in dashboard — comma-separated Google emails allowed on admin screens
         sync: false

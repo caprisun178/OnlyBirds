@@ -1,6 +1,8 @@
 # Deployment
 
-How Only Birds is hosted, and how to stand up your own copy. The stack is chosen
+How Only Birds is hosted today (the dev environment), and how to stand up
+your own copy. The planned self-hosted production setup is proposed in
+[Production environment](production-environment.md). The stack is chosen
 to be **managed** — no servers to patch, no Docker to learn.
 
 | Concern | Service | Notes |
@@ -129,3 +131,6 @@ Add each deployed web origin to `CORS_ORIGINS` on the Render service.
 | `SUPABASE_JWT_SECRET` | backend | Render | **yes** |
 | `SUPABASE_SERVICE_ROLE_KEY` | backend | Render | **yes** |
 | `SUPABASE_ANON_KEY` | frontend | Vercel | no (public) |
+| `GOOGLE_CLIENT_ID` | backend (served to the frontend via `GET /auth/config`) | `backend/.env`, Render | no (public) |
+| `SESSION_SECRET` | backend | `backend/.env`, Render | **yes** |
+| `ADMIN_EMAILS` | backend | `backend/.env`, Render | no |

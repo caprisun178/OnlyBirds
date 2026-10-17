@@ -16,4 +16,14 @@ export const quizDAO = {
   // quiz-specific, so it doesn't need its own wrapper here.
   getFilters: (regionCode) =>
     apiClient.get(`/quiz/filters?region_code=${encodeURIComponent(regionCode)}`),
+
+  // "Try another photo" — same species, a different reference image.
+  getAnotherPhoto: (scientificName, commonName, excludePhotoUrl) => {
+    const params = new URLSearchParams({
+      scientific_name: scientificName,
+      common_name: commonName,
+      exclude_photo_url: excludePhotoUrl,
+    });
+    return apiClient.get(`/quiz/another-photo?${params.toString()}`);
+  },
 };

@@ -29,8 +29,8 @@ class BugReport(BaseModel):
     user_id: str | None = None
     user_agent: str | None = None
     status: BugReportStatus = "not_started"
-    # Plain text, not a real user reference — see 0008's own comment: no
-    # auth/roles exist yet, so "taking ownership" just means typing a name.
+    # Plain text, not a real user reference (see 0008's own comment) —
+    # "taking ownership" just means typing a name.
     owner: str | None = None
     created_at: datetime
     updated_at: datetime
