@@ -9,6 +9,7 @@ from app.dao.notification_repo import InMemoryNotificationRepo
 from app.dao.observation_repo import InMemoryObservationRepo
 from app.dao.pin_repo import InMemoryPinRepo
 from app.dao.species_repo import InMemorySpeciesRepo
+from app.dao.sticker_repo import InMemoryStickerRepo
 from app.dao.user_repo import InMemoryUserRepo
 from app.config import get_settings
 from app.main import app
@@ -103,6 +104,16 @@ def no_live_media_lookups(monkeypatch):
     # would otherwise spam the real species_photo_cache.json with test
     # fixture junk (or fail outright in a read-only CI checkout).
     monkeypatch.setattr("app.dao.bird_photos._save_cache_file", lambda: None)
+    # Never load the real photo-ID model in tests (app/main.py's startup
+    # warm-up) — it's slow and needs ~1GB of RAM. Env var too, for tests
+    # that rebuild Settings via cache_clear().
+    monkeypatch.setenv("PHOTO_ID_PRELOAD", "false")
+    monkeypatch.setattr(get_settings(), "photo_id_preload", False)
+    # Isolate earned stickers too, or awards from one test leak into the
+    # next (confirmed: a fresh user showed sticker_count 1).
+    fresh_stickers = InMemoryStickerRepo()
+    monkeypatch.setattr("app.dao.sticker_repo.sticker_repo", fresh_stickers)
+    monkeypatch.setattr("app.services.stickers.sticker_repo", fresh_stickers)
 
 
 @pytest.fixture()
@@ -148,6 +159,7 @@ def client(monkeypatch):
     monkeypatch.setattr("app.dao.notification_repo.notification_repo", fresh_notifications)
     monkeypatch.setattr("app.services.pins.notification_repo", fresh_notifications)
     monkeypatch.setattr("app.services.notifications.notification_repo", fresh_notifications)
+    monkeypatch.setattr("app.services.stickers.notification_repo", fresh_notifications)
     fresh_bug_reports = InMemoryBugReportRepo()
     monkeypatch.setattr("app.dao.bug_report_repo.bug_report_repo", fresh_bug_reports)
     monkeypatch.setattr("app.services.feedback.bug_report_repo", fresh_bug_reports)

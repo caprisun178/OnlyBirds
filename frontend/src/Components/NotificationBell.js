@@ -81,11 +81,16 @@ function renderDropdown({ loading, unread }) {
 }
 
 function renderRow(n) {
-  const name = n.payload?.common_name || n.payload?.species || 'A pinned species';
-  const region = n.payload?.region;
-  const body = region
-    ? `<strong>${escapeHtml(name)}</strong> reported in ${escapeHtml(region)}`
-    : `<strong>${escapeHtml(name)}</strong> reported nearby`;
+  let body;
+  if (n.kind === 'sticker_awarded') {
+    body = `You earned the <strong>${escapeHtml(n.payload?.name || 'new')}</strong> sticker`;
+  } else {
+    const name = n.payload?.common_name || n.payload?.species || 'A pinned species';
+    const region = n.payload?.region;
+    body = region
+      ? `<strong>${escapeHtml(name)}</strong> reported in ${escapeHtml(region)}`
+      : `<strong>${escapeHtml(name)}</strong> reported nearby`;
+  }
   return `
     <li
       class="ob-text-sm"

@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 
 import pytest
@@ -50,7 +51,7 @@ def test_repeated_observation_does_not_duplicate_awards(client, isolated_sticker
     client.post("/observations", json=payload)
     client.post("/observations", json={**payload, "observed_at": "2026-05-02T08:00:00+00:00"})
 
-    awards = isolated_stickers.list_awards("u1")
+    awards = asyncio.run(isolated_stickers.list_awards("u1"))
     assert [award.sticker_code for award in awards] == ["first_bird"]
 
 
@@ -61,13 +62,13 @@ def test_only_logged_observations_update_stickers(client, isolated_stickers):
     draft = client.post("/observations", json={**payload, "status": "draft"})
     assert draft.status_code == 201
     assert client.get("/users/u1/life-list").json() == []
-    assert isolated_stickers.list_awards("u1") == []
+    assert asyncio.run(isolated_stickers.list_awards("u1")) == []
 
     logged = client.post("/observations", json={**payload, "status": "logged"})
     assert logged.status_code == 201
     shelf = client.get("/users/u1/stickers").json()
     assert "first_bird" in {sticker["code"] for sticker in shelf["earned"]}
-    award = next(a for a in isolated_stickers.list_awards("u1") if a.sticker_code == "first_bird")
+    award = next(a for a in asyncio.run(isolated_stickers.list_awards("u1")) if a.sticker_code == "first_bird")
     assert award.observation_id == logged.json()["id"]
 
 
@@ -149,3 +150,48 @@ def test_count_milestone_shows_progress_and_awards_at_threshold(client, isolated
     species_100 = next(sticker for sticker in shelf["locked"] if sticker["code"] == "species_100")
     assert "species_25" in earned
     assert (species_100["progress"], species_100["target"]) == (25, 100)
+
+def test_logging_returns_newly_earned_stickers(client, isolated_stickers):
+    owl = {"scientific_name": "Strix varia", "common_name": "Barred Owl", "taxon_group": "owls"}
+
+    first = client.post("/observations", json=observation("u1", owl, "2026-05-01T08:00:00+00:00")).json()
+    again = client.post("/observations", json=observation("u1", owl, "2026-05-02T08:00:00+00:00")).json()
+
+    assert {s["code"] for s in first["stickers_earned"]} >= {"first_bird", "first_owl"}
+    assert all(s["name"] for s in first["stickers_earned"])
+    assert again["stickers_earned"] == []  # same species again: nothing new
+
+
+def test_each_earned_sticker_adds_one_notification(client, isolated_stickers):
+    owl = {"scientific_name": "Strix varia", "common_name": "Barred Owl", "taxon_group": "owls"}
+    earned = client.post("/observations", json=observation("u1", owl, "2026-05-01T08:00:00+00:00")).json()
+    client.post("/observations", json=observation("u1", owl, "2026-05-02T08:00:00+00:00"))
+
+    notes = [n for n in client.get("/users/u1/notifications").json() if n["kind"] == "sticker_awarded"]
+
+    assert sorted(n["payload"]["sticker_code"] for n in notes) == sorted(s["code"] for s in earned["stickers_earned"])
+    assert all(n["payload"]["name"] for n in notes)
+
+
+def test_earned_stickers_do_not_leak_between_tests_part_1(client):
+    bird = {"scientific_name": "Corvus corax", "common_name": "Common Raven"}
+    client.post("/observations", json=observation("u1", bird, "2026-05-01T08:00:00+00:00"))
+    assert client.get("/users/u1/stickers").json()["earned"]
+
+
+def test_earned_stickers_do_not_leak_between_tests_part_2(client):
+    # Runs after part 1 with the default (conftest) sticker repo: must start empty.
+    assert client.get("/users/u1/stickers").json()["earned"] == []
+
+
+def test_a_sticker_failure_does_not_fail_logging(client, monkeypatch):
+    async def broken(*args, **kwargs):
+        raise RuntimeError("relation user_stickers does not exist")
+
+    monkeypatch.setattr("app.services.stickers.evaluate_stickers", broken)
+    bird = {"scientific_name": "Corvus corax", "common_name": "Common Raven"}
+
+    r = client.post("/observations", json=observation("u1", bird, "2026-05-01T08:00:00+00:00"))
+
+    assert r.status_code == 201
+    assert r.json()["stickers_earned"] == []

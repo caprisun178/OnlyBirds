@@ -4,6 +4,9 @@
     uvicorn main:app --reload          # via the backend/main.py shim
 """
 
+import logging
+from contextlib import asynccontextmanager
+import threading
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -33,10 +36,35 @@ from app.routers import (
 )
 
 
+logger = logging.getLogger(__name__)
+
+
+def _warm_up_photo_id() -> None:
+    try:
+        from app.dao import bioclip_classifier
+
+        bioclip_classifier.warm_up()
+        logger.info("Photo ID model loaded")
+    except Exception:  # noqa: BLE001 — never crash the server over a warm-up
+        logger.exception("Photo ID warm-up failed; it will load on first use instead")
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    settings = get_settings()
+    # Background thread: loading the photo-ID model takes a while and must
+    # not delay startup or block requests. Failure only means the first
+    # photo ID loads it instead.
+    if settings.photo_id_enabled and settings.photo_id_preload:
+        threading.Thread(target=_warm_up_photo_id, name="photo-id-warm-up", daemon=True).start()
+    yield
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
 
     app = FastAPI(
+        lifespan=_lifespan,
         title=settings.app_name,
         version=__version__,
         summary="iNaturalist + eBird + personal life list, normalized into one API.",

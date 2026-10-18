@@ -9,13 +9,20 @@ services:
   - type: web
     name: onlybirds-dev
     runtime: python
-    plan: free                       # sleeps after 15 min idle; fine for dev
+    plan: standard                   # 2GB RAM: the photo-ID model doesn't fit in 512MB (free/starter)
     rootDir: backend
-    buildCommand: pip install -r requirements.txt
+    # Second step downloads the photo-ID model and precomputes its species
+    # embeddings into HF_HOME (inside the project, so Render keeps them for
+    # the running service) — see app/dao/bioclip_classifier.py `__main__`.
+    buildCommand: pip install -r requirements.txt && (python -m app.dao.bioclip_classifier || echo "Photo ID model prefetch failed; it will load on first use")
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     autoDeploy: true                 # redeploy on every push to the default branch
     envVars:
+      - key: HF_HOME                  # model weights + saved embeddings; must be under the project dir to survive from build to runtime
+        value: /opt/render/project/src/backend/.cache/huggingface
+      - key: PHOTO_ID_ENABLED         # false = hide photo ID (needed on a 512MB instance); describe & guess still works
+        value: "true"
       - key: PYTHON_VERSION
         value: "3.13.14"
       - key: EBIRD_API_KEY           # set in dashboard — https://ebird.org/api/keygen

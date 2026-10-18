@@ -10,7 +10,7 @@ Route shapes match what the frontend DAO expects
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.models.observation import Observation, ObservationCreate, ObservationUpdate
+from app.models.observation import LoggedObservation, Observation, ObservationCreate, ObservationUpdate
 from app.routers.deps import ensure_self, require_self, require_user
 from app.services import observation as observation_service
 
@@ -28,7 +28,7 @@ async def list_user_observations(user_id: str, scientific_name: str | None = Que
 
 @router.post(
     "/observations",
-    response_model=Observation,
+    response_model=LoggedObservation,
     status_code=status.HTTP_201_CREATED,
 )
 async def create_observation(payload: ObservationCreate, current: str = Depends(require_user)):

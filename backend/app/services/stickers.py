@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from app.dao.notification_repo import notification_repo
 from app.dao.sticker_repo import sticker_repo
 from app.models.life_list import LifeListEntry
 from app.models.sticker import Sticker, StickerShelf, StickerShelfItem, UserSticker
@@ -53,14 +54,27 @@ async def evaluate_stickers(
     observation_id: str | None = None,
     entries: list[LifeListEntry] | None = None,
 ) -> list[UserSticker]:
-    """Award every newly satisfied sticker rule for a user."""
+    """Award every newly satisfied sticker rule for a user, and add a
+    `sticker_awarded` notification for each one (the bell and feed)."""
     entries = entries if entries is not None else await get_life_list(user_id)
-    existing = {award.sticker_code for award in sticker_repo.list_awards(user_id)}
+    existing = {award.sticker_code for award in await sticker_repo.list_awards(user_id)}
     awarded: list[UserSticker] = []
     for sticker in sticker_repo.list_stickers():
         if sticker.code not in existing and _is_earned(sticker, entries):
-            awarded.append(sticker_repo.award(user_id, sticker.code, observation_id))
+            awarded.append(await sticker_repo.award(user_id, sticker.code, observation_id))
+            await notification_repo.insert(
+                user_id,
+                "sticker_awarded",
+                {"sticker_code": sticker.code, "name": sticker.name, "image_url": sticker.image_url},
+                # A sticker is earned once, so one notification per user and sticker.
+                f"sticker_awarded:{user_id}:{sticker.code}",
+            )
     return awarded
+
+
+def stickers_for(awards: list[UserSticker]) -> list[Sticker]:
+    """The catalog entries (name, art, rarity...) for a list of awards."""
+    return [s for s in (sticker_repo.get_sticker(a.sticker_code) for a in awards) if s is not None]
 
 
 def _shelf_item(sticker: Sticker, award: UserSticker | None, entries: list[LifeListEntry]) -> StickerShelfItem:
@@ -83,7 +97,7 @@ def _shelf_item(sticker: Sticker, award: UserSticker | None, entries: list[LifeL
 async def get_sticker_shelf(user_id: str) -> StickerShelf:
     """Build the user's earned and locked sticker collection."""
     entries = await get_life_list(user_id)
-    awards = {award.sticker_code: award for award in sticker_repo.list_awards(user_id)}
+    awards = {award.sticker_code: award for award in await sticker_repo.list_awards(user_id)}
     items = [_shelf_item(sticker, awards.get(sticker.code), entries) for sticker in sticker_repo.list_stickers()]
     return StickerShelf(
         earned=[item for item in items if item.earned],

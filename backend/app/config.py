@@ -73,6 +73,15 @@ class Settings(BaseSettings):
     # stored at sign-in. Empty = nobody is an admin.
     admin_emails: str = ""
 
+    # Photo identification (POST /identify/photo, app/dao/bioclip_classifier.py).
+    # The model needs ~1GB+ of RAM, so on a 512MB server set
+    # PHOTO_ID_ENABLED=false: the endpoint then returns 503 and Add
+    # Observation hides the photo option (describe & guess still works).
+    # PHOTO_ID_PRELOAD loads the model and the default species list in the
+    # background at startup, so the first user doesn't wait for it.
+    photo_id_enabled: bool = True
+    photo_id_preload: bool = True
+
     @property
     def admin_email_list(self) -> set[str]:
         return {e.strip().lower() for e in self.admin_emails.split(",") if e.strip()}

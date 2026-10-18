@@ -171,6 +171,11 @@ export function mount(container, props = {}) {
     const target = bell.unread.find((n) => n.id === id);
     if (!target) return;
     markRowRead(id);
+    if (target.kind === 'sticker_awarded') {
+      closeDropdown();
+      onNavigate('stickers');
+      return;
+    }
     const observationId = target.payload?.observation_id;
     if (observationId) {
       closeDropdown();

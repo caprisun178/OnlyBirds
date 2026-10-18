@@ -2,8 +2,11 @@
 
 > **Status:** Partial — the fixture-backed catalog, group/count rules, shelf
 > API, rarity/earned filters, and award hook after a logged lifer are
-> implemented. Awards are held in memory for now; durable Postgres storage,
-> notifications, and region rules remain future work.
+> implemented. Earned stickers are saved in Postgres (`user_stickers`,
+> migration 0009) so they survive redeploys; each award adds a
+> `sticker_awarded` notification and is returned by `POST /observations`
+> for Add Observation's "you earned a sticker" message. Region rules remain
+> future work.
 
 ## 1. What you're building
 
@@ -41,11 +44,15 @@ Every sticker is one rule type plus `criteria`:
 
 - Runs after `POST /observations` stores a `logged` observation that adds a new
   species to the derived life list; repeat sightings do not run the evaluator.
-- Evaluates the refreshed life list and records newly satisfied rules in the
-  in-memory award ledger. The shelf endpoint recomputes current progress each
-  time it is requested; notifications are not implemented yet.
-- **Idempotent**: the `(user_id, sticker_code)` key prevents duplicate awards
-  within the running process. `count_milestone` and `group_complete` only ever
+- Evaluates the refreshed life list and records newly satisfied rules in
+  `user_stickers` (Postgres; an in-memory ledger when `DATABASE_URL` is unset).
+  Each new award also adds one `sticker_awarded` notification, and
+  `POST /observations` returns the awards as `stickers_earned`. The shelf
+  endpoint recomputes current progress each time it is requested.
+- A failure here never fails the logged observation: it's logged and the
+  response just has no `stickers_earned`.
+- **Idempotent**: the `(user_id, sticker_code)` primary key prevents
+  duplicate awards. `count_milestone` and `group_complete` only ever
   go locked → earned.
 - Exposed for tests/backfill as an internal `evaluate_stickers(user_id)` in
   `Services/stickers` — there is no public "grant" endpoint.
@@ -56,20 +63,21 @@ Every sticker is one rule type plus `criteria`:
 |---|---|---|
 | The sticker catalog (name, optional art, rule, rarity) | a **fixture file in the repo** | in-memory catalog (Postgres `stickers` table planned) |
 | Group definitions (taxon-group labels or species-code set) | a **fixture file in the repo** | in-memory group catalog (Postgres `groups` table planned) |
-| Which stickers a user has earned | our engine, after each lifer | in-memory award ledger; `user_stickers` is planned |
+| Which stickers a user has earned | our engine, after each lifer | `user_stickers` (migration 0009) |
 | The user's life list (engine input) | our own data | derived from logged `observations` |
 | Region checklist (for `region_complete`) | reuse the [Life List](life-list.md) cache | `region_checklists` |
 | Sticker art images | optional file per `code` in `backend/app/data/stickers/`, served at `/static/stickers/<code>.svg` | `stickers.image_url` holds that path; the shelf shows a placeholder until art exists |
 
 No external API. The catalog and groups are **our data, checked into the repo**
-and loaded by the in-memory repository at startup. A seed script will load
-them into Postgres when durable storage is implemented.
+and loaded into memory at startup. They change with the code, so they stay
+fixtures rather than tables; only the awards are in Postgres.
 
 ## 3. Database changes (SQL)
 
-These three tables are the planned Postgres schema for durable sticker data;
-the current prototype has no sticker migration and keeps the catalog and
-awards in memory.
+Built: `user_stickers` only (`backend/migrations/0009_user_stickers.sql`),
+with `sticker_code` as plain text rather than a foreign key, since the
+catalog stays a fixture. The `stickers` and `groups` tables below were the
+original plan and aren't needed while the catalog is a checked-in file.
 See [Database & migrations](database.md#how-to-apply-a-migration).
 
 ```sql
@@ -147,7 +155,7 @@ There is **no** endpoint that grants a sticker — awards only happen inside
 
 | Layer | File | Responsibility |
 |---|---|---|
-| `dao/` | `app/dao/sticker_repo.py` | load fixture catalog/groups and hold the in-memory award ledger |
+| `dao/` | `app/dao/sticker_repo.py` | load fixture catalog/groups; awards in Postgres (`PostgresStickerRepo`) or in memory |
 | `services/` | `app/services/stickers.py` | evaluate supported rules and build a fresh shelf with current progress |
 | `routers/` | `app/routers/stickers.py` | `GET /stickers`, `GET /users/{id}/stickers` |
 | `services/` | `app/services/observation.py` | call `evaluate_stickers()` when a logged observation adds a life-list species |
@@ -158,10 +166,8 @@ There is **no** endpoint that grants a sticker — awards only happen inside
 
 ## 6. Build order
 
-1. Keep the current fixture-backed catalog, in-memory award ledger, and
-   supported rule behavior covered by tests.
-2. Add the Postgres migration, fixture seeding, and durable repository when
-   database-backed sticker data is in scope.
+1. ~~Fixture-backed catalog and rules, covered by tests.~~ Done.
+2. ~~Durable awards (`user_stickers`) and award notifications.~~ Done.
 3. Add region rules once observations carry a derived region and checklists
    exist.
 4. Add award notifications and richer award feedback in the UI.

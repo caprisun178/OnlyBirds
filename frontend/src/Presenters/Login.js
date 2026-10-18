@@ -64,7 +64,7 @@ export function mount(container, props = {}) {
           <button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="back">← Back to map</button>
         </div>
         <div class="ob-card ob-stack ob-text-center">
-          <h1 style="margin:0;">Sign in 🐦</h1>
+          <h1 style="margin:0;">Sign in</h1>
           <p class="ob-text-muted" style="margin:0;">
             Sign in to log sightings and keep your life list, pins, and stickers.
           </p>

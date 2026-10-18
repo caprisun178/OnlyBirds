@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
+import logging
+
 from app.dao import ebird
 from app.dao.observation_repo import observation_repo
-from app.models.observation import Observation, ObservationCreate, ObservationUpdate
+from app.models.observation import LoggedObservation, Observation, ObservationCreate, ObservationUpdate
+
+logger = logging.getLogger(__name__)
 
 
-async def log_observation(payload: ObservationCreate) -> Observation:
+async def log_observation(payload: ObservationCreate) -> LoggedObservation:
     # Deferred imports avoid cycles through life_list and pins services.
     from app.services.life_list import get_life_list
     from app.services.pins import evaluate_pins
-    from app.services.stickers import evaluate_stickers
+    from app.services.stickers import evaluate_stickers, stickers_for
 
     before_count = len(await get_life_list(payload.user_id))
 
@@ -22,14 +26,20 @@ async def log_observation(payload: ObservationCreate) -> Observation:
 
     observation = await observation_repo.add(payload)
     entries = await get_life_list(payload.user_id)
+    awards = []
     if len(entries) > before_count:
-        await evaluate_stickers(payload.user_id, observation.id, entries)
+        try:
+            awards = await evaluate_stickers(payload.user_id, observation.id, entries)
+        except Exception:  # noqa: BLE001 — the sighting is already saved; a sticker
+            # problem (e.g. the user_stickers migration not applied yet) must
+            # not turn that into an error for the user.
+            logger.exception("Sticker evaluation failed for observation %s", observation.id)
 
     # Pin matches are checked for every logged sighting, not just new species.
     if observation.status == "logged":
         await evaluate_pins(observation)
 
-    return observation
+    return LoggedObservation(**observation.model_dump(), stickers_earned=stickers_for(awards))
 
 
 async def get_observation(observation_id: str) -> Observation | None:
