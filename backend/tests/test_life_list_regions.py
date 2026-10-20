@@ -32,6 +32,30 @@ def no_exotic_lookup(monkeypatch):
     monkeypatch.setattr(ebird, "recent_obs_in_region", fake_recent_obs)
 
 
+def test_concurrent_get_checklist_calls_share_one_fetch(monkeypatch):
+    calls = {"spplist": 0, "taxonomy": 0}
+
+    async def fake_spplist(region_code):
+        calls["spplist"] += 1
+        await asyncio.sleep(0.01)  # give the second caller a chance to arrive mid-fetch
+        return RAW_SPPLIST
+
+    async def fake_taxonomy(species_codes):
+        calls["taxonomy"] += 1
+        return RAW_TAXONOMY
+
+    monkeypatch.setattr(ebird, "get_region_spplist", fake_spplist)
+    monkeypatch.setattr(ebird, "get_taxonomy", fake_taxonomy)
+    monkeypatch.setattr(region_repo, "_locks", {})
+
+    async def both():
+        return await asyncio.gather(region_repo.get_checklist("US-NC"), region_repo.get_checklist("US-NC"))
+
+    first, second = asyncio.run(both())
+    assert first == second
+    assert calls == {"spplist": 1, "taxonomy": 1}
+
+
 def test_get_checklist_drops_non_species_and_sorts_taxonomically(monkeypatch):
     calls = {"spplist": 0, "taxonomy": 0}
 

@@ -57,6 +57,7 @@ class ObservationRepo(Protocol):
     async def list_for_user(self, user_id: str, scientific_name: str | None = None) -> list[Observation]: ...
     async def update(self, observation_id: str, payload: ObservationUpdate) -> Observation | None: ...
     async def list_near(self, lat: float, lng: float, radius_km: float, since: datetime) -> list[Observation]: ...
+    async def latest_photo_url(self, scientific_name: str) -> str | None: ...
 
 
 class InMemoryObservationRepo:
@@ -117,6 +118,16 @@ class InMemoryObservationRepo:
         ]
 
 
+    async def latest_photo_url(self, scientific_name: str) -> str | None:
+        name = scientific_name.lower()
+        candidates = [
+            o
+            for o in self._by_id.values()
+            if o.photo_url and o.status == "logged" and (o.species.scientific_name or "").lower() == name
+        ]
+        return max(candidates, key=lambda o: o.observed_at).photo_url if candidates else None
+
+
 class PostgresObservationRepo:
     """Real persistence against Postgres (Neon). See module docstring."""
 
@@ -131,6 +142,9 @@ class PostgresObservationRepo:
 
     async def update(self, observation_id: str, payload: ObservationUpdate) -> Observation | None:
         return await asyncio.to_thread(self._update_sync, observation_id, payload)
+
+    async def latest_photo_url(self, scientific_name: str) -> str | None:
+        return await asyncio.to_thread(self._latest_photo_url_sync, scientific_name)
 
     async def list_near(self, lat: float, lng: float, radius_km: float, since: datetime) -> list[Observation]:
         return await asyncio.to_thread(self._list_near_sync, lat, lng, radius_km, since)
@@ -310,6 +324,29 @@ class PostgresObservationRepo:
                     return None
 
         return self._get_sync(observation_id)
+
+    def _latest_photo_url_sync(self, scientific_name: str) -> str | None:
+        # Any user's logged observation, not just the caller's — this backs
+        # `bird_photos.get_stock_photo()`'s fallback for species Commons has
+        # no photo of (see that module's docstring).
+        pool = get_pool()
+        with pool.connection() as conn:
+            with conn.cursor(row_factory=dict_row) as cur:
+                cur.execute(
+                    """
+                    select o.photo_url
+                    from observations o
+                    join species s on s.id = o.species_id
+                    where lower(s.scientific_name) = lower(%s)
+                      and o.photo_url is not null and o.photo_url <> ''
+                      and o.status = 'logged'
+                    order by o.observed_at desc
+                    limit 1
+                    """,
+                    (scientific_name,),
+                )
+                row = cur.fetchone()
+        return row["photo_url"] if row else None
 
     def _list_near_sync(self, lat: float, lng: float, radius_km: float, since: datetime) -> list[Observation]:
         # No PostGIS geom column yet, so this can't do a real radius query in

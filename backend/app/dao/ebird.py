@@ -15,6 +15,7 @@ changeLog
 =============================
 """
 
+import asyncio
 from datetime import date
 from math import atan2, cos, radians, sin, sqrt
 
@@ -99,6 +100,42 @@ async def get_historic_checklist(region_code: str, d: date) -> list[dict]:
 
 _TAXONOMY_BATCH_SIZE = 500  # eBird 400s a `species=` list somewhere between 500 and 1000 codes
 
+# The full taxonomy (~17,900 taxa), fetched at most once per process — see
+# get_taxonomy(). A plain module global, same process-lifetime pattern as
+# region_repo.py's checklist cache; tests reset it to None.
+_full_taxonomy: list[dict] | None = None
+_full_taxonomy_lock = asyncio.Lock()
+
+_RATE_LIMIT_MAX_WAIT_SECONDS = 5.0
+
+
+async def _get_with_rate_limit_retry(client: httpx.AsyncClient, path: str, params: dict) -> httpx.Response:
+    """One retry on a 429, waiting eBird's `Retry-After` (capped) or 1s.
+    A real Render log: a burst of taxonomy calls got `429 Too Many Requests`
+    and failed the whole request on the first one."""
+    resp = await client.get(path, params=params)
+    if resp.status_code == 429:
+        try:
+            wait = float(resp.headers.get("Retry-After", 1))
+        except ValueError:
+            wait = 1.0
+        await asyncio.sleep(min(max(wait, 0.0), _RATE_LIMIT_MAX_WAIT_SECONDS))
+        resp = await client.get(path, params=params)
+    resp.raise_for_status()
+    return resp
+
+
+async def _get_full_taxonomy() -> list[dict]:
+    global _full_taxonomy
+    if _full_taxonomy is not None:
+        return _full_taxonomy
+    async with _full_taxonomy_lock:  # concurrent callers share one download
+        if _full_taxonomy is None:
+            async with _client() as client:
+                resp = await _get_with_rate_limit_retry(client, "/ref/taxonomy/ebird", {"fmt": "json"})
+                _full_taxonomy = resp.json()
+    return _full_taxonomy
+
 
 async def get_taxonomy(species_codes: list[str] | None = None) -> list[dict]:
     """Common/scientific names + family for eBird species codes.
@@ -107,27 +144,26 @@ async def get_taxonomy(species_codes: list[str] | None = None) -> list[dict]:
     scope it; omit for the full taxonomy). Needed by Life List (populating
     `species` from a region checklist) and Bird info (species search/profile).
 
-    A whole-country region (e.g. the US has ~1,800 species) blows past
-    eBird's undocumented limit on how many codes fit in one `species=` list
-    — confirmed by testing to fail somewhere between 500 and 1000 — so this
-    batches into `_TAXONOMY_BATCH_SIZE`-sized calls and merges the results.
+    A small list (one county, ~300 codes) is one scoped call. A list longer
+    than eBird's undocumented `species=` limit (fails somewhere between 500
+    and 1000 codes) used to be split into 500-code batches fired back to
+    back — ~22 calls for the quiz's default "world" region, which got
+    `429 Too Many Requests` on Render. Those now filter the full taxonomy
+    instead: one download, cached for the process, shared by every large
+    region.
     """
     if not species_codes:
-        async with _client() as client:
-            resp = await client.get("/ref/taxonomy/ebird", params={"fmt": "json"})
-            resp.raise_for_status()
-            return resp.json()
+        return await _get_full_taxonomy()
 
-    results: list[dict] = []
+    if len(species_codes) > _TAXONOMY_BATCH_SIZE:
+        wanted = set(species_codes)
+        return [t for t in await _get_full_taxonomy() if t.get("speciesCode") in wanted]
+
     async with _client() as client:
-        for i in range(0, len(species_codes), _TAXONOMY_BATCH_SIZE):
-            batch = species_codes[i : i + _TAXONOMY_BATCH_SIZE]
-            resp = await client.get(
-                "/ref/taxonomy/ebird", params={"fmt": "json", "species": ",".join(batch)}
-            )
-            resp.raise_for_status()
-            results.extend(resp.json())
-    return results
+        resp = await _get_with_rate_limit_retry(
+            client, "/ref/taxonomy/ebird", {"fmt": "json", "species": ",".join(species_codes)}
+        )
+        return resp.json()
 
 
 async def get_region_children(parent_code: str, region_type: str) -> list[dict]:

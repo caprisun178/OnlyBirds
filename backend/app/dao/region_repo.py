@@ -8,6 +8,7 @@ the same pattern as `app/dao/bird_photos.py`'s photo cache.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 
 import httpx
@@ -17,6 +18,11 @@ from app.data.exotic_exclusions import EXCLUDED_SPECIES_CODES
 
 _STALE_AFTER = timedelta(days=30)
 _cache: dict[str, dict] = {}  # region_code -> {"species": [...], "fetched_at": datetime}
+# One lock per region so concurrent first requests (e.g. Test Your Skill
+# loading its filters and its first question at once) share a single eBird
+# fetch instead of each running their own — the doubled burst was part of
+# a real `429 Too Many Requests` on Render.
+_locks: dict[str, asyncio.Lock] = {}
 
 # eBird's own hard cap on how far back "recent observations" can look —
 # see `_drop_escapees`.
@@ -32,10 +38,25 @@ async def get_checklist(region_code: str) -> list[dict]:
     ones in `app/data/exotic_exclusions.py`, for escapees outside what eBird's
     API can catch live. Cached per region.
     """
+    cached = _fresh(region_code)
+    if cached is not None:
+        return cached
+
+    async with _locks.setdefault(region_code, asyncio.Lock()):
+        cached = _fresh(region_code)  # another request may have filled it while this one waited
+        if cached is not None:
+            return cached
+        return await _fetch_checklist(region_code)
+
+
+def _fresh(region_code: str) -> list[dict] | None:
     cached = _cache.get(region_code)
     if cached and datetime.now(timezone.utc) - cached["fetched_at"] < _STALE_AFTER:
         return cached["species"]
+    return None
 
+
+async def _fetch_checklist(region_code: str) -> list[dict]:
     codes = await ebird.get_region_spplist(region_code)
     taxonomy = await ebird.get_taxonomy(codes) if codes else []
     species = sorted(

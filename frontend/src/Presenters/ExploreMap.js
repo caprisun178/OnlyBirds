@@ -528,6 +528,25 @@ export function mount(container, props = {}) {
     loadSightings();
   }
 
+  // Dragging the search-area circle's handles on the map (see
+  // SightingsMap.js#addSearchAreaHandles). Keeps the user's current pan/zoom
+  // rather than re-fitting — they just placed the circle where they can see
+  // it. A dragged radius is usually not one of the dropdown presets; the
+  // dropdown shows it as an extra "custom" option (see renderFilters()).
+  function setSearchArea({ lat, lng, radiusKm }) {
+    const moved = lat !== state.lat || lng !== state.lng;
+    if (!moved && radiusKm === state.radiusKm) return;
+    state.lat = lat;
+    state.lng = lng;
+    state.radiusKm = radiusKm;
+    if (moved) state.placeLabel = 'the selected area';
+    state.selectedSighting = null;
+    state.focusedAreaIndex = null;
+    preservedView = mapController?.getView?.(); // capture before render() nulls out mapController — see wireMap()'s comment
+    render();
+    loadSightings();
+  }
+
   // Switching units resets the radius to the new unit's own default (see
   // RADIUS_DEFAULT_BY_UNIT) rather than trying to convert/approximate the
   // old selection — e.g. mi's default is a plain 5, not whatever odd number
@@ -847,6 +866,9 @@ export function mount(container, props = {}) {
           </select>
           <select id="radius-filter" class="ob-select" style="width:auto;" ${state.lat == null ? 'disabled' : ''}>
             ${RADIUS_OPTIONS_BY_UNIT[state.distanceUnit].map((v) => `<option value="${v}" ${nativeToKm(v, state.distanceUnit) === state.radiusKm ? 'selected' : ''}>${v} ${state.distanceUnit}</option>`).join('')}
+            ${RADIUS_OPTIONS_BY_UNIT[state.distanceUnit].some((v) => nativeToKm(v, state.distanceUnit) === state.radiusKm)
+              ? ''
+              : `<option value="custom" selected>${escapeHtml(formatDistance(state.radiusKm))} (custom)</option>`}
           </select>
         </div>
         <div class="ob-field" style="flex-direction:row; align-items:center; gap: var(--ob-space-2);">
@@ -1052,7 +1074,7 @@ export function mount(container, props = {}) {
     return `
       <p class="ob-text-muted ob-text-sm">${matches.length} sighting${matches.length === 1 ? '' : 's'}${filterNote} near ${escapeHtml(state.placeLabel || 'this area')} in the last ${state.daysBack} days.</p>
       <p class="ob-text-muted ob-text-sm" style="margin-top: var(--ob-space-1);"><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--ob-color-success-text); margin-right: var(--ob-space-1); vertical-align:middle;"></span>${mineCount} ${mineCount === 1 ? 'is' : 'are'} yours.</p>
-      <p class="ob-text-muted ob-text-sm" style="margin-top: var(--ob-space-1);"><span style="display:inline-block; width:14px; height:0; border-top: 2px dashed #3aa0ff; margin-right: var(--ob-space-1); vertical-align:middle;"></span>Dashed circle = your ${formatDistance(state.radiusKm)} search area.</p>
+      <p class="ob-text-muted ob-text-sm" style="margin-top: var(--ob-space-1);"><span style="display:inline-block; width:14px; height:0; border-top: 2px dashed #3aa0ff; margin-right: var(--ob-space-1); vertical-align:middle;"></span>Dashed circle = your ${formatDistance(state.radiusKm)} search area. Drag its center to move it, or its edge to resize it.</p>
     `;
   }
 
@@ -1179,6 +1201,7 @@ export function mount(container, props = {}) {
       isSelected,
       searchArea,
       fitSearchArea: jumpToSearchArea,
+      onSearchAreaChange: setSearchArea,
     })
       .then((controller) => {
         if (generation !== mapGeneration) {

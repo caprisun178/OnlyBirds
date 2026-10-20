@@ -184,3 +184,86 @@ def test_region_for_point_falls_back_to_world_without_crashing_when_ebird_unconf
     monkeypatch.setattr(ebird, "get_hotspots_near", no_key)
 
     assert asyncio.run(ebird.region_for_point(36.1, -80.1)) == "world"
+
+
+def _mock_ebird(monkeypatch, handler):
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    get_settings.cache_clear()
+    real_async_client = httpx.AsyncClient
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            self._client = real_async_client(
+                base_url=kwargs.get("base_url", ""), transport=httpx.MockTransport(handler)
+            )
+
+        async def __aenter__(self):
+            return self._client
+
+        async def __aexit__(self, *args):
+            await self._client.aclose()
+
+    monkeypatch.setattr(ebird.httpx, "AsyncClient", FakeAsyncClient)
+
+
+def _taxon(code):
+    return {"speciesCode": code, "comName": code, "sciName": code, "category": "species"}
+
+
+def test_get_taxonomy_small_list_is_one_scoped_call(monkeypatch):
+    calls = []
+
+    def handler(request):
+        calls.append(dict(request.url.params))
+        return httpx.Response(200, json=[_taxon("norcar")])
+
+    _mock_ebird(monkeypatch, handler)
+    result = asyncio.run(ebird.get_taxonomy(["norcar", "amerob"]))
+
+    assert len(calls) == 1
+    assert calls[0]["species"] == "norcar,amerob"
+    assert [t["speciesCode"] for t in result] == ["norcar"]
+
+
+def test_get_taxonomy_large_list_filters_one_cached_full_download(monkeypatch):
+    calls = []
+    full = [_taxon(f"sp{i}") for i in range(2000)]
+
+    def handler(request):
+        calls.append(dict(request.url.params))
+        return httpx.Response(200, json=full)
+
+    _mock_ebird(monkeypatch, handler)
+    codes = [f"sp{i}" for i in range(0, 2000, 2)]  # 1000 codes — over the 500 batch limit
+
+    first = asyncio.run(ebird.get_taxonomy(codes))
+    second = asyncio.run(ebird.get_taxonomy(codes[:600]))
+
+    assert len(calls) == 1  # one full download, reused by the second call
+    assert "species" not in calls[0]
+    assert {t["speciesCode"] for t in first} == set(codes)
+    assert len(second) == 600
+
+
+def test_get_taxonomy_retries_once_after_a_429(monkeypatch):
+    responses = [httpx.Response(429, headers={"Retry-After": "0"}), httpx.Response(200, json=[_taxon("norcar")])]
+
+    def handler(request):
+        return responses.pop(0)
+
+    _mock_ebird(monkeypatch, handler)
+    result = asyncio.run(ebird.get_taxonomy(["norcar"]))
+
+    assert [t["speciesCode"] for t in result] == ["norcar"]
+    assert responses == []
+
+
+def test_get_taxonomy_raises_after_a_second_429(monkeypatch):
+    import pytest
+
+    def handler(request):
+        return httpx.Response(429, headers={"Retry-After": "0"})
+
+    _mock_ebird(monkeypatch, handler)
+    with pytest.raises(httpx.HTTPStatusError):
+        asyncio.run(ebird.get_taxonomy(["norcar"]))
