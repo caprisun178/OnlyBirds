@@ -81,3 +81,20 @@ def test_profile_counts_life_list(client):
         },
     )
     assert client.get("/users/hawkeye").json()["life_list_total"] == 1
+
+
+def test_profile_counts_stickers(client):
+    import asyncio
+
+    from app.dao import sticker_repo as sticker_repo_module
+
+    client.post("/users", json={"auth_provider_id": "u1", "username": "hawkeye"})
+    assert client.get("/users/hawkeye").json()["sticker_count"] == 0
+
+    repo = sticker_repo_module.sticker_repo
+    code = next(iter(repo._stickers))
+    asyncio.run(repo.award("u1", code))
+
+    assert client.get("/users/hawkeye").json()["sticker_count"] == 1
+    # The route from the real Render traceback (routers/users.py#get_user_by_id).
+    assert client.get("/users/by-id/u1").json()["sticker_count"] == 1

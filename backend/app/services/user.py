@@ -11,6 +11,7 @@ from app.config import get_settings
 from app.dao.user_repo import user_repo
 from app.models.user import User, UserCreate, UserProfile, UserUpdate
 from app.services.life_list import get_life_list
+from app.dao.sticker_repo import sticker_repo
 
 
 class UsernameTaken(Exception):
@@ -25,8 +26,7 @@ async def _to_profile(user: User) -> UserProfile:
         avatar_url=user.avatar_url,
         default_region=user.default_region,
         life_list_total=len(life_list),
-        # TODO: count the user's stickers once the Stickers feature merges.
-        sticker_count=0,
+        sticker_count=len(await sticker_repo.list_awards(user.auth_provider_id)),
     )
 
 

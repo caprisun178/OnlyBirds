@@ -115,6 +115,7 @@ def no_live_media_lookups(monkeypatch):
     fresh_stickers = InMemoryStickerRepo()
     monkeypatch.setattr("app.dao.sticker_repo.sticker_repo", fresh_stickers)
     monkeypatch.setattr("app.services.stickers.sticker_repo", fresh_stickers)
+    monkeypatch.setattr("app.services.user.sticker_repo", fresh_stickers)
 
 
 @pytest.fixture()
