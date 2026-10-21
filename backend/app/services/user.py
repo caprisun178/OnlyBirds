@@ -26,11 +26,7 @@ async def _to_profile(user: User) -> UserProfile:
         avatar_url=user.avatar_url,
         default_region=user.default_region,
         life_list_total=len(life_list),
-        # Stickers are currently an in memory prototype store (see
-        # app/dao/ sticker_repo.py's module docstring) — this count will
-        # keep working unchanged once that's replaced w/ real Postgres
-        # persistence.
-        sticker_count=len(sticker_repo.list_awards(user.auth_provider_id)),
+        sticker_count=len(await sticker_repo.list_awards(user.auth_provider_id)),
     )
 
 
