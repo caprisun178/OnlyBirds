@@ -26,3 +26,5 @@ site/
 
 # GitHub wiki preview (scripts/build_wiki.py)
 wiki-out/
+# photo-ID model weights + precomputed embeddings (HF_HOME on Render)
+backend/.cache/

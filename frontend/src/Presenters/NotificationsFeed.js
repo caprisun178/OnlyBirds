@@ -7,9 +7,10 @@
 
 import { notificationsService } from '../Services/notifications.js';
 import { escapeHtml } from '../Components/htmlUtils.js';
+import { getCurrentUserId } from '../Services/auth.js';
 
 export function mount(container, props = {}) {
-  const { onNavigate, userId = 'u1' } = props;
+  const { onNavigate, userId = getCurrentUserId() } = props;
 
   const state = {
     loading: true,
@@ -52,14 +53,18 @@ export function mount(container, props = {}) {
 
   // The row's primary action — opening a notification reads it (same
   // convention as email/chat apps: viewing something marks it read, no
-  // separate "mark read" tap needed) and, for a pin_hit (the only kind that
-  // points at anything right now), jumps to the map (= 'home' — there's no
+  // separate "mark read" tap needed). A sticker_awarded opens the sticker
+  // shelf; a pin_hit jumps to the map (= 'home' — there's no
   // separate Explore Map route; Home IS the map screen, see preview.js)
   // centered on and showing the detail panel for the exact sighting that
   // triggered it.
   function openNotification(n) {
     markOneRead(n.id);
     if (!onNavigate) return; // standalone preview — nothing to navigate to
+    if (n.kind === 'sticker_awarded') {
+      onNavigate('stickers');
+      return;
+    }
     const observationId = n.payload?.observation_id;
     if (observationId) onNavigate('home', { focusObservationId: observationId });
   }
@@ -137,7 +142,9 @@ export function mount(container, props = {}) {
           <p class="ob-card__body" style="margin: 0;">${renderBody(n)}</p>
           <p class="ob-text-muted ob-text-sm" style="margin: var(--ob-space-1) 0 0;">${escapeHtml(dateLabel)}</p>
         </div>
-        ${hasMapTarget ? '<span class="ob-text-muted ob-text-sm" aria-hidden="true">View on map →</span>' : ''}
+        ${n.kind === 'sticker_awarded'
+          ? '<span class="ob-text-muted ob-text-sm" aria-hidden="true">View stickers →</span>'
+          : hasMapTarget ? '<span class="ob-text-muted ob-text-sm" aria-hidden="true">View on map →</span>' : ''}
       </li>
     `;
   }
@@ -150,8 +157,11 @@ export function mount(container, props = {}) {
         ? `<strong>${escapeHtml(name)}</strong> was just reported in ${escapeHtml(region)}`
         : `<strong>${escapeHtml(name)}</strong> was just reported nearby`;
     }
+    if (n.kind === 'sticker_awarded') {
+      return `You earned the <strong>${escapeHtml(n.payload?.name || 'new')}</strong> sticker`;
+    }
     // Forward-compatible fallback for a notification kind this screen
-    // doesn't have specific copy for yet (e.g. a future sticker_awarded).
+    // doesn't have specific copy for yet.
     return escapeHtml(n.kind.replace(/_/g, ' '));
   }
 

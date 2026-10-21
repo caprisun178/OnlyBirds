@@ -373,3 +373,17 @@ def test_full_wizard_confirms_species_and_logs_field_notes(client):
 
     life_list = client.get("/users/u1/life-list").json()
     assert any(e["species"]["common_name"] == "Blue Jay" for e in life_list)
+
+
+def test_identify_config_reports_photo_enabled(client):
+    assert client.get("/identify/config").json() == {"photo": True}
+
+
+def test_photo_identify_is_503_when_turned_off(client, monkeypatch):
+    from app.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "photo_id_enabled", False)
+
+    assert client.get("/identify/config").json() == {"photo": False}
+    r = client.post("/identify/photo", files={"file": ("bird.jpg", b"fake", "image/jpeg")})
+    assert r.status_code == 503

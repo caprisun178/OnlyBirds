@@ -1,6 +1,6 @@
 # User profiles
 
-> **Status:** Partial — backend done (POST /users, GET /users/{username}, PATCH /users/{id}); frontend planned done soon.
+> **Status:** Partial — backend done (POST /users, GET /users/by-id/{id}, GET /users/{username}, PATCH /users/{id}); frontend own-profile screen done (avatar, life list + sticker counts, default-region picker). Sign in with Google done, enforced on every user-scoped endpoint. Still planned: avatar upload, public profile view, picking a username.
 
 ## 1. What you're building
 
@@ -45,10 +45,63 @@ override it locally for a session without changing the saved value.
 
 ### Auth
 
-Auth is delegated to a hosted provider (Auth0 / Supabase Auth). On first sign-in
-we create a `users` row keyed by `auth_provider_id`; the user then picks a
-`username`. The base server currently trusts `auth_provider_id` as passed —
-token verification is a follow-up.
+Sign in with Google. No passwords stored, no third auth provider in between.
+
+1. The Login screen (`Presenters/Login.js`) renders Google's own button
+   (Google Identity Services, loaded by `Dao/googleIdentity.js`). Signing in
+   gives the frontend a Google **ID token**.
+2. `POST /auth/google {credential}` sends it to the backend, which asks Google
+   to verify it (`app/dao/google_auth.py`, Google's `tokeninfo` endpoint) and
+   checks it was issued for our `GOOGLE_CLIENT_ID`.
+3. The backend get-or-creates the `users` row with
+   `auth_provider_id = "google:<sub>"` (Google's stable account id). On the first
+   sign-in the Google profile photo becomes `avatar_url`. It never overwrites one
+   the user set themselves.
+4. It returns **our own session token**: an HMAC-signed `{sub, exp}` under
+   `SESSION_SECRET`, valid `SESSION_TTL_DAYS` (30). It's stateless, so nothing is
+   stored server-side and signing out is just the frontend forgetting it.
+5. The frontend keeps the session in `localStorage` (`Services/auth.js`), and
+   `Dao/apiClient.js` sends `Authorization: Bearer <token>` on every request.
+   A 401 on a request that carried the token signs the user out locally.
+
+**Enforcement (backend, `app/routers/deps.py`).** Every `/users/{user_id}/...`
+endpoint (observations, life list, pins, notifications, stickers) and
+`PATCH /users/{id}` returns **401** when signed out and **403** when `user_id`
+isn't the caller. `POST /observations` checks the body's `user_id`, and
+`PATCH /observations/{id}` checks the observation's owner. `POST /uploads/photo`
+needs any signed-in user. Optional `?user_id=` params (region checklist, trip
+plan) work without it but are checked when present. Public reads
+(`GET /users/{username}`, `GET /users/by-id/{id}`, sightings, species, the map)
+need no sign-in. `POST /feedback` works signed out; signed in, the report is
+attributed from the session, not the body.
+
+**Admins.** `/admin/...` (the Bug Backlog) requires a signed-in user whose
+Google email is in `ADMIN_EMAILS` (comma-separated, case-insensitive): **401**
+signed out, **403** otherwise. The check runs on every request against the email
+stored at sign-in, so editing `ADMIN_EMAILS` takes effect immediately. The
+frontend gets `is_admin` from `POST /auth/google` and `GET /auth/me`, re-checked
+once at startup, and uses it only to show or hide the Bug Backlog link and route.
+
+**Signed out (frontend).** `preview.js`'s `SIGN_IN_REQUIRED` routes
+(Add Observation, Life List, observation log, Stickers, Notifications, Profile)
+redirect to Login and come back afterwards. Home disables those links and hides
+the notification bell. Explore Map disables "Only my sightings" and skips
+"new for you". Species pages hide seen status and disable pinning. Test Your
+Skill starts at "Anywhere".
+
+**Setup.** Set `GOOGLE_CLIENT_ID` and `SESSION_SECRET` in `backend/.env`
+(see `.env.example` for where to get each). Until both are set,
+`GET /auth/config` returns `{"google_client_id": null}`, the Login screen says
+sign-in isn't configured, and the app behaves as signed out.
+
+| Method | Path | Notes |
+|---|---|---|
+| `GET` | `/auth/config` | `{google_client_id}`, public, null while unconfigured |
+| `POST` | `/auth/google` | `{credential}` → `{token, expires_at, name, profile}`. 401 bad token, 503 unconfigured |
+| `GET` | `/auth/me` | the signed-in user's profile, 401 if signed out |
+
+The old test user `u1` isn't migrated: its rows stay in the database, but
+nothing in the app signs in as it any more.
 
 ## 2. Where the data comes from and where it goes
 
@@ -119,11 +172,11 @@ select count(*) from user_stickers where user_id = $1;   -- sticker count
 |---|---|---|
 | `dao/` | `app/dao/user_repo.py` (**new**) | CRUD on `users`; the two `count(*)` queries |
 | `services/` | `app/services/user.py` (**new**) | assemble the profile response (row + counts); validate a `username` is free |
-| `routers/` | `app/routers/users.py` (**new**) | `POST /users`, `GET /users/{username}`, `PATCH /users/{id}` |
-| `Dao/` | `frontend/src/Dao/user.js` (extend) | profile fetch + `PATCH` |
+| `routers/` | `app/routers/users.py` (**new**) | `POST /users`, `GET /users/by-id/{id}`, `GET /users/{username}`, `PATCH /users/{id}` |
+| `Dao/` | `frontend/src/Dao/users.js` | profile fetch by id, create, `PATCH` |
 | `Services/` | `frontend/src/Services/profile.js` (**new**) | UI-shaped profile model |
-| `Presenters/` | `Presenters/Profile.js` (**new**) | own-profile edit form + public view |
-| `Components/` | `Avatar`, `RegionPicker`, `StatCount` | presentational; `RegionPicker` is shared with the Life List |
+| `Presenters/` | `Presenters/Profile.js` (**new**) | own-profile edit form (public view still planned) |
+| `Components/` | `Avatar`, `RegionPicker` | presentational; `RegionPicker` is meant to be shared with the Life List (which still has its own inline copy) |
 
 ## 6. Build order
 

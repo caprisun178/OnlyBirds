@@ -1,6 +1,7 @@
 // services/observations.js — business logic over the observation + life-list DAOs.
 import { observationDAO } from '../Dao/observations.js';
 import { lifeListDAO } from '../Dao/lifelist.js';
+import { stickersDAO } from '../Dao/stickers.js';
 
 export const observationService = {
   async logObservation(userId, observationInput) {
@@ -12,8 +13,8 @@ export const observationService = {
     return { observation: created, isNewSpecies };
   },
 
-  async getSortedObservations(userId) {
-    const raw = await observationDAO.getAll(userId);
+  async getSortedObservations(userId, scientificName) {
+    const raw = await observationDAO.getAll(userId, scientificName);
     return [...raw].sort(
       (a, b) => new Date(b.observed_at) - new Date(a.observed_at),
     );
@@ -56,7 +57,15 @@ export const observationService = {
       status: 'logged',
     });
 
-    return { observation: created, isNewSpecies: !alreadySeen };
+    // Stickers this sighting just earned (POST /observations returns them),
+    // with art URLs resolved against the API host like the sticker shelf's.
+    const stickersEarned = (created.stickers_earned || []).map((sticker) => ({
+      ...sticker,
+      earned: true,
+      image_url: sticker.image_url ? stickersDAO.assetUrl(sticker.image_url) : null,
+    }));
+
+    return { observation: created, isNewSpecies: !alreadySeen, stickersEarned };
   },
 
   // Edits an already-logged observation. `fieldNotes` uses the same shape as

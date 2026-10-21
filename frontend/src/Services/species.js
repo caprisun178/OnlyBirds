@@ -23,11 +23,13 @@ export const speciesService = {
   },
 
   // The Bird Info page's profile — see docs/features/bird-info.md.
+  // `commonName`/`family` are optional overrides for a caller that already
+  // has them (Test Your Skill's reveal — see Dao/species.js's own note).
   // common_name/family/about/sex_differences/migration/habitat are all
   // independently nullable server-side; left as-is (null, not defaulted to
   // '') so the Presenter can tell "not mentioned" apart from "empty string."
-  async getProfile(scientificName) {
-    const p = await speciesDAO.profile(scientificName);
+  async getProfile(scientificName, { commonName, family } = {}) {
+    const p = await speciesDAO.profile(scientificName, { commonName, family });
     return {
       scientificName: p.scientific_name,
       commonName: p.common_name,
@@ -41,6 +43,8 @@ export const speciesService = {
       sexDifferences: p.sex_differences,
       migration: p.migration,
       habitat: p.habitat,
+      // true / false / null (iNaturalist had no exact match — unknown)
+      extinct: p.extinct,
     };
   },
 };

@@ -215,7 +215,15 @@ multi-session project once it's time to build it for real.
   100km at once) instead of preserving the prior pan/zoom the way other
   filter changes do — `locationJustChanged`/`radiusJustChanged` in
   `ExploreMap.js#wireMap()` are the two exceptions to that preservation,
-  since both change what the circle itself covers. A one-line legend under
+  since both change what the circle itself covers. The circle is also
+  editable on the map itself (`onSearchAreaChange` option): a center handle
+  drags the whole circle to a new spot, an edge handle resizes it (whole km,
+  clamped to the endpoint's 1–200 `radius_km` range). Releasing either one
+  calls `ExploreMap.js#setSearchArea()`, which re-runs the nearby query
+  *keeping* the current pan/zoom (the user just placed the circle where they
+  can see it), labels the place "the selected area" if the center moved, and
+  shows a non-preset radius as an extra "(custom)" option in the radius
+  dropdown. A one-line legend under
   the map (part of `renderStatusLine()`) explains the dashed line, same as
   the green-dot legend for "yours." Basemap is Esri's "Light Gray Canvas"
   tile set (`leaflet.js#addBaseTileLayer()`) instead of standard

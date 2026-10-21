@@ -7,6 +7,11 @@ uploaded their own photo of), and Explore Map's species-filter suggestions
 (`app/services/species.py#get_stock_photos`, most of which are eBird
 sightings that never carry their own photo).
 
+When Commons has nothing, `get_stock_photo()` checks our own database next
+— any user's logged observation of that species with a photo (newest first)
+— before falling back to the placeholder. Not cached: a photo added to the
+database later should show up without clearing `species_photo_cache.json`.
+
 The cache used to be process-lifetime only — real, reported effect: the
 first Commons lookup for a given species (one real HTTP round-trip) is
 noticeably slow, and every server restart threw the whole cache away,
@@ -23,11 +28,13 @@ version that doesn't need a migration to get most of the benefit today.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 from urllib.parse import quote
 
 from app.dao import commons
+from app.dao import observation_repo as observation_repo_module
 
 _CACHE_FILE = Path(__file__).resolve().parent.parent / "data" / "species_photo_cache.json"
 
@@ -95,6 +102,20 @@ def _placeholder_photo(common_name: str) -> str:
     return f"https://placehold.co/320x220/{_PLACEHOLDER_COLOR}/ffffff?text={quote(common_name)}"
 
 
+_OBSERVATION_ATTRIBUTION = "Photo from an OnlyBirds observation"
+
+
+async def _observation_photo(scientific_name: str) -> str | None:
+    # Looked up through the module (not a direct import of the instance) so
+    # tests' fresh in-memory repo — see conftest.py — is the one used here.
+    try:
+        return await observation_repo_module.observation_repo.latest_photo_url(scientific_name)
+    except Exception as exc:
+        # Best-effort, same as the Commons lookup — the placeholder still works.
+        print(f"bird_photos: observation photo lookup failed for {scientific_name!r}: {exc}", flush=True)
+        return None
+
+
 async def _lookup(scientific_name: str) -> dict | None:
     if scientific_name in _cache:
         return _cache[scientific_name]
@@ -111,16 +132,19 @@ async def get_photo(bird: dict) -> dict:
     """`bird` is one of the dicts from `app/data/birds.py`. Looks up (and
     caches) a real Commons photo by scientific name; falls back to `bird`'s
     placeholder `photo_url` if Commons has nothing or the request fails.
-    Returns `{photo_url, attribution}` — `attribution` is `None` for the
-    placeholder, since there's no Commons content to credit.
+    Returns `{photo_url, attribution, flagged}` — `attribution` is `None`
+    for the placeholder, since there's no Commons content to credit.
+    `flagged` (see `commons.py#_search()`) is `False` for the placeholder —
+    there's nothing to doubt about a picture we generated ourselves.
     """
     result = await _lookup(bird["scientific_name"])
     if result:
         return {
             "photo_url": result["media_url"],
             "attribution": commons.format_attribution(result),
+            "flagged": result.get("flagged", False),
         }
-    return {"photo_url": bird["photo_url"], "attribution": None}
+    return {"photo_url": bird["photo_url"], "attribution": None, "flagged": False}
 
 
 async def get_stock_photo(scientific_name: str, common_name: str) -> dict:
@@ -128,13 +152,70 @@ async def get_stock_photo(scientific_name: str, common_name: str) -> dict:
     generated placeholder (labelled with `common_name`, same style as
     `app/data/birds.py`'s) if Commons has nothing or the request fails, so a
     seen species without the user's own photo never renders with no image at
-    all. Returns `{photo_url, attribution}`; `attribution` is `None` for the
-    placeholder, same convention as `get_photo()`.
+    all. Between the two, an observation photo from our own database (see
+    the module docstring) — attributed, so the quiz treats it as real. Returns `{photo_url, attribution, flagged}`; `attribution` is
+    `None` for the placeholder, same convention as `get_photo()`. `.get()`
+    on `flagged` (not a plain index) because cache entries written before
+    this field existed don't have it — treated as "not flagged" rather than
+    invalidating the whole cache; see `get_different_stock_photo()` for the
+    actual remediation path for an already-cached bad photo.
     """
     result = await _lookup(scientific_name)
     if result:
         return {
             "photo_url": result["media_url"],
             "attribution": commons.format_attribution(result),
+            "flagged": result.get("flagged", False),
         }
-    return {"photo_url": _placeholder_photo(common_name), "attribution": None}
+    observation_photo = await _observation_photo(scientific_name)
+    if observation_photo:
+        return {"photo_url": observation_photo, "attribution": _OBSERVATION_ATTRIBUTION, "flagged": False}
+    return {"photo_url": _placeholder_photo(common_name), "attribution": None, "flagged": False}
+
+
+async def get_different_stock_photo(scientific_name: str, common_name: str, exclude_photo_url: str) -> dict:
+    """"Try another photo of this species" — Test Your Skill's remediation
+    for a wrong/bad image (a quiz question showing a map instead of a bird
+    was the real report that motivated this), and also how an already-cached
+    bad photo actually gets fixed, not just newly-avoided ones (see
+    `get_stock_photo()`'s note on old cache entries predating `flagged`).
+
+    Deliberately bypasses `_lookup()`'s single-cached-result-per-species
+    shortcut — the whole point is a *different* result than whatever's
+    cached. If Commons has another real candidate, the cache is updated to
+    it (so this fix benefits every future lookup of this species too, not
+    just this one quiz session); if there's nothing else, the original
+    photo is returned unchanged with `changed: False` so the caller can tell
+    "no alternative exists" from "here's a different one."
+
+    Retries once on a transient `CommonsUnavailable` (one real, observed
+    case: a burst of quiz traffic hit Commons' rate limit) before giving up
+    — unlike `get_question()`'s own 12-attempt loop across *different*
+    species, this call has no other fallback, so a single rate-limited
+    moment would otherwise get reported to the user as "no other photo
+    exists" when Commons actually has plenty — confirmed live for several
+    species that hit this exact message.
+    """
+    result = None
+    for attempt in range(2):
+        try:
+            result = await commons.search_photo(scientific_name, exclude_media_urls=frozenset({exclude_photo_url}))
+            break
+        except commons.CommonsUnavailable:
+            if attempt == 0:
+                await asyncio.sleep(1)
+
+    if result is None:
+        existing = _cache.get(scientific_name)
+        photo_url = existing["media_url"] if existing else _placeholder_photo(common_name)
+        attribution = commons.format_attribution(existing) if existing else None
+        return {"photo_url": photo_url, "attribution": attribution, "flagged": False, "changed": False}
+
+    _cache[scientific_name] = result
+    _save_cache_file()
+    return {
+        "photo_url": result["media_url"],
+        "attribution": commons.format_attribution(result),
+        "flagged": result.get("flagged", False),
+        "changed": True,
+    }

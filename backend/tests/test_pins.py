@@ -124,7 +124,9 @@ def test_reporter_is_never_notified_of_their_own_sighting(client):
 
     _log(client, "u1", "Bubo scandiacus", "Snowy Owl", 47.6, -122.3)
 
-    assert client.get("/users/u1/notifications").json() == []
+    # (A sticker_awarded notification for u1's first bird is expected here.)
+    kinds = [n["kind"] for n in client.get("/users/u1/notifications").json()]
+    assert "pin_hit" not in kinds
 
 
 def test_logging_a_different_species_does_not_notify(client):

@@ -10,20 +10,21 @@
 automatically.
 """
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.models.pin import PinCreate, PinnedBird, PinRegionUpdate
+from app.routers.deps import require_self
 from app.services import pins as pins_service
 
 router = APIRouter(tags=["pins"])
 
 
-@router.get("/users/{user_id}/pins", response_model=list[PinnedBird])
+@router.get("/users/{user_id}/pins", response_model=list[PinnedBird], dependencies=[Depends(require_self)])
 async def list_pins(user_id: str):
     return await pins_service.list_pins(user_id)
 
 
-@router.post("/users/{user_id}/pins", response_model=PinnedBird, status_code=status.HTTP_201_CREATED)
+@router.post("/users/{user_id}/pins", response_model=PinnedBird, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_self)])
 async def create_pin(user_id: str, payload: PinCreate):
     try:
         return await pins_service.pin(user_id, payload)
@@ -31,7 +32,7 @@ async def create_pin(user_id: str, payload: PinCreate):
         raise HTTPException(status_code=409, detail="Already on your life list — nothing to chase")
 
 
-@router.patch("/users/{user_id}/pins/{scientific_name}", response_model=PinnedBird)
+@router.patch("/users/{user_id}/pins/{scientific_name}", response_model=PinnedBird, dependencies=[Depends(require_self)])
 async def update_pin(user_id: str, scientific_name: str, payload: PinRegionUpdate):
     pin = await pins_service.update_pin_region(user_id, scientific_name, payload.region)
     if pin is None:
@@ -39,7 +40,7 @@ async def update_pin(user_id: str, scientific_name: str, payload: PinRegionUpdat
     return pin
 
 
-@router.delete("/users/{user_id}/pins/{scientific_name}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/users/{user_id}/pins/{scientific_name}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_self)])
 async def delete_pin(user_id: str, scientific_name: str):
     deleted = await pins_service.unpin(user_id, scientific_name)
     if not deleted:

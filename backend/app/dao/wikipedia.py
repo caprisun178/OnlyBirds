@@ -44,24 +44,37 @@ class WikipediaUnavailable(Exception):
 
 
 async def get_summary(title: str) -> dict | None:
+    """Thin public wrapper around `_fetch_summary()` — the autouse
+    `no_live_media_lookups` test fixture stubs this name out (same
+    public/private split as `app/dao/commons.py`'s `search_photo` wrapping
+    `_search`), so a test exercising the real HTTP/parsing logic calls
+    `_fetch_summary()` directly instead — see test_wikipedia.py.
+    """
+    return await _fetch_summary(title)
+
+
+async def _fetch_summary(title: str) -> dict | None:
     """One paragraph + the article URL for `title` (page title, not a
     scientific name — see bird-info.md's note on why common name first).
     Returns `None` for a 404 or a disambiguation page; raises
-    `WikipediaUnavailable` for anything that looks transient.
+    `WikipediaUnavailable` for anything that looks transient — confirmed
+    live: a 429 under the same kind of burst Commons' own API rate-limits
+    under, same reasoning as `app/dao/commons.py#CommonsUnavailable`. Every
+    status-code check and `raise_for_status()` call has to stay *inside*
+    the `try` below — a 429 is a 4xx, not a 5xx, so a version of this that
+    only special-cased `>= 500` before calling `raise_for_status()` outside
+    the `try` would let a 429 escape as a bare, uncaught `HTTPStatusError`.
     """
     settings = get_settings()
     url = f"{_REST_BASE}/page/summary/{httpx.URL(title).path or title}"
     try:
-        async with httpx.AsyncClient(timeout=settings.http_timeout_seconds, headers=_HEADERS) as client:
+        async with httpx.AsyncClient(timeout=settings.wikipedia_timeout_seconds, headers=_HEADERS) as client:
             resp = await client.get(url)
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
     except httpx.HTTPError as exc:
         raise WikipediaUnavailable(str(exc)) from exc
-
-    if resp.status_code == 404:
-        return None
-    if resp.status_code >= 500:
-        raise WikipediaUnavailable(f"Wikipedia summary returned {resp.status_code}")
-    resp.raise_for_status()
 
     data = resp.json()
     if data.get("type") == "disambiguation":
@@ -85,7 +98,7 @@ async def get_sections(title: str) -> dict[str, str]:
     """
     settings = get_settings()
     try:
-        async with httpx.AsyncClient(timeout=settings.http_timeout_seconds, headers=_HEADERS) as client:
+        async with httpx.AsyncClient(timeout=settings.wikipedia_timeout_seconds, headers=_HEADERS) as client:
             sections_resp = await client.get(
                 _ACTION_API,
                 params={"action": "parse", "page": title, "prop": "sections", "format": "json"},

@@ -54,9 +54,10 @@ def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
 class ObservationRepo(Protocol):
     async def add(self, payload: ObservationCreate) -> Observation: ...
     async def get(self, observation_id: str) -> Observation | None: ...
-    async def list_for_user(self, user_id: str) -> list[Observation]: ...
+    async def list_for_user(self, user_id: str, scientific_name: str | None = None) -> list[Observation]: ...
     async def update(self, observation_id: str, payload: ObservationUpdate) -> Observation | None: ...
     async def list_near(self, lat: float, lng: float, radius_km: float, since: datetime) -> list[Observation]: ...
+    async def latest_photo_url(self, scientific_name: str) -> str | None: ...
 
 
 class InMemoryObservationRepo:
@@ -89,8 +90,13 @@ class InMemoryObservationRepo:
     async def get(self, observation_id: str) -> Observation | None:
         return self._by_id.get(observation_id)
 
-    async def list_for_user(self, user_id: str) -> list[Observation]:
-        return [o for o in self._by_id.values() if o.user_id == user_id]
+    async def list_for_user(self, user_id: str, scientific_name: str | None = None) -> list[Observation]:
+        return [
+            o
+            for o in self._by_id.values()
+            if o.user_id == user_id
+            and (scientific_name is None or o.species.scientific_name == scientific_name)
+        ]
 
     async def update(self, observation_id: str, payload: ObservationUpdate) -> Observation | None:
         existing = self._by_id.get(observation_id)
@@ -112,6 +118,16 @@ class InMemoryObservationRepo:
         ]
 
 
+    async def latest_photo_url(self, scientific_name: str) -> str | None:
+        name = scientific_name.lower()
+        candidates = [
+            o
+            for o in self._by_id.values()
+            if o.photo_url and o.status == "logged" and (o.species.scientific_name or "").lower() == name
+        ]
+        return max(candidates, key=lambda o: o.observed_at).photo_url if candidates else None
+
+
 class PostgresObservationRepo:
     """Real persistence against Postgres (Neon). See module docstring."""
 
@@ -121,11 +137,14 @@ class PostgresObservationRepo:
     async def get(self, observation_id: str) -> Observation | None:
         return await asyncio.to_thread(self._get_sync, observation_id)
 
-    async def list_for_user(self, user_id: str) -> list[Observation]:
-        return await asyncio.to_thread(self._list_for_user_sync, user_id)
+    async def list_for_user(self, user_id: str, scientific_name: str | None = None) -> list[Observation]:
+        return await asyncio.to_thread(self._list_for_user_sync, user_id, scientific_name)
 
     async def update(self, observation_id: str, payload: ObservationUpdate) -> Observation | None:
         return await asyncio.to_thread(self._update_sync, observation_id, payload)
+
+    async def latest_photo_url(self, scientific_name: str) -> str | None:
+        return await asyncio.to_thread(self._latest_photo_url_sync, scientific_name)
 
     async def list_near(self, lat: float, lng: float, radius_km: float, since: datetime) -> list[Observation]:
         return await asyncio.to_thread(self._list_near_sync, lat, lng, radius_km, since)
@@ -245,7 +264,7 @@ class PostgresObservationRepo:
 
         return self._row_to_observation(row) if row else None
 
-    def _list_for_user_sync(self, user_id: str) -> list[Observation]:
+    def _list_for_user_sync(self, user_id: str, scientific_name: str | None = None) -> list[Observation]:
         pool = get_pool()
         with pool.connection() as conn:
             with conn.cursor(row_factory=dict_row) as cur:
@@ -254,16 +273,28 @@ class PostgresObservationRepo:
                 if user_row is None:
                     return []  # never logged anything — no point querying observations
 
+                # `scientific_name` scopes this to one species — e.g. Life
+                # List's "view this species' own log" entry point — so a
+                # prolific user's entire history doesn't have to cross the
+                # wire just to show a handful of rows for one bird (see
+                # frontend/src/Presenters/ObservationList.js).
+                params = [user_id, user_row["id"]]
+                species_filter = ""
+                if scientific_name is not None:
+                    species_filter = "and s.scientific_name = %s"
+                    params.append(scientific_name)
+
                 cur.execute(
-                    """
+                    f"""
                     select o.*, %s as user_auth_id,
                            s.scientific_name as species_scientific_name,
                            s.common_name as species_common_name
                     from observations o
                     left join species s on s.id = o.species_id
                     where o.user_id = %s
+                    {species_filter}
                     """,
-                    (user_id, user_row["id"]),
+                    params,
                 )
                 rows = cur.fetchall()
 
@@ -293,6 +324,29 @@ class PostgresObservationRepo:
                     return None
 
         return self._get_sync(observation_id)
+
+    def _latest_photo_url_sync(self, scientific_name: str) -> str | None:
+        # Any user's logged observation, not just the caller's — this backs
+        # `bird_photos.get_stock_photo()`'s fallback for species Commons has
+        # no photo of (see that module's docstring).
+        pool = get_pool()
+        with pool.connection() as conn:
+            with conn.cursor(row_factory=dict_row) as cur:
+                cur.execute(
+                    """
+                    select o.photo_url
+                    from observations o
+                    join species s on s.id = o.species_id
+                    where lower(s.scientific_name) = lower(%s)
+                      and o.photo_url is not null and o.photo_url <> ''
+                      and o.status = 'logged'
+                    order by o.observed_at desc
+                    limit 1
+                    """,
+                    (scientific_name,),
+                )
+                row = cur.fetchone()
+        return row["photo_url"] if row else None
 
     def _list_near_sync(self, lat: float, lng: float, radius_km: float, since: datetime) -> list[Observation]:
         # No PostGIS geom column yet, so this can't do a real radius query in

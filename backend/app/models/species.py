@@ -67,3 +67,6 @@ class SpeciesProfile(BaseModel):
     sex_differences: str | None = None
     migration: str | None = None
     habitat: str | None = None
+    # iNaturalist's taxon `extinct` flag — `None` when iNat had no exact
+    # match or was unreachable (unknown, not "extant").
+    extinct: bool | None = None

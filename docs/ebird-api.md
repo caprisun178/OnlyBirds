@@ -42,7 +42,7 @@ routers/sightings.py  →  services/sightings.py  →  dao/ebird.py  →  api.eb
 | Endpoint | dao function | Params | Used by |
 |---|---|---|---|
 | `GET /data/obs/geo/recent` | `get_nearby_bird_sightings()` in `dao/ebird.py` | `lat`, `lng`, `dist` (km), `back` (days) | `GET /sightings/nearby` |
-| `GET /ref/taxonomy/ebird` | `get_taxonomy()` | `species` (optional, comma-separated codes; batched — see the function's docstring) | Life List (`region_repo.get_checklist`) |
+| `GET /ref/taxonomy/ebird` | `get_taxonomy()` | `species` (optional, comma-separated codes; over 500 codes filters one cached full-taxonomy download instead, and a 429 is retried once — see the function's docstring) | Life List (`region_repo.get_checklist`) |
 | `GET /ref/region/list/{type}/{parentCode}` | `get_region_children()` | — | Life List's region picker |
 | `GET /product/spplist/{regionCode}` | `get_region_spplist()` | — | Life List (region's full checklist) |
 | `GET /data/obs/{regionCode}/recent` | `recent_obs_in_region()` | `back` (days, capped at 30 by eBird) | Life List, to drop currently-flagged escapees from a region checklist (see below) |
