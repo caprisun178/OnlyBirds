@@ -85,6 +85,65 @@ function layoutMarkerPositions(sightings) {
   return positioned;
 }
 
+// Same bounds as `GET /sightings/nearby`'s `radius_km` (backend/app/routers/sightings.py).
+const MIN_SEARCH_RADIUS_KM = 1;
+const MAX_SEARCH_RADIUS_KM = 200;
+
+function searchAreaHandleIcon(L, { size, title }) {
+  return L.divIcon({
+    className: 'ob-search-area-handle',
+    html: `<div title="${title}" style="width:${size}px;height:${size}px;border-radius:50%;background:#fff;border:3px solid #3aa0ff;box-shadow:0 1px 4px rgba(0,0,0,0.4);cursor:grab;"></div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+}
+
+// The point due east of `center`, `radiusMeters` away — where the resize
+// handle sits on the circle's edge.
+function eastEdge(L, center, radiusMeters) {
+  const metersPerDegreeLng = 111320 * Math.cos((center.lat * Math.PI) / 180);
+  return L.latLng(center.lat, center.lng + radiusMeters / metersPerDegreeLng);
+}
+
+function clampRadiusKm(km) {
+  return Math.min(Math.max(Math.round(km), MIN_SEARCH_RADIUS_KM), MAX_SEARCH_RADIUS_KM);
+}
+
+function addSearchAreaHandles(L, map, circle, onSearchAreaChange) {
+  const centerHandle = L.marker(circle.getLatLng(), {
+    draggable: true,
+    icon: searchAreaHandleIcon(L, { size: 20, title: 'Drag to move the search area' }),
+    zIndexOffset: 2000, // above every sighting pin, including the selected one
+    keyboard: false,
+  }).addTo(map);
+  const edgeHandle = L.marker(eastEdge(L, circle.getLatLng(), circle.getRadius()), {
+    draggable: true,
+    icon: searchAreaHandleIcon(L, { size: 16, title: 'Drag to resize the search area' }),
+    zIndexOffset: 2000,
+    keyboard: false,
+  }).addTo(map);
+
+  const report = () => {
+    const c = circle.getLatLng();
+    onSearchAreaChange({ lat: c.lat, lng: c.lng, radiusKm: clampRadiusKm(circle.getRadius() / 1000) });
+  };
+
+  centerHandle.on('drag', () => {
+    circle.setLatLng(centerHandle.getLatLng());
+    edgeHandle.setLatLng(eastEdge(L, circle.getLatLng(), circle.getRadius()));
+  });
+  centerHandle.on('dragend', report);
+
+  edgeHandle.on('drag', () => {
+    const km = clampRadiusKm(map.distance(circle.getLatLng(), edgeHandle.getLatLng()) / 1000);
+    circle.setRadius(km * 1000);
+  });
+  edgeHandle.on('dragend', () => {
+    edgeHandle.setLatLng(eastEdge(L, circle.getLatLng(), circle.getRadius())); // snap back onto the edge if dragged past a clamp
+    report();
+  });
+}
+
 /**
  * Mounts a map into `container` (give it a fixed height via CSS first).
  * `initialLatLng` is `[lat, lng]` or omitted (starts at `DEFAULT_CENTER`).
@@ -116,8 +175,14 @@ function layoutMarkerPositions(sightings) {
  * selected area is" report). `fitSearchArea: true` fits the initial view to
  * that whole circle instead of a fixed zoom on `initialLatLng` — a fixed
  * zoom can't suit every radius option (10km through 100km) at once.
+ *
+ * `onSearchAreaChange({ lat, lng, radiusKm })`, if given, makes that circle
+ * editable: a center handle drags the whole circle, an edge handle resizes
+ * it. The circle follows live while dragging; the callback fires once on
+ * release. `radiusKm` is a whole number clamped to the backend's
+ * `radius_km` range (MIN/MAX_SEARCH_RADIUS_KM).
  */
-export async function mountSightingsMap(container, { initialLatLng, onSelectSighting, isOwnSighting, isSelected, searchArea, fitSearchArea } = {}) {
+export async function mountSightingsMap(container, { initialLatLng, onSelectSighting, isOwnSighting, isSelected, searchArea, fitSearchArea, onSearchAreaChange } = {}) {
   const L = await loadLeaflet();
 
   const map = L.map(container).setView(initialLatLng || DEFAULT_CENTER, initialLatLng ? LOCATED_ZOOM : DEFAULT_ZOOM);
@@ -134,6 +199,7 @@ export async function mountSightingsMap(container, { initialLatLng, onSelectSigh
       fillOpacity: 0.04,
       interactive: false, // reference outline only — never swallow a click meant for a pin
     }).addTo(map);
+    if (onSearchAreaChange) addSearchAreaHandles(L, map, circle, onSearchAreaChange);
     if (fitSearchArea) {
       // The container was just inserted into the DOM this render (every
       // render() here fully rebuilds the map's container), so Leaflet's

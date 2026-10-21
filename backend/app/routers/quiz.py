@@ -5,6 +5,7 @@
     GET /quiz/another-photo?scientific_name=&common_name=&exclude_photo_url=
 """
 
+import httpx
 from fastapi import APIRouter, HTTPException, Query
 
 from app.dao.ebird import EBirdConfigError
@@ -26,6 +27,8 @@ async def get_question(
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except EBirdConfigError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail="eBird is busy right now — try again in a moment.") from exc
 
 
 @router.get("/filters")
@@ -34,6 +37,8 @@ async def get_filters(region_code: str = Query(default=DEFAULT_REGION)):
         return await quiz_service.get_filter_options(region_code)
     except EBirdConfigError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail="eBird is busy right now — try again in a moment.") from exc
 
 
 @router.get("/another-photo")

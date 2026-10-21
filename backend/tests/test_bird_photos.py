@@ -1,6 +1,8 @@
 import asyncio
 import json
 
+import pytest
+
 from app.dao import bird_photos, commons
 
 # Captured before conftest's autouse fixture monkeypatches _save_cache_file
@@ -98,6 +100,86 @@ def test_get_stock_photo_falls_back_to_a_generated_placeholder(monkeypatch):
     photo = asyncio.run(bird_photos.get_stock_photo("Turdus migratorius", "American Robin"))
     assert photo["photo_url"] == "https://placehold.co/320x220/5b7a99/ffffff?text=American%20Robin"
     assert photo["attribution"] is None
+
+
+@pytest.fixture(autouse=True)
+def in_memory_observations(monkeypatch):
+    """conftest.py only swaps in a fresh in-memory observation repo inside
+    its `client` fixture — these tests don't use `client`, and without this
+    `_log_observation()` would write to whatever real database `.env`
+    points at."""
+    from app.dao import observation_repo
+
+    monkeypatch.setattr(observation_repo, "observation_repo", observation_repo.InMemoryObservationRepo())
+
+
+def _log_observation(scientific_name, photo_url, observed_at="2026-05-31T12:00:00Z", status="logged", user_id="someone-else"):
+    from app.dao import observation_repo
+    from app.models.observation import ObservationCreate
+    from app.models.species import SpeciesRef
+
+    return asyncio.run(observation_repo.observation_repo.add(ObservationCreate(
+        user_id=user_id,
+        species=SpeciesRef(scientific_name=scientific_name, common_name="Dunlin"),
+        observed_at=observed_at,
+        photo_url=photo_url,
+        status=status,
+    )))
+
+
+def _commons_has_nothing(monkeypatch):
+    async def fake_search(query):
+        return None
+
+    monkeypatch.setattr(commons, "search_photo", fake_search)
+    monkeypatch.setattr(bird_photos, "_cache", {})
+
+
+def test_get_stock_photo_uses_an_observation_photo_when_commons_has_nothing(monkeypatch):
+    _commons_has_nothing(monkeypatch)
+    _log_observation("Calidris alpina", "https://supabase.example/old.jpg", observed_at="2026-01-01T00:00:00Z")
+    _log_observation("Calidris alpina", "https://supabase.example/new.jpg", observed_at="2026-05-31T00:00:00Z")
+
+    photo = asyncio.run(bird_photos.get_stock_photo("Calidris alpina", "Dunlin"))
+    assert photo["photo_url"] == "https://supabase.example/new.jpg"
+    assert photo["attribution"] == "Photo from an OnlyBirds observation"
+    assert photo["flagged"] is False
+
+
+def test_get_stock_photo_prefers_commons_over_an_observation_photo(monkeypatch):
+    async def fake_search(query):
+        return {"media_url": "https://upload.wikimedia.org/dunlin.jpg", "artist": "A", "license": "CC BY"}
+
+    monkeypatch.setattr(commons, "search_photo", fake_search)
+    monkeypatch.setattr(bird_photos, "_cache", {})
+    _log_observation("Calidris alpina", "https://supabase.example/dunlin.jpg")
+
+    photo = asyncio.run(bird_photos.get_stock_photo("Calidris alpina", "Dunlin"))
+    assert photo["photo_url"] == "https://upload.wikimedia.org/dunlin.jpg"
+
+
+def test_get_stock_photo_ignores_non_logged_observations_and_other_species(monkeypatch):
+    _commons_has_nothing(monkeypatch)
+    _log_observation("Calidris alpina", "https://supabase.example/draft.jpg", status="draft")
+    _log_observation("Calidris alba", "https://supabase.example/sanderling.jpg")
+
+    photo = asyncio.run(bird_photos.get_stock_photo("Calidris alpina", "Dunlin"))
+    assert photo["photo_url"].startswith("https://placehold.co/")
+    assert photo["attribution"] is None
+
+
+def test_get_stock_photo_falls_back_to_placeholder_when_the_observation_lookup_fails(monkeypatch):
+    from app.dao import observation_repo
+
+    _commons_has_nothing(monkeypatch)
+
+    async def broken(scientific_name):
+        raise RuntimeError("database down")
+
+    monkeypatch.setattr(observation_repo.observation_repo, "latest_photo_url", broken)
+
+    photo = asyncio.run(bird_photos.get_stock_photo("Calidris alpina", "Dunlin"))
+    assert photo["photo_url"].startswith("https://placehold.co/")
 
 
 def test_transient_commons_failure_falls_back_but_is_not_cached(monkeypatch):

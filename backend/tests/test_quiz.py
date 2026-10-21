@@ -239,6 +239,21 @@ def test_quiz_question_endpoint_503_without_an_ebird_key(client, monkeypatch):
     assert resp.status_code == 503
 
 
+def test_quiz_question_endpoint_502_when_ebird_rate_limits(client, monkeypatch):
+    import httpx
+
+    async def rate_limited(region_code):
+        request = httpx.Request("GET", "https://api.ebird.org/v2/ref/taxonomy/ebird")
+        raise httpx.HTTPStatusError("429", request=request, response=httpx.Response(429, request=request))
+
+    monkeypatch.setattr(quiz.region_repo, "get_checklist", rate_limited)
+
+    for path in ("/quiz/question?mode=photo", "/quiz/filters"):
+        resp = client.get(path)
+        assert resp.status_code == 502
+        assert "busy" in resp.json()["detail"]
+
+
 def test_get_another_photo_delegates_to_bird_photos(monkeypatch):
     async def fake_get_different(scientific_name, common_name, exclude_photo_url):
         assert scientific_name == "Ammodramus maritimus"

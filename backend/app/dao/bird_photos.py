@@ -7,6 +7,11 @@ uploaded their own photo of), and Explore Map's species-filter suggestions
 (`app/services/species.py#get_stock_photos`, most of which are eBird
 sightings that never carry their own photo).
 
+When Commons has nothing, `get_stock_photo()` checks our own database next
+— any user's logged observation of that species with a photo (newest first)
+— before falling back to the placeholder. Not cached: a photo added to the
+database later should show up without clearing `species_photo_cache.json`.
+
 The cache used to be process-lifetime only — real, reported effect: the
 first Commons lookup for a given species (one real HTTP round-trip) is
 noticeably slow, and every server restart threw the whole cache away,
@@ -29,6 +34,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from app.dao import commons
+from app.dao import observation_repo as observation_repo_module
 
 _CACHE_FILE = Path(__file__).resolve().parent.parent / "data" / "species_photo_cache.json"
 
@@ -96,6 +102,20 @@ def _placeholder_photo(common_name: str) -> str:
     return f"https://placehold.co/320x220/{_PLACEHOLDER_COLOR}/ffffff?text={quote(common_name)}"
 
 
+_OBSERVATION_ATTRIBUTION = "Photo from an OnlyBirds observation"
+
+
+async def _observation_photo(scientific_name: str) -> str | None:
+    # Looked up through the module (not a direct import of the instance) so
+    # tests' fresh in-memory repo — see conftest.py — is the one used here.
+    try:
+        return await observation_repo_module.observation_repo.latest_photo_url(scientific_name)
+    except Exception as exc:
+        # Best-effort, same as the Commons lookup — the placeholder still works.
+        print(f"bird_photos: observation photo lookup failed for {scientific_name!r}: {exc}", flush=True)
+        return None
+
+
 async def _lookup(scientific_name: str) -> dict | None:
     if scientific_name in _cache:
         return _cache[scientific_name]
@@ -132,7 +152,8 @@ async def get_stock_photo(scientific_name: str, common_name: str) -> dict:
     generated placeholder (labelled with `common_name`, same style as
     `app/data/birds.py`'s) if Commons has nothing or the request fails, so a
     seen species without the user's own photo never renders with no image at
-    all. Returns `{photo_url, attribution, flagged}`; `attribution` is
+    all. Between the two, an observation photo from our own database (see
+    the module docstring) — attributed, so the quiz treats it as real. Returns `{photo_url, attribution, flagged}`; `attribution` is
     `None` for the placeholder, same convention as `get_photo()`. `.get()`
     on `flagged` (not a plain index) because cache entries written before
     this field existed don't have it — treated as "not flagged" rather than
@@ -146,6 +167,9 @@ async def get_stock_photo(scientific_name: str, common_name: str) -> dict:
             "attribution": commons.format_attribution(result),
             "flagged": result.get("flagged", False),
         }
+    observation_photo = await _observation_photo(scientific_name)
+    if observation_photo:
+        return {"photo_url": observation_photo, "attribution": _OBSERVATION_ATTRIBUTION, "flagged": False}
     return {"photo_url": _placeholder_photo(common_name), "attribution": None, "flagged": False}
 
 

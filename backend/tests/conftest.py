@@ -74,6 +74,7 @@ def no_live_media_lookups(monkeypatch):
     monkeypatch.setattr("app.dao.commons.search_audio", _no_media)
     monkeypatch.setattr("app.dao.bird_photos._cache", {})
     monkeypatch.setattr("app.dao.bird_audio._cache", {})
+    monkeypatch.setattr("app.dao.ebird._full_taxonomy", None)
 
     async def _no_summary(title):
         return None
