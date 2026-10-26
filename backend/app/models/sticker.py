@@ -26,12 +26,18 @@ class Sticker(BaseModel):
     sort_order: int = 0
 
 
+class GroupMember(BaseModel):
+    ebird_code: str
+    scientific_name: str
+
+
 class Group(BaseModel):
     code: str
     kind: Literal["rank", "set"]
     rank_query: str | None = None
-    species_codes: list[str] = Field(default_factory=list)
+    members: list[GroupMember] = Field(default_factory=list)
     taxon_groups: list[str] = Field(default_factory=list)
+    common_name_terms: list[str] = Field(default_factory=list)
 
 
 class UserSticker(BaseModel):

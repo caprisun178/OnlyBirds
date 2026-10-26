@@ -17,8 +17,6 @@ async def log_observation(payload: ObservationCreate) -> LoggedObservation:
     from app.services.pins import evaluate_pins
     from app.services.stickers import evaluate_stickers, stickers_for
 
-    before_count = len(await get_life_list(payload.user_id))
-
     # Region is server-computed, never trusted from the caller.
     if payload.lat is not None and payload.lng is not None:
         region = await ebird.region_for_point(payload.lat, payload.lng)
@@ -27,7 +25,7 @@ async def log_observation(payload: ObservationCreate) -> LoggedObservation:
     observation = await observation_repo.add(payload)
     entries = await get_life_list(payload.user_id)
     awards = []
-    if len(entries) > before_count:
+    if observation.status == "logged":
         try:
             awards = await evaluate_stickers(payload.user_id, observation.id, entries)
         except Exception:  # noqa: BLE001 — the sighting is already saved; a sticker

@@ -2,19 +2,23 @@
   {
     "code": "owls",
     "kind": "set",
-    "species_codes": [],
-    "taxon_groups": ["owls"]
+    "taxon_groups": ["owls"],
+    "common_name_terms": ["owl"]
   },
   {
     "code": "eagles",
     "kind": "set",
-    "species_codes": ["baldeag", "goleag"],
-    "taxon_groups": ["eagles"]
+    "members": [
+      {"ebird_code": "baldeag", "scientific_name": "Haliaeetus leucocephalus"},
+      {"ebird_code": "goleag", "scientific_name": "Aquila chrysaetos"}
+    ],
+    "taxon_groups": ["eagles"],
+    "common_name_terms": ["eagle"]
   },
   {
     "code": "raptors",
     "kind": "set",
-    "species_codes": [],
-    "taxon_groups": ["raptors", "eagles", "hawks", "falcons"]
+    "taxon_groups": ["raptors", "eagles", "hawks", "falcons", "vultures"],
+    "common_name_terms": ["vulture", "owl", "eagle", "falcon", "hawk"]
   }
 ]

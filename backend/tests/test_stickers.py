@@ -4,9 +4,6 @@ from datetime import datetime, timezone
 import pytest
 
 from app.dao.sticker_repo import InMemoryStickerRepo
-from app.models.life_list import LifeListEntry
-from app.models.species import SpeciesRef
-from app.services.stickers import _group_progress
 
 
 @pytest.fixture()
@@ -30,9 +27,24 @@ def observation(user_id: str, species: dict, observed_at: str) -> dict:
 def test_catalog_and_first_bird_award(client, isolated_stickers):
     catalog = client.get("/stickers")
     assert catalog.status_code == 200
-    assert {sticker["code"] for sticker in catalog.json()} >= {"first_bird", "first_owl"}
+    catalog_codes = {sticker["code"] for sticker in catalog.json()}
+    assert catalog_codes >= {"first_bird", "first_owl"}
+    assert "all_eagles" not in catalog_codes
+    artwork = {
+        "first_bird": "/static/stickers/first_bird.png",
+        "first_owl": "/static/stickers/night_owl.png",
+        "first_eagle": "/static/stickers/eagle_eye.png",
+    }
+    catalog_images = {sticker["code"]: sticker["image_url"] for sticker in catalog.json()}
+    assert {code: catalog_images[code] for code in artwork} == artwork
+    for image_url in artwork.values():
+        image = client.get(image_url)
+        assert image.status_code == 200
+        assert image.headers["content-type"] == "image/png"
+        assert image.content.startswith(b"\x89PNG\r\n\x1a\n")
 
-    species = {"scientific_name": "Strix varia", "common_name": "Barred Owl", "taxon_group": "owls"}
+    # The wizard submits species names without a sticker/taxonomy group.
+    species = {"scientific_name": "Tyto alba", "common_name": "Barn Owl"}
     client.post("/observations", json=observation("u1", species, "2026-05-01T08:00:00+00:00"))
 
     shelf = client.get("/users/u1/stickers")
@@ -40,9 +52,51 @@ def test_catalog_and_first_bird_award(client, isolated_stickers):
     shelf_data = shelf.json()
     earned = {sticker["code"] for sticker in shelf_data["earned"]}
     assert earned >= {"first_bird", "first_owl"}
+    shelf_images = {sticker["code"]: sticker["image_url"] for sticker in shelf_data["earned"] + shelf_data["locked"]}
+    assert {code: shelf_images[code] for code in artwork} == artwork
     first_owl = next(sticker for sticker in shelf_data["earned"] if sticker["code"] == "first_owl")
     assert first_owl["progress"] == 1
-    assert first_owl["target"] is None
+    assert first_owl["target"] == 1
+
+
+@pytest.mark.parametrize(
+    ("scientific_name", "common_name", "expected_missing_stickers"),
+    [
+        ("Tyto alba", "Barn Owl", {"first_owl", "first_raptor"}),
+        ("Haliaeetus leucocephalus", "Bald Eagle", {"first_eagle", "first_raptor"}),
+    ],
+)
+def test_repeated_logged_sighting_backfills_missing_group_stickers(
+    client, isolated_stickers, scientific_name, common_name, expected_missing_stickers
+):
+    from app.models.observation import ObservationCreate
+    from app.services.observation import observation_repo
+
+    asyncio.run(
+        observation_repo.add(
+            ObservationCreate(
+                user_id="u1",
+                observed_at=datetime.fromisoformat("2026-05-01T08:00:00+00:00"),
+                source="manual",
+                species={"scientific_name": scientific_name, "common_name": common_name},
+            )
+        )
+    )
+    asyncio.run(isolated_stickers.award("u1", "first_bird"))
+
+    response = client.post(
+        "/observations",
+        json=observation(
+            "u1",
+            {"scientific_name": scientific_name, "common_name": common_name},
+            "2026-05-02T08:00:00+00:00",
+        ),
+    )
+
+    assert response.status_code == 201
+    assert {sticker["code"] for sticker in response.json()["stickers_earned"]} == expected_missing_stickers
+    earned = {sticker["code"] for sticker in client.get("/users/u1/stickers").json()["earned"]}
+    assert earned == {"first_bird"} | expected_missing_stickers
 
 
 def test_repeated_observation_does_not_duplicate_awards(client, isolated_stickers):
@@ -73,61 +127,64 @@ def test_only_logged_observations_update_stickers(client, isolated_stickers):
 
 
 def test_first_eagle_does_not_require_complete_set(client, isolated_stickers):
-    species = {
-        "scientific_name": "Haliaeetus leucocephalus",
-        "common_name": "Bald Eagle",
-        "source_ids": {"ebird": "baldeag"},
-    }
+    species = {"scientific_name": "Haliaeetus leucocephalus", "common_name": "Bald Eagle"}
     client.post("/observations", json=observation("u1", species, "2026-05-01T08:00:00+00:00"))
-
-    earned = {sticker["code"] for sticker in client.get("/users/u1/stickers").json()["earned"]}
-    assert "first_eagle" in earned
-    assert "all_eagles" not in earned
-
-
-def test_eagle_set_progress_completes_only_after_every_species():
-    def entry(code: str) -> LifeListEntry:
-        return LifeListEntry(
-            user_id="u1",
-            species=SpeciesRef(
-                scientific_name=code,
-                common_name=code,
-                source_ids={"ebird": code},
-            ),
-            first_observed_at=datetime.now(timezone.utc),
-        )
-
-    first_progress = _group_progress("eagles", [entry("baldeag")])
-    complete_progress = _group_progress("eagles", [entry("baldeag"), entry("goleag")])
-
-    assert first_progress == (1, 2, False)
-    assert complete_progress == (2, 2, True)
-
-
-def test_all_eagles_award_and_progress_are_updated(client, isolated_stickers):
-    for code, common_name, date in [
-        ("baldeag", "Bald Eagle", "2026-05-01"),
-        ("goleag", "Golden Eagle", "2026-05-02"),
-    ]:
-        response = client.post(
-            "/observations",
-            json=observation(
-                "u1",
-                {
-                    "scientific_name": common_name,
-                    "common_name": common_name,
-                    "source_ids": {"ebird": code},
-                },
-                f"{date}T08:00:00+00:00",
-            ),
-        )
-        assert response.status_code == 201
 
     shelf = client.get("/users/u1/stickers").json()
     earned = {sticker["code"] for sticker in shelf["earned"]}
-    all_eagles = next(sticker for sticker in shelf["earned"] if sticker["code"] == "all_eagles")
-    assert {"first_eagle", "all_eagles"} <= earned
-    assert (all_eagles["progress"], all_eagles["target"]) == (2, 2)
+    assert {"first_eagle", "first_raptor", "first_bird"} <= earned
+    assert "all_eagles" not in {sticker["code"] for sticker in shelf["locked"]}
+    first_eagle = next(sticker for sticker in shelf["earned"] if sticker["code"] == "first_eagle")
+    assert (first_eagle["progress"], first_eagle["target"]) == (1, 1)
+
+
+def test_any_eagle_subspecies_earns_eagle_eye(client, isolated_stickers):
+    response = client.post(
+        "/observations",
+        json=observation(
+            "u1",
+            {"scientific_name": "Aquila testii", "common_name": "Test Eagle"},
+            "2026-05-01T08:00:00+00:00",
+        ),
+    )
+
+    assert response.status_code == 201
+    earned = {sticker["code"] for sticker in response.json()["stickers_earned"]}
+    assert {"first_eagle", "first_raptor"} <= earned
+
+    shelf = client.get("/users/u1/stickers").json()
+    assert "all_eagles" not in {
+        sticker["code"] for sticker in shelf["earned"] + shelf["locked"]
+    }
+    first_eagle = next(sticker for sticker in shelf["earned"] if sticker["code"] == "first_eagle")
+    assert (first_eagle["progress"], first_eagle["target"]) == (1, 1)
+
+
+@pytest.mark.parametrize(
+    ("common_name", "expected_stickers"),
+    [
+        ("Turkey Vulture", {"first_bird", "first_raptor"}),
+        ("Barn Owl", {"first_bird", "first_owl", "first_raptor"}),
+        ("Test Eagle", {"first_bird", "first_eagle", "first_raptor"}),
+        ("Peregrine Falcon", {"first_bird", "first_raptor"}),
+        ("Red-tailed Hawk", {"first_bird", "first_raptor"}),
+    ],
+)
+def test_raptor_categories_award_bird_of_prey(
+    client, isolated_stickers, common_name, expected_stickers
+):
+    response = client.post(
+        "/observations",
+        json=observation(
+            "u1",
+            {"scientific_name": f"Test species for {common_name}", "common_name": common_name},
+            "2026-05-01T08:00:00+00:00",
+        ),
+    )
+
+    assert response.status_code == 201
+    earned = {sticker["code"] for sticker in response.json()["stickers_earned"]}
+    assert earned == expected_stickers
 
 
 def test_count_milestone_shows_progress_and_awards_at_threshold(client, isolated_stickers):

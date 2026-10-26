@@ -1,22 +1,22 @@
 # Sticker art
 
-One image per sticker in the catalog, named by the sticker `code` from
-[docs/features/stickers.md](../../../../docs/features/stickers.md):
+One image per illustrated sticker in the catalog from
+[docs/features/stickers.md](../../../../docs/features/stickers.md). Use the
+sticker `code` as the filename, with its actual file extension:
 
 ```
-first_bird.svg
-first_owl.svg
-first_eagle.svg
-all_eagles.svg
-species_100.svg
+first_bird.png
+night_owl.png
+eagle_eye.png
 ...
 ```
 
 - Prefer **SVG**. If raster, use PNG at 512×512 with transparency.
-- The backend serves this folder as static files at `/static/stickers/<code>.svg`.
-- The seed script sets `stickers.image_url = '/static/stickers/<code>.svg'` for
-  each row. A locked sticker is the same image shown greyed out by the client
-  (`Components/Sticker`), so no separate "locked" art is needed.
+- The backend serves this folder as static files at `/static/stickers/<filename>`.
+- Set the matching catalog entry's `image_url` in `backend/app/data/stickers.json`
+  to `/static/stickers/<filename>`. A locked sticker is the same image shown
+  greyed out by the client (`Components/StickerCard`), so no separate "locked"
+  art is needed.
 - Add the art in the same PR that adds the sticker to the catalog fixture, so
   the catalog and its images stay in sync.
 

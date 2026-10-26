@@ -3,7 +3,7 @@
     "code": "first_bird",
     "name": "First Bird",
     "description": "Log your first bird.",
-    "image_url": null,
+    "image_url": "/static/stickers/first_bird.png",
     "rule_type": "first_ever",
     "criteria": {},
     "rarity": "common",
@@ -13,7 +13,7 @@
     "code": "first_owl",
     "name": "Night Owl",
     "description": "Find your first owl.",
-    "image_url": null,
+    "image_url": "/static/stickers/night_owl.png",
     "rule_type": "first_in_group",
     "criteria": {"group": "owls"},
     "rarity": "common",
@@ -23,7 +23,7 @@
     "code": "first_eagle",
     "name": "Eagle Eye",
     "description": "Find your first eagle.",
-    "image_url": null,
+    "image_url": "/static/stickers/eagle_eye.png",
     "rule_type": "first_in_group",
     "criteria": {"group": "eagles"},
     "rarity": "uncommon",
@@ -38,16 +38,6 @@
     "criteria": {"group": "raptors"},
     "rarity": "common",
     "sort_order": 3
-  },
-  {
-    "code": "all_eagles",
-    "name": "Eagle Collector",
-    "description": "Find every eagle in the starter set.",
-    "image_url": null,
-    "rule_type": "group_complete",
-    "criteria": {"group": "eagles"},
-    "rarity": "rare",
-    "sort_order": 1
   },
   {
     "code": "species_25",
