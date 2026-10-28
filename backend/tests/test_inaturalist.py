@@ -104,6 +104,44 @@ def test_get_nearby_observations_applies_days_back_as_a_date_floor(monkeypatch):
     assert captured["params"]["d1"] == expected_d1
 
 
+def test_get_nearby_observations_drops_records_annotated_dead(monkeypatch):
+    # Found-dead reports (roadkill, window strikes, ...) are real iNaturalist
+    # records but not what Explore Map's pins are for. iNaturalist's API has
+    # no "exclude dead" request param (confirmed live — term_id/term_value_id
+    # only do inclusion), so this is filtered out of the response instead —
+    # see _is_annotated_dead()'s docstring-equivalent comment in inaturalist.py.
+    def handler(request):
+        return httpx.Response(
+            200,
+            json={
+                "results": [
+                    {"id": 1, "annotations": [{"controlled_attribute_id": 17, "controlled_value_id": 19}]},  # Dead
+                    {"id": 2, "annotations": [{"controlled_attribute_id": 17, "controlled_value_id": 18}]},  # Alive
+                    {"id": 3, "annotations": []},  # no annotation at all — most real observations
+                    {"id": 4},  # no "annotations" key present at all
+                ]
+            },
+        )
+
+    real_async_client = httpx.AsyncClient
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            self._client = real_async_client(base_url=kwargs.get("base_url", ""), transport=httpx.MockTransport(handler))
+
+        async def __aenter__(self):
+            return self._client
+
+        async def __aexit__(self, *args):
+            await self._client.aclose()
+
+    monkeypatch.setattr(inaturalist.httpx, "AsyncClient", FakeAsyncClient)
+
+    results = asyncio.run(inaturalist.get_nearby_observations(36.13, -80.47, radius_km=25))
+
+    assert [r["id"] for r in results] == [2, 3, 4]
+
+
 def test_get_nearby_observations_prefers_explicit_d1_over_days_back(monkeypatch):
     # The two date-window callers (Explore Map's days_back, Plan a Trip's
     # explicit d1/d2 — see get_nearby_observations()'s docstring) aren't

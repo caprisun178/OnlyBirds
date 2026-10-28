@@ -54,6 +54,7 @@ Also reached by **searching** directly (see below).
 | Migration | breeding/wintering pattern, in the article's own words | Wikipedia article body, "Distribution and habitat" / "Migration" section |
 | Habitat | where it's typically found | Wikipedia article body, same section as migration — often one combined section |
 | Your status | "Seen — first on 3 May 2024" or "Not seen yet", plus the pin toggle | our `life_list_entries` (derived) / `pinned_birds` — both already exist |
+| Extinct tag | a red "Extinct" tag beside the status, only for extinct species (Passenger Pigeon, Labrador Duck, ...) | iNaturalist taxon's `extinct` flag — `app/dao/inaturalist.py#find_species_taxon()` |
 
 Deliberately **not** in v1: a migration **map**. That needs eBird's
 *Status & Trends* product, which — confirmed while building
@@ -122,6 +123,7 @@ Endpoint details (auth, base URL, failure behavior) for eBird live on the
 | About text | Wikipedia REST summary API | `species_content.about` (new, small cache table — see below) |
 | Sex differences / migration / habitat text | Wikipedia's `action=parse&prop=sections` (full article, section-matched — see note above) | `species_content.sex_differences` / `.migration` / `.habitat` (same table) |
 | "Seen / not seen" + pin state | our own data | `life_list_entries` (derived) / `pinned_birds` |
+| Extinct flag | iNaturalist `GET /taxa?q=` (exact scientific-name match) | in-process dict in `services/species.py` — extinction status effectively never changes, so it isn't worth a table |
 
 ## 3. Database changes (SQL)
 
@@ -195,9 +197,14 @@ lookup-by-code endpoint that half of its real callers can't use.
   "about_source_url": "https://en.wikipedia.org/wiki/Black-capped_chickadee",
   "sex_differences": "The sexes look alike, though males average slightly larger...",
   "migration": "Generally a non-migratory, year-round resident across its range...",
-  "habitat": "Found in deciduous and mixed forests, parks, and woodland edges..."
+  "habitat": "Found in deciduous and mixed forests, parks, and woodland edges...",
+  "extinct": false
 }
 ```
+
+`extinct` is `true`/`false` from iNaturalist, or `null` when iNat had no
+exact match for the name or couldn't be reached — the page shows the tag
+only for `true`.
 
 `sex_differences`/`migration`/`habitat` are each independently nullable in
 the real response — the example above shows all three present, but a

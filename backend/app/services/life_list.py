@@ -32,6 +32,7 @@ def _species_key(obs: Observation) -> str:
 
 async def get_life_list(user_id: str) -> list[LifeListEntry]:
     observations = await list_observations(user_id)
+    observations = [obs for obs in observations if obs.status == "logged"]
 
     first_by_species: dict[str, Observation] = {}
     for obs in observations:

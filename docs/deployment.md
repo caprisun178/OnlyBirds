@@ -131,3 +131,9 @@ Add each deployed web origin to `CORS_ORIGINS` on the Render service.
 | `SUPABASE_JWT_SECRET` | backend | Render | **yes** |
 | `SUPABASE_SERVICE_ROLE_KEY` | backend | Render | **yes** |
 | `SUPABASE_ANON_KEY` | frontend | Vercel | no (public) |
+| `GOOGLE_CLIENT_ID` | backend (served to the frontend via `GET /auth/config`) | `backend/.env`, Render | no (public) |
+| `SESSION_SECRET` | backend | `backend/.env`, Render | **yes** |
+| `ADMIN_EMAILS` | backend | `backend/.env`, Render | no |
+| `PHOTO_ID_ENABLED` | backend (`false` hides photo ID; needed on a 512MB instance) | `backend/.env`, Render | no |
+| `PHOTO_ID_PRELOAD` | backend (load the photo-ID model at startup) | `backend/.env`, Render | no |
+| `HF_HOME` | backend (photo-ID model + saved embeddings; on Render `/opt/render/project/src/backend/.cache/huggingface`) | Render | no |

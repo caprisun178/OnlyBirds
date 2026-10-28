@@ -12,6 +12,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from app.models.species import SpeciesRef
+from app.models.sticker import Sticker
 
 Sex = Literal["male", "female", "unknown"]
 LifeStage = Literal["adult", "juvenile", "fledgling", "unknown"]
@@ -67,6 +68,14 @@ class Observation(ObservationBase):
     species: SpeciesRef = Field(default_factory=SpeciesRef)
     source_observation_id: str | None = None
     status: ObservationStatus = "logged"
+
+
+class LoggedObservation(Observation):
+    """What POST /observations returns: the saved observation plus any
+    stickers that sighting just earned (for Add Observation's "you earned a
+    sticker" message)."""
+
+    stickers_earned: list[Sticker] = Field(default_factory=list)
 
 
 class ObservationUpdate(BaseModel):

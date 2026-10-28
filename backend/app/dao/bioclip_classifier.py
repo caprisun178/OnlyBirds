@@ -32,29 +32,37 @@ including a live run through this exact module via `POST /identify/photo`.
   the old model's structural ceiling, just with a couple of proven
   exceptions tacked on — giving a location is what actually broadens
   coverage, not using this module instead of the old one by itself.
-- **No embedding cache on disk.** Each unique candidate pool's text
-  embeddings are computed once per process (`_text_feature_cache`, keyed by
-  the pool's species codes) and kept in memory — fine for a handful of
-  regions in one running process, not yet suited to many regions across
-  restarts or multiple instances. Encoding ~430 names took ~30s on CPU in
-  testing; a region's checklist is typically much smaller (dozens to low
-  hundreds), so per-region cold cache misses are cheaper than that, but
-  still real latency on a region's first request.
+- **No embedding cache on disk.** Text embeddings are cached in memory
+  **per species** (`_species_feature_cache`, keyed by species code) and
+  computed in batches, so a new region/date only pays for species this
+  process hasn't seen yet, instead of re-encoding its whole checklist (the
+  original per-pool cache did that, which made every photo from a new
+  place or day slow). Encoding the ~430-species default pool is the one
+  big cost (~30s on a fast CPU, longer on Render), so the build step
+  (`python -m app.dao.bioclip_classifier`) saves those embeddings to
+  `_EMBEDDINGS_FILE` and `warm_up()` loads them at startup instead of
+  recomputing (app/main.py runs it in a background thread).
 - **Dependencies are heavy.** `torch` + `open_clip_torch` (`requirements.txt`
   — moved in from the now-removed `requirements-bioclip.txt` once this
   stopped being experimental) are exactly what `bird_classifier.py`'s
   choice of `onnxruntime` was meant to avoid. The ~570MB checkpoint
   downloads from Hugging Face on first use, unlike `bird_classifier.onnx`
   which is committed to the repo.
-- **Render's free tier is still unconfirmed** for this memory/dependency
-  footprint — see `bird-id.md` §7's original concern. Not resolved by any
-  of the above.
+- **Memory:** loading the model needs well over 512MB. Confirmed live:
+  Render's 512MB instances run out of memory on the first photo ID, so the
+  backend needs a 2GB instance, or PHOTO_ID_ENABLED=false (app/config.py).
+- **`classify()` is CPU-bound and blocking.** Callers must run it off the
+  event loop (`asyncio.to_thread`, see app/services/identify.py), or one
+  photo ID freezes every other request to the server while it runs.
 """
 
 from __future__ import annotations
 
 import io
+import logging
+import os
 import threading
+from pathlib import Path
 
 import open_clip
 import torch
@@ -79,18 +87,31 @@ _TEMPLATES = [
     lambda c: f"a photo of a {c}, a type of bird.",
 ]
 
+logger = logging.getLogger(__name__)
+
+# Precomputed default-pool embeddings, written by the build step (see
+# `__main__` below). Next to the Hugging Face cache by default, so it lives
+# wherever the model weights do; override with BIOCLIP_EMBEDDINGS_FILE.
+_EMBEDDINGS_FILE = Path(
+    os.environ.get("BIOCLIP_EMBEDDINGS_FILE")
+    or Path(os.environ.get("HF_HOME") or Path.home() / ".cache" / "huggingface") / "bioclip_text_embeddings.pt"
+)
+
+# Texts per forward pass when encoding species names — batching is far
+# faster than one encode_text() call per species on CPU.
+_ENCODE_BATCH_TEXTS = 128
+
 _lock = threading.Lock()
 _model = None
 _tokenizer = None
 _preprocess = None
 
-# Keyed by a stable identity for the candidate pool (its species codes,
-# joined) so a region's checklist and the default pool each get their own
-# cached embeddings instead of recomputing per request. Unbounded for now —
-# acceptable for the handful of regions one process sees in practice; see
-# module docstring's "no embedding cache on disk" note for the real limit.
-_text_feature_cache: dict[str, torch.Tensor] = {}
-_candidate_list_cache: dict[str, list[dict]] = {}
+# species_code -> that species' normalized text embedding (1-D tensor).
+# Per species, not per candidate pool, so overlapping pools (every region
+# shares most of its birds with its neighbours and with the default pool)
+# reuse each other's work. Unbounded, but tops out at the ~11k species in
+# the eBird taxonomy (a few tens of MB).
+_species_feature_cache: dict[str, torch.Tensor] = {}
 
 
 def _get_model():
@@ -104,29 +125,86 @@ def _get_model():
     return _model, _tokenizer, _preprocess
 
 
-def _pool_key(candidates: list[dict]) -> str:
-    return "|".join(c["species_code"] for c in candidates)
+def _dedupe(candidates: list[dict]) -> list[dict]:
+    """First occurrence of each species code wins, order kept."""
+    seen: set[str] = set()
+    pool = []
+    for c in candidates:
+        if c["species_code"] not in seen:
+            seen.add(c["species_code"])
+            pool.append(c)
+    return pool
+
+
+def _encode_species(species_list: list[dict]) -> None:
+    """Embed each species' name under every template, average the
+    templates, and store one normalized vector per species. Same math as
+    the original one-species-at-a-time loop, just batched."""
+    model, tokenizer, _ = _get_model()
+    texts = [t(s["common_name"]) for s in species_list for t in _TEMPLATES]
+    chunks = []
+    with torch.no_grad():
+        for start in range(0, len(texts), _ENCODE_BATCH_TEXTS):
+            emb = model.encode_text(tokenizer(texts[start:start + _ENCODE_BATCH_TEXTS]))
+            chunks.append(F.normalize(emb, dim=-1))
+    per_template = torch.cat(chunks).reshape(len(species_list), len(_TEMPLATES), -1)
+    averaged = F.normalize(per_template.mean(dim=1), dim=-1)
+    for species, emb in zip(species_list, averaged):
+        _species_feature_cache[species["species_code"]] = emb
 
 
 def _get_text_features(candidates: list[dict]) -> tuple[torch.Tensor, list[dict]]:
-    """Lazy, per-pool singleton — same reasoning as
-    `bird_classifier.py#_get_session()`: pay the embedding cost once per
-    distinct candidate pool, not per request."""
-    key = _pool_key(candidates)
-    if key not in _text_feature_cache:
+    """`(features, pool)`: `features` is `[dim, len(pool)]`, one column per
+    species in `pool` (the deduped candidates). Only species not already
+    cached get encoded."""
+    pool = _dedupe(candidates)
+    missing = [c for c in pool if c["species_code"] not in _species_feature_cache]
+    if missing:
         with _lock:
-            if key not in _text_feature_cache:
-                model, tokenizer, _ = _get_model()
-                with torch.no_grad():
-                    embeddings = []
-                    for species in candidates:
-                        texts = tokenizer([t(species["common_name"]) for t in _TEMPLATES])
-                        emb = model.encode_text(texts)
-                        emb = F.normalize(emb, dim=-1).mean(dim=0)
-                        embeddings.append(emb / emb.norm())
-                    _text_feature_cache[key] = torch.stack(embeddings, dim=1)
-                    _candidate_list_cache[key] = candidates
-    return _text_feature_cache[key], _candidate_list_cache[key]
+            # Re-check inside the lock: another request may have encoded them.
+            missing = [c for c in missing if c["species_code"] not in _species_feature_cache]
+            if missing:
+                _encode_species(missing)
+    features = torch.stack([_species_feature_cache[c["species_code"]] for c in pool], dim=1)
+    return features, pool
+
+
+def _load_saved_embeddings() -> int:
+    """Fill the cache from `_EMBEDDINGS_FILE` if it exists. Returns how many
+    species it loaded (0 if there was no usable file)."""
+    if not _EMBEDDINGS_FILE.exists():
+        return 0
+    try:
+        saved = torch.load(_EMBEDDINGS_FILE, map_location="cpu")
+    except Exception:  # noqa: BLE001 — a bad file just means recomputing
+        logger.warning("Ignoring unreadable %s", _EMBEDDINGS_FILE)
+        return 0
+    if saved.get("model_id") != _MODEL_ID or saved.get("templates") != len(_TEMPLATES):
+        return 0  # made by a different model/template set — recompute
+    for code, emb in saved["embeddings"].items():
+        _species_feature_cache.setdefault(code, emb)
+    return len(saved["embeddings"])
+
+
+def save_embeddings() -> None:
+    """Write the currently cached embeddings to `_EMBEDDINGS_FILE`."""
+    _EMBEDDINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(
+        {"model_id": _MODEL_ID, "templates": len(_TEMPLATES), "embeddings": dict(_species_feature_cache)},
+        _EMBEDDINGS_FILE,
+    )
+
+
+def warm_up() -> None:
+    """Load the model and the default pool's embeddings now, so the first
+    photo ID doesn't pay for them: from `_EMBEDDINGS_FILE` when the build
+    step saved one, otherwise by encoding (slow). Called in a background
+    thread at startup (app/main.py); blocking, so never call it on the
+    event loop."""
+    _get_model()
+    loaded = _load_saved_embeddings()
+    _get_text_features(_DEFAULT_CANDIDATES)  # encodes only what wasn't loaded
+    logger.info("Photo ID ready (%d species embeddings loaded from disk)", loaded)
 
 
 def classify(image_bytes: bytes, top_k: int = 6, candidates: list[dict] | None = None) -> list[dict]:
@@ -153,19 +231,8 @@ def classify(image_bytes: bytes, top_k: int = 6, candidates: list[dict] | None =
     default pool's.
     """
     model, _, preprocess = _get_model()
-    default_features, default_pool = _get_text_features(_DEFAULT_CANDIDATES)
-
-    if candidates:
-        default_codes = {c["species_code"] for c in default_pool}
-        extra = [c for c in candidates if c["species_code"] not in default_codes]
-        if extra:
-            extra_features, extra_pool = _get_text_features(extra)
-            text_features = torch.cat([default_features, extra_features], dim=1)
-            pool = default_pool + extra_pool
-        else:
-            text_features, pool = default_features, default_pool
-    else:
-        text_features, pool = default_features, default_pool
+    # Default pool first, regional extras after it (duplicates dropped).
+    text_features, pool = _get_text_features(_DEFAULT_CANDIDATES + (candidates or []))
 
     img = Image.open(io.BytesIO(image_bytes))
     img = ImageOps.exif_transpose(img).convert("RGB")  # same orientation fix as bird_classifier.py
@@ -178,3 +245,13 @@ def classify(image_bytes: bytes, top_k: int = 6, candidates: list[dict] | None =
 
     ranked = sorted(range(len(pool)), key=lambda i: -probs[i].item())[:top_k]
     return [{**pool[i], "confidence": round(probs[i].item(), 4)} for i in ranked]
+
+
+if __name__ == "__main__":
+    # `python -m app.dao.bioclip_classifier` — run at build time on Render:
+    # downloads the model weights into the Hugging Face cache (HF_HOME) and
+    # saves the default pool's embeddings, so a restart neither re-downloads
+    # ~570MB nor re-encodes ~430 species names before the first photo ID.
+    warm_up()
+    save_embeddings()
+    print(f"Saved {len(_species_feature_cache)} species embeddings to {_EMBEDDINGS_FILE}")

@@ -1,7 +1,8 @@
 """Describe & guess / photo identification endpoints.
 
     POST /identify/describe               free text -> ranked candidate photos
-    POST /identify/photo                  photo upload -> ranked candidate photos
+    GET  /identify/config                 {photo: bool} — is photo ID turned on
+    POST /identify/photo                  photo upload -> ranked candidate photos (503 if off)
     POST /identify/{id}/select            record which candidate the user picked
 
 See `docs/features/add-observation.md` for the describe flow and
@@ -11,6 +12,8 @@ See `docs/features/add-observation.md` for the describe flow and
 from datetime import date
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+
+from app.config import get_settings
 
 from app.models.identification import (
     IdentifyRequest,
@@ -29,6 +32,13 @@ async def identify_describe(payload: IdentifyRequest):
     return await identify_service.describe_bird(payload)
 
 
+@router.get("/config")
+async def identify_config() -> dict:
+    """Which identification methods this server offers — Add Observation
+    hides the photo option when `photo` is false."""
+    return {"photo": get_settings().photo_id_enabled}
+
+
 @router.post("/photo", response_model=IdentifyResponse)
 async def identify_photo(
     file: UploadFile = File(...),
@@ -36,6 +46,11 @@ async def identify_photo(
     lng: float | None = Form(None),
     observed_at: date | None = Form(None),
 ):
+    if not get_settings().photo_id_enabled:
+        raise HTTPException(
+            status_code=503,
+            detail="Photo identification is turned off right now. Describe the bird instead.",
+        )
     content_type = file.content_type or "application/octet-stream"
     if content_type not in upload_service.ALLOWED_CONTENT_TYPES:
         raise HTTPException(

@@ -7,4 +7,6 @@ export const usersDAO = {
   // `GET /users/{username}` (the user-chosen display name), which needs a
   // username on hand to look up by; this doesn't.
   getProfile: (userId) => apiClient.get(`/users/by-id/${encodeURIComponent(userId)}`),
+  create: (payload) => apiClient.post('/users', payload),
+  update: (userId, changes) => apiClient.patch(`/users/${encodeURIComponent(userId)}`, changes),
 };

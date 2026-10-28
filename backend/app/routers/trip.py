@@ -3,10 +3,11 @@
 from datetime import date
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.models.observation import Observation
 from app.models.trip import TripPlan
+from app.routers.deps import optional_self
 from app.services import trip as trip_service
 
 router = APIRouter(prefix="/trip", tags=["trip"])
@@ -19,7 +20,7 @@ async def plan(
     start_date: date = Query(),
     end_date: date = Query(),
     radius_km: int = Query(default=25, ge=1, le=200),
-    user_id: str | None = Query(default=None),
+    user_id: str | None = Depends(optional_self),
 ):
     if end_date < start_date:
         raise HTTPException(status_code=422, detail="end_date must not be before start_date")

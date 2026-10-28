@@ -21,6 +21,7 @@ import { tripService } from '../Services/trip.js';
 import { mountSightingsMap } from '../Components/SightingsMap.js';
 import { renderSightingDetail } from '../Components/SightingDetail.js';
 import { escapeHtml } from '../Components/htmlUtils.js';
+import { getCurrentUserId } from '../Services/auth.js';
 
 const SEARCH_DEBOUNCE_MS = 350;
 const MIN_SEARCH_LENGTH = 3; // matches geocodingService's own no-op threshold
@@ -43,7 +44,7 @@ const MI_TO_KM = 1.60934;
 const HOTSPOT_SIGHTINGS_RADIUS_KM = 2;
 
 export function mount(container, props = {}) {
-  const { onNavigate, userId = 'u1' } = props;
+  const { onNavigate, userId = getCurrentUserId() } = props;
 
   const state = {
     destinationQuery: '',

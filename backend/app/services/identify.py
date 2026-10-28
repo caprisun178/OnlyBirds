@@ -172,8 +172,13 @@ async def identify_photo(
     """
     regional_candidates = await _regional_candidates(lat, lng, observed_at)
 
-    predictions = bioclip_classifier.classify(
-        image_bytes, top_k=_FINAL_CANDIDATE_COUNT, candidates=regional_candidates
+    # CPU-bound and blocking (seconds, more on a cold start): run it on a
+    # worker thread so the rest of the server keeps answering meanwhile.
+    predictions = await asyncio.to_thread(
+        bioclip_classifier.classify,
+        image_bytes,
+        top_k=_FINAL_CANDIDATE_COUNT,
+        candidates=regional_candidates,
     )
 
     photos = await asyncio.gather(

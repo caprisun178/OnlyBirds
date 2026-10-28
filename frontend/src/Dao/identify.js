@@ -10,6 +10,8 @@ export const identifyDAO = {
   // (see docs/features/bird-id.md §7).
   describe: (text, hints, sense, regional) =>
     apiClient.post('/identify/describe', { text, hints, sense, ...regional }),
+  // {photo: bool} — whether this server has photo identification turned on.
+  getConfig: () => apiClient.get('/identify/config'),
   select: (identificationId, speciesCode) =>
     apiClient.post(`/identify/${identificationId}/select`, { species_code: speciesCode }),
 

@@ -15,8 +15,9 @@
 // innerHTML (same targeted-update pattern as NotificationBell's dropdown).
 import { escapeHtml } from './htmlUtils.js';
 import { feedbackService } from '../Services/feedback.js';
+import { getCurrentUserId } from '../Services/auth.js';
 
-export function mount({ userId = 'u1' } = {}) {
+export function mount() {
   const el = document.createElement('div');
   el.setAttribute('data-role', 'report-widget');
   el.style.cssText = 'position: fixed; right: var(--ob-space-3); bottom: var(--ob-space-3); z-index: var(--ob-z-modal);';
@@ -53,7 +54,7 @@ export function mount({ userId = 'u1' } = {}) {
     return `
       <div class="ob-card ob-stack" style="width: 300px; box-shadow: var(--ob-shadow-md);">
         ${sent
-          ? `<p class="ob-text-sm" style="margin:0;">Thanks — sent.</p>`
+          ? `<p class="ob-text-sm" style="margin:0;">Thanks — logged.</p>`
           : `
             <div class="ob-field">
               <label class="ob-label" for="report-message">What's off?</label>
@@ -98,7 +99,8 @@ export function mount({ userId = 'u1' } = {}) {
     state.error = null;
     render();
     try {
-      await feedbackService.sendReport({ message, screen: state.screen, userId });
+      // Read at send time, not mount time — this widget outlives sign-in/out.
+      await feedbackService.sendReport({ message, screen: state.screen, userId: getCurrentUserId() });
       state.status = 'sent';
       state.message = '';
       render();

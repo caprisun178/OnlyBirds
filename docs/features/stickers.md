@@ -1,8 +1,12 @@
 # Stickers
 
-> **Status:** Planned. Build after [Add Observation](add-observation.md) — the
-> engine runs when a new life-list entry is created, and some rules need
-> `observations.region`.
+> **Status:** Partial — the fixture-backed catalog, group/count rules, shelf
+> API, rarity/earned filters, and award hook after a logged lifer are
+> implemented. Earned stickers are saved in Postgres (`user_stickers`,
+> migration 0009) so they survive redeploys; each award adds a
+> `sticker_awarded` notification and is returned by `POST /observations`
+> for Add Observation's "you earned a sticker" message. Region rules remain
+> future work.
 
 ## 1. What you're building
 
@@ -25,25 +29,31 @@ Every sticker is one rule type plus `criteria`:
 
 ### Groups and sets
 
-- Some groups are clean taxonomic ranks — **owls** = order *Strigiformes* —
-  resolved straight from the taxonomy (`kind = 'rank'`).
-- Some are folk categories that span the taxonomy — **eagles** are spread across
-  several genera. Those are an explicit curated **set of species codes**,
-  versioned in the repo (`kind = 'set'`).
+- The prototype matches groups against the `taxon_group` labels or explicit
+  eBird species codes recorded in `groups.json`. The starter **eagles** group
+  is an explicit curated **set of species codes**; the owl and raptor groups
+  use taxon-group labels. Live taxonomy queries and rank-based group expansion
+  are not implemented yet.
 - `criteria.group` names a `groups` row; the engine loads that row to know which
   species count.
+- `group_complete` currently needs an explicit species-code set so it has a
+  known target. Region rule types are present in the model but are not active
+  until observations carry a derived region and checklists are available.
 
 ### The engine
 
-- Runs **after every new `life_list_entries` row** (i.e. after a lifer, not
-  every observation).
-- Loads the user's life list + the stickers they have **not** yet earned,
-  evaluates each rule, inserts `user_stickers` rows for any that now pass, and
-  pushes one `sticker_awarded` notification per sticker (see
-  [Pinned birds](pinned-birds.md#3-database-changes-sql) for the
-  `notifications` table).
-- **Idempotent**: the `(user_id, sticker_code)` primary key means re-running is
-  safe. `count_milestone` and `group_complete` only ever go locked → earned.
+- Runs after `POST /observations` stores a `logged` observation that adds a new
+  species to the derived life list; repeat sightings do not run the evaluator.
+- Evaluates the refreshed life list and records newly satisfied rules in
+  `user_stickers` (Postgres; an in-memory ledger when `DATABASE_URL` is unset).
+  Each new award also adds one `sticker_awarded` notification, and
+  `POST /observations` returns the awards as `stickers_earned`. The shelf
+  endpoint recomputes current progress each time it is requested.
+- A failure here never fails the logged observation: it's logged and the
+  response just has no `stickers_earned`.
+- **Idempotent**: the `(user_id, sticker_code)` primary key prevents
+  duplicate awards. `count_milestone` and `group_complete` only ever
+  go locked → earned.
 - Exposed for tests/backfill as an internal `evaluate_stickers(user_id)` in
   `Services/stickers` — there is no public "grant" endpoint.
 
@@ -51,19 +61,24 @@ Every sticker is one rule type plus `criteria`:
 
 | Data | Comes from | Stored where |
 |---|---|---|
-| The sticker catalog (name, art, rule, rarity) | a **fixture file in the repo**, seeded on deploy | `stickers` table |
-| Group definitions (rank query or species-code set) | a **fixture file in the repo** | `groups` table |
-| Which stickers a user has earned | our engine, after each lifer | `user_stickers` table |
-| The user's life list (engine input) | our own data | `life_list_entries` (already exists) |
+| The sticker catalog (name, optional art, rule, rarity) | a **fixture file in the repo** | in-memory catalog (Postgres `stickers` table planned) |
+| Group definitions (taxon-group labels or species-code set) | a **fixture file in the repo** | in-memory group catalog (Postgres `groups` table planned) |
+| Which stickers a user has earned | our engine, after each lifer | `user_stickers` (migration 0009) |
+| The user's life list (engine input) | our own data | derived from logged `observations` |
 | Region checklist (for `region_complete`) | reuse the [Life List](life-list.md) cache | `region_checklists` |
-| Sticker art images | one file per `code` in `backend/app/data/stickers/`, served at `/static/stickers/<code>.svg` | `stickers.image_url` holds that path |
+| Sticker art images | optional file per `code` in `backend/app/data/stickers/`, served at `/static/stickers/<code>.svg` | `stickers.image_url` holds that path; the shelf shows a placeholder until art exists |
 
 No external API. The catalog and groups are **our data, checked into the repo**
-and loaded into Postgres by a seed script — treat them like code.
+and loaded into memory at startup. They change with the code, so they stay
+fixtures rather than tables; only the awards are in Postgres.
 
 ## 3. Database changes (SQL)
 
-Three new tables. See [Database & migrations](database.md#how-to-apply-a-migration).
+Built: `user_stickers` only (`backend/migrations/0009_user_stickers.sql`),
+with `sticker_code` as plain text rather than a foreign key, since the
+catalog stays a fixture. The `stickers` and `groups` tables below were the
+original plan and aren't needed while the catalog is a checked-in file.
+See [Database & migrations](database.md#how-to-apply-a-migration).
 
 ```sql
 -- 0005_stickers.sql
@@ -105,7 +120,7 @@ create table groups (
 |---|---|
 | `stickers` | The menu of everything earnable. Editing it is a data change (re-seed), not a schema change. |
 | `user_stickers` | The record of who has what. The composite primary key is what makes the engine safe to re-run. |
-| `groups` | Lets a rule say "owls" without hard-coding species. `rank` groups query the taxonomy; `set` groups list codes explicitly. |
+| `groups` | Lets a rule say "owls" without hard-coding species. The planned `rank` rows query taxonomy; `set` rows list codes explicitly. The prototype uses taxon-group labels or explicit codes from its fixture. |
 
 ### Starter catalog (seed data)
 
@@ -118,10 +133,13 @@ create table groups (
 | `all_eagles` | Eagle Collector | `group_complete {eagles}` |
 | `species_25` | 25 Club | `count_milestone {25}` |
 | `species_100` | Century | `count_milestone {100}` |
-| `region_wa` | Washington Sweep | `region_complete {US-WA}` |
 
-Put this in `backend/app/data/stickers.json` + `groups.json` and load it with a
-`seed_stickers()` script.
+The current catalog is in `backend/app/data/stickers.json` and its groups are
+in `backend/app/data/groups.json`; the in-memory repository validates and loads
+these fixtures at startup. A Postgres seed script will replace that startup
+loading when durable storage is implemented. Region stickers such as
+`region_wa` remain planned until regional observations and checklists are
+connected to the evaluator.
 
 ## 4. API endpoints
 
@@ -137,29 +155,22 @@ There is **no** endpoint that grants a sticker — awards only happen inside
 
 | Layer | File | Responsibility |
 |---|---|---|
-| `dao/` | `app/dao/sticker_repo.py` (**new**) | read `stickers` / `groups`; read + insert `user_stickers` |
-| `services/` | `app/services/stickers.py` (**new**) | `evaluate_stickers(user_id)`: load life list + unearned stickers, run each rule, insert passes, emit notifications; also builds the shelf model with "3 / 8 eagles" progress |
-| `routers/` | `app/routers/stickers.py` (**new**) | `GET /stickers`, `GET /users/{id}/stickers` |
-| `services/` | `app/services/observation.py` (hook) | call `evaluate_stickers()` right after a `life_list_entries` insert |
+| `dao/` | `app/dao/sticker_repo.py` | load fixture catalog/groups; awards in Postgres (`PostgresStickerRepo`) or in memory |
+| `services/` | `app/services/stickers.py` | evaluate supported rules and build a fresh shelf with current progress |
+| `routers/` | `app/routers/stickers.py` | `GET /stickers`, `GET /users/{id}/stickers` |
+| `services/` | `app/services/observation.py` | call `evaluate_stickers()` when a logged observation adds a life-list species |
 | `Dao/` | `frontend/src/Dao/stickers.js` (**new**) | catalog + user stickers |
-| `Services/` | `frontend/src/Services/stickers.js` (**new**) | merge catalog with earned rows → shelf model |
-| `Presenters/` | `Presenters/StickerShelf.js` (**new**) | shelf layout, filter by rarity / earned |
-| `Components/` | `Sticker` (earned vs locked art), `AwardToast` | presentational |
+| `Services/` | `frontend/src/Services/stickers.js` (**new**) | validate the shelf response, resolve art URLs, and calculate totals |
+| `Presenters/` | `Presenters/StickerShelf.js` | shelf layout, filter by rarity / earned, loading/error/empty states |
+| `Components/` | `Components/StickerCard.js` | presentational earned/locked card with progress and placeholder art |
 
 ## 6. Build order
 
-1. Write and run `backend/migrations/0005_stickers.sql`.
-2. Add `backend/app/data/stickers.json` + `groups.json` (start with the table
-   above) and a `seed_stickers()` script; run it.
-3. Add `app/dao/sticker_repo.py`.
-4. Add `app/services/stickers.py` — implement one rule type at a time
-   (`first_ever` first, it is the simplest).
-5. Call `evaluate_stickers(user_id)` from the observation service after a lifer.
-6. Add `app/routers/stickers.py`.
-7. Tests: seed two stickers, log observations, assert the right `user_stickers`
-   rows appear and re-running the engine changes nothing.
-8. Frontend: `Services/stickers.js` → `Presenters/StickerShelf.js` → `Sticker`
-   / `AwardToast`.
+1. ~~Fixture-backed catalog and rules, covered by tests.~~ Done.
+2. ~~Durable awards (`user_stickers`) and award notifications.~~ Done.
+3. Add region rules once observations carry a derived region and checklists
+   exist.
+4. Add award notifications and richer award feedback in the UI.
 
 ## Related pages
 

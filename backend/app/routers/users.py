@@ -14,16 +14,18 @@ swallowed as someone's username — Starlette matches path routes in
 registration order.
 """
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.models.user import UserCreate, UserProfile, UserUpdate
+from app.routers.deps import ensure_self, require_self, require_user
 from app.services import user as user_service
 
 router = APIRouter(tags=["users"])
 
 
 @router.post("/users", response_model=UserProfile, status_code=status.HTTP_201_CREATED)
-async def create_user(payload: UserCreate):
+async def create_user(payload: UserCreate, current: str = Depends(require_user)):
+    ensure_self(current, payload.auth_provider_id)
     try:
         return await user_service.create_user(payload)
     except user_service.UsernameTaken:
@@ -46,7 +48,7 @@ async def get_user(username: str):
     return profile
 
 
-@router.patch("/users/{user_id}", response_model=UserProfile)
+@router.patch("/users/{user_id}", response_model=UserProfile, dependencies=[Depends(require_self)])
 async def update_user(user_id: str, changes: UserUpdate):
     profile = await user_service.update_user(user_id, changes)
     if profile is None:

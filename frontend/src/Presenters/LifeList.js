@@ -15,6 +15,7 @@ import { renderMissingBird } from '../Components/MissingBird.js';
 import { renderProgressBar } from '../Components/ProgressBar.js';
 import { escapeHtml } from '../Components/htmlUtils.js';
 import { mount as mountObservationList } from './ObservationList.js';
+import { getCurrentUserId } from '../Services/auth.js';
 
 // Default view shows only the top DEFAULT_LIMIT species (taxonomic order,
 // i.e. eBird's own regional frequency ordering) rather than the whole
@@ -24,7 +25,7 @@ const DEFAULT_LIMIT = 50;
 const LOAD_INCREMENT = 50;
 
 export function mount(container, props = {}) {
-  const userId = props.userId || 'u1';
+  const userId = props.userId || getCurrentUserId();
   const { onNavigate } = props; // optional — omitted when this screen is previewed standalone
 
   const state = {

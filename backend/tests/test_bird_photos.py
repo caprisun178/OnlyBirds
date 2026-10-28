@@ -1,6 +1,8 @@
 import asyncio
 import json
 
+import pytest
+
 from app.dao import bird_photos, commons
 
 # Captured before conftest's autouse fixture monkeypatches _save_cache_file
@@ -8,6 +10,13 @@ from app.dao import bird_photos, commons
 # disk) — the one test below that specifically exercises persistence needs
 # the real implementation back.
 _real_save_cache_file = bird_photos._save_cache_file
+
+
+async def _no_op_sleep(*_args):
+    """Replaces `bird_photos.asyncio.sleep` in the retry-backoff tests — a
+    plain lambda calling `asyncio.sleep` would recurse into itself, since
+    patching `bird_photos.asyncio.sleep` patches the same shared `asyncio`
+    module object the test file's own `import asyncio` refers to."""
 
 BIRD = {
     "code": "blujay",
@@ -91,6 +100,86 @@ def test_get_stock_photo_falls_back_to_a_generated_placeholder(monkeypatch):
     photo = asyncio.run(bird_photos.get_stock_photo("Turdus migratorius", "American Robin"))
     assert photo["photo_url"] == "https://placehold.co/320x220/5b7a99/ffffff?text=American%20Robin"
     assert photo["attribution"] is None
+
+
+@pytest.fixture(autouse=True)
+def in_memory_observations(monkeypatch):
+    """conftest.py only swaps in a fresh in-memory observation repo inside
+    its `client` fixture — these tests don't use `client`, and without this
+    `_log_observation()` would write to whatever real database `.env`
+    points at."""
+    from app.dao import observation_repo
+
+    monkeypatch.setattr(observation_repo, "observation_repo", observation_repo.InMemoryObservationRepo())
+
+
+def _log_observation(scientific_name, photo_url, observed_at="2026-05-31T12:00:00Z", status="logged", user_id="someone-else"):
+    from app.dao import observation_repo
+    from app.models.observation import ObservationCreate
+    from app.models.species import SpeciesRef
+
+    return asyncio.run(observation_repo.observation_repo.add(ObservationCreate(
+        user_id=user_id,
+        species=SpeciesRef(scientific_name=scientific_name, common_name="Dunlin"),
+        observed_at=observed_at,
+        photo_url=photo_url,
+        status=status,
+    )))
+
+
+def _commons_has_nothing(monkeypatch):
+    async def fake_search(query):
+        return None
+
+    monkeypatch.setattr(commons, "search_photo", fake_search)
+    monkeypatch.setattr(bird_photos, "_cache", {})
+
+
+def test_get_stock_photo_uses_an_observation_photo_when_commons_has_nothing(monkeypatch):
+    _commons_has_nothing(monkeypatch)
+    _log_observation("Calidris alpina", "https://supabase.example/old.jpg", observed_at="2026-01-01T00:00:00Z")
+    _log_observation("Calidris alpina", "https://supabase.example/new.jpg", observed_at="2026-05-31T00:00:00Z")
+
+    photo = asyncio.run(bird_photos.get_stock_photo("Calidris alpina", "Dunlin"))
+    assert photo["photo_url"] == "https://supabase.example/new.jpg"
+    assert photo["attribution"] == "Photo from an OnlyBirds observation"
+    assert photo["flagged"] is False
+
+
+def test_get_stock_photo_prefers_commons_over_an_observation_photo(monkeypatch):
+    async def fake_search(query):
+        return {"media_url": "https://upload.wikimedia.org/dunlin.jpg", "artist": "A", "license": "CC BY"}
+
+    monkeypatch.setattr(commons, "search_photo", fake_search)
+    monkeypatch.setattr(bird_photos, "_cache", {})
+    _log_observation("Calidris alpina", "https://supabase.example/dunlin.jpg")
+
+    photo = asyncio.run(bird_photos.get_stock_photo("Calidris alpina", "Dunlin"))
+    assert photo["photo_url"] == "https://upload.wikimedia.org/dunlin.jpg"
+
+
+def test_get_stock_photo_ignores_non_logged_observations_and_other_species(monkeypatch):
+    _commons_has_nothing(monkeypatch)
+    _log_observation("Calidris alpina", "https://supabase.example/draft.jpg", status="draft")
+    _log_observation("Calidris alba", "https://supabase.example/sanderling.jpg")
+
+    photo = asyncio.run(bird_photos.get_stock_photo("Calidris alpina", "Dunlin"))
+    assert photo["photo_url"].startswith("https://placehold.co/")
+    assert photo["attribution"] is None
+
+
+def test_get_stock_photo_falls_back_to_placeholder_when_the_observation_lookup_fails(monkeypatch):
+    from app.dao import observation_repo
+
+    _commons_has_nothing(monkeypatch)
+
+    async def broken(scientific_name):
+        raise RuntimeError("database down")
+
+    monkeypatch.setattr(observation_repo.observation_repo, "latest_photo_url", broken)
+
+    photo = asyncio.run(bird_photos.get_stock_photo("Calidris alpina", "Dunlin"))
+    assert photo["photo_url"].startswith("https://placehold.co/")
 
 
 def test_transient_commons_failure_falls_back_but_is_not_cached(monkeypatch):
@@ -200,3 +289,109 @@ def test_load_cache_file_handles_a_corrupt_file(tmp_path, monkeypatch):
     cache_file.write_text("not valid json{{{", encoding="utf-8")
     monkeypatch.setattr(bird_photos, "_CACHE_FILE", cache_file)
     assert bird_photos._load_cache_file() == {}
+
+
+def test_get_stock_photo_passes_through_flagged(monkeypatch):
+    async def fake_search(query):
+        return {"media_url": "https://upload.wikimedia.org/maybe-a-map.jpg", "flagged": True}
+
+    monkeypatch.setattr(commons, "search_photo", fake_search)
+    monkeypatch.setattr(bird_photos, "_cache", {})
+
+    photo = asyncio.run(bird_photos.get_stock_photo("Ammodramus maritimus", "Seaside Sparrow"))
+    assert photo["flagged"] is True
+
+
+def test_get_stock_photo_treats_missing_flagged_key_as_false(monkeypatch):
+    # Cache entries written before `flagged` existed don't have the key at
+    # all — must not crash, must read as "not flagged" (see get_stock_photo()'s
+    # own docstring note on this).
+    monkeypatch.setattr(bird_photos, "_cache", {"Cyanocitta cristata": {"media_url": "https://upload.wikimedia.org/old-entry.jpg"}})
+
+    photo = asyncio.run(bird_photos.get_stock_photo("Cyanocitta cristata", "Blue Jay"))
+    assert photo["flagged"] is False
+
+
+def test_get_different_stock_photo_updates_the_cache(monkeypatch):
+    monkeypatch.setattr(bird_photos, "_cache", {"Ammodramus maritimus": {"media_url": "https://upload.wikimedia.org/the-map.jpg", "flagged": True}})
+    monkeypatch.setattr(bird_photos, "_save_cache_file", lambda: None)
+
+    async def fake_search(query, *, exclude_media_urls=frozenset()):
+        assert exclude_media_urls == frozenset({"https://upload.wikimedia.org/the-map.jpg"})
+        return {"media_url": "https://upload.wikimedia.org/a-real-photo.jpg", "artist": "Jane Birder", "flagged": False}
+
+    monkeypatch.setattr(commons, "search_photo", fake_search)
+
+    result = asyncio.run(
+        bird_photos.get_different_stock_photo(
+            "Ammodramus maritimus", "Seaside Sparrow", "https://upload.wikimedia.org/the-map.jpg"
+        )
+    )
+    assert result["photo_url"] == "https://upload.wikimedia.org/a-real-photo.jpg"
+    assert result["changed"] is True
+    assert bird_photos._cache["Ammodramus maritimus"]["media_url"] == "https://upload.wikimedia.org/a-real-photo.jpg"
+
+
+def test_get_different_stock_photo_retries_once_on_transient_failure(monkeypatch):
+    # Real, observed case: a burst of quiz traffic rate-limited Commons right
+    # as someone clicked "try another photo," and the first attempt's
+    # CommonsUnavailable got reported as "no other photo exists" even though
+    # Commons had several — this call has no other fallback (unlike
+    # get_question()'s own retry-across-species loop), so it needs its own.
+    monkeypatch.setattr(bird_photos, "_cache", {"Charadrius semipalmatus": {"media_url": "https://upload.wikimedia.org/flock-shot.jpg"}})
+    monkeypatch.setattr(bird_photos, "_save_cache_file", lambda: None)
+    monkeypatch.setattr(bird_photos.asyncio, "sleep", _no_op_sleep)
+
+    calls = []
+
+    async def fake_search(query, *, exclude_media_urls=frozenset()):
+        calls.append(query)
+        if len(calls) == 1:
+            raise commons.CommonsUnavailable("429 Too Many Requests")
+        return {"media_url": "https://upload.wikimedia.org/a-better-photo.jpg", "artist": "Jane Birder", "flagged": False}
+
+    monkeypatch.setattr(commons, "search_photo", fake_search)
+
+    result = asyncio.run(
+        bird_photos.get_different_stock_photo(
+            "Charadrius semipalmatus", "Semipalmated Plover", "https://upload.wikimedia.org/flock-shot.jpg"
+        )
+    )
+    assert len(calls) == 2
+    assert result["changed"] is True
+    assert result["photo_url"] == "https://upload.wikimedia.org/a-better-photo.jpg"
+
+
+def test_get_different_stock_photo_gives_up_after_two_transient_failures(monkeypatch):
+    monkeypatch.setattr(bird_photos, "_cache", {"Charadrius semipalmatus": {"media_url": "https://upload.wikimedia.org/flock-shot.jpg"}})
+    monkeypatch.setattr(bird_photos.asyncio, "sleep", _no_op_sleep)
+
+    async def fake_search(query, *, exclude_media_urls=frozenset()):
+        raise commons.CommonsUnavailable("429 Too Many Requests")
+
+    monkeypatch.setattr(commons, "search_photo", fake_search)
+
+    result = asyncio.run(
+        bird_photos.get_different_stock_photo(
+            "Charadrius semipalmatus", "Semipalmated Plover", "https://upload.wikimedia.org/flock-shot.jpg"
+        )
+    )
+    assert result["changed"] is False
+    assert result["photo_url"] == "https://upload.wikimedia.org/flock-shot.jpg"
+
+
+def test_get_different_stock_photo_reports_unchanged_when_nothing_else_exists(monkeypatch):
+    monkeypatch.setattr(bird_photos, "_cache", {"Ammodramus maritimus": {"media_url": "https://upload.wikimedia.org/only-one.jpg", "artist": "Jane Birder"}})
+
+    async def fake_search(query, *, exclude_media_urls=frozenset()):
+        return None  # Commons has nothing left once the current photo is excluded
+
+    monkeypatch.setattr(commons, "search_photo", fake_search)
+
+    result = asyncio.run(
+        bird_photos.get_different_stock_photo(
+            "Ammodramus maritimus", "Seaside Sparrow", "https://upload.wikimedia.org/only-one.jpg"
+        )
+    )
+    assert result["changed"] is False
+    assert result["photo_url"] == "https://upload.wikimedia.org/only-one.jpg"

@@ -71,6 +71,11 @@ async def get_question(mode: QuizMode, region_code: str = DEFAULT_REGION, family
             "attribution": media["attribution"],
             "choices": choices,
             "correct_scientific_name": species["scientific_name"],
+            # Not shown as part of the guessing game itself — surfaced only
+            # in the post-answer reveal, so there's a bit of real species
+            # info to look at either way ("bird information for review" —
+            # see TestYourSkill.js's renderReveal()).
+            "correct_family": species.get("family_common_name"),
         }
 
     raise NoQuestionAvailable(
@@ -103,14 +108,20 @@ async def _filtered_pool(region_code: str, family: str | None) -> list[dict]:
 
 async def _real_media(species: dict, mode: QuizMode) -> dict | None:
     """`None` means "don't use this species for this mode" — either Commons
-    has nothing (both modes) or the photo lookup fell back to the generated
+    has nothing (both modes), the photo lookup fell back to the generated
     placeholder (photo only; audio has no placeholder to begin with, so a
     `None` result from get_audio() already means exactly this — see that
-    module's own docstring).
+    module's own docstring), or (photo only) the best Commons had was a
+    keyword-flagged non-photo (a map, a specimen, ... — see
+    `app/dao/commons.py#_search()`'s `flagged`). A wrong answer choice is a
+    normal part of a quiz; a wrong *image* defeats the point of a photo-ID
+    quiz specifically, so this is stricter than Life List/Plan a Trip, which
+    accept a flagged photo rather than show a placeholder — confirmed-real
+    bug report: a Seaside Sparrow question showed a range map.
     """
     if mode == "photo":
         result = await bird_photos.get_stock_photo(species["scientific_name"], species["common_name"])
-        if result["attribution"] is None:
+        if result["attribution"] is None or result.get("flagged", False):
             return None
         return {"url": result["photo_url"], "attribution": result["attribution"]}
 
@@ -118,6 +129,16 @@ async def _real_media(species: dict, mode: QuizMode) -> dict | None:
     if result is None:
         return None
     return {"url": result["audio_url"], "attribution": result["attribution"]}
+
+
+async def get_another_photo(scientific_name: str, common_name: str, exclude_photo_url: str) -> dict:
+    """Backs the quiz's "Try another photo" button — same species and
+    question, a different reference image. See
+    `app/dao/bird_photos.py#get_different_stock_photo()` for why this can
+    also permanently fix an already-cached bad photo, not just avoid picking
+    one for a brand new question.
+    """
+    return await bird_photos.get_different_stock_photo(scientific_name, common_name, exclude_photo_url)
 
 
 def _build_choices(correct: dict, pool: list[dict]) -> list[dict]:

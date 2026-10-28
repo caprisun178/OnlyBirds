@@ -37,6 +37,17 @@ export const identifyService = {
   },
 
   // `speciesCode: null` means "none of these match what I saw".
+  // Whether to offer "Upload a photo". Defaults to true if the check
+  // itself fails: the photo endpoint still explains itself (503) if it's off.
+  async isPhotoEnabled() {
+    try {
+      const config = await identifyDAO.getConfig();
+      return config.photo !== false;
+    } catch {
+      return true;
+    }
+  },
+
   async selectCandidate(identificationId, speciesCode) {
     return identifyDAO.select(identificationId, speciesCode);
   },

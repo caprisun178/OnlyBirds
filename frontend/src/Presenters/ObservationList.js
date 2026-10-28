@@ -24,6 +24,7 @@
 import { observationService } from '../Services/observations.js';
 import { uploadsService } from '../Services/uploads.js';
 import { escapeHtml } from '../Components/htmlUtils.js';
+import { getCurrentUserId } from '../Services/auth.js';
 
 const SEX_OPTIONS = [
   ['', 'Not specified'],
@@ -45,7 +46,7 @@ const DETECTION_OPTIONS = [
 ];
 
 export function mount(container, props = {}) {
-  const userId = props.userId || 'u1';
+  const userId = props.userId || getCurrentUserId();
   // onNavigate optional — screen previewed standalone. region/regionLabel
   // are just carried through from the Life List card that opened this
   // screen, so "back" can return to the same region instead of resetting.
@@ -76,10 +77,10 @@ export function mount(container, props = {}) {
     state.error = null;
     render();
     try {
-      const all = await observationService.getSortedObservations(userId);
-      state.allObservations = scientificName
-        ? all.filter((obs) => obs.species?.scientific_name === scientificName)
-        : all;
+      // Scoped server-side now (not fetch-everything-then-filter) — see
+      // `app/routers/observations.py`'s own note on why that mattered once
+      // a user's history gets large.
+      state.allObservations = await observationService.getSortedObservations(userId, scientificName);
     } catch (err) {
       state.error = err.message || 'Could not load your observation log.';
       state.allObservations = [];

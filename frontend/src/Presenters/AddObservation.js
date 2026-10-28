@@ -14,11 +14,10 @@
 // `state.fieldNotes` fields, so nothing typed in one is lost in the other.
 //
 //   import { mount } from './Presenters/AddObservation.js';
-//   mount(document.getElementById('app'), { userId: 'u1' });
+//   mount(document.getElementById('app'));
 //
-// If no `userId` prop is given, falls back to the test profile
-// (testData/testProfile.js) so this screen works before real auth/profile
-// (user-profiles.md) exists.
+// If no `userId` prop is given, uses the signed-in user (Services/auth.js).
+// Sign-in-only: preview.js sends signed-out visits to the Login screen.
 
 import { identifyService } from '../Services/identify.js';
 import { speciesService } from '../Services/species.js';
@@ -26,9 +25,10 @@ import { observationService } from '../Services/observations.js';
 import { uploadsService } from '../Services/uploads.js';
 import { geocodingService } from '../Services/geocoding.js';
 import { recentLocationsService } from '../Services/recentLocations.js';
-import { getCurrentUser } from '../testData/testProfile.js';
+import { getCurrentUserId } from '../Services/auth.js';
 import { renderCandidateList, escapeHtml } from '../Components/CandidateList.js';
 import { mountLocationPicker } from '../Components/LocationPicker.js';
+import { renderStickerCard } from '../Components/StickerCard.js';
 
 // After this many unsuccessful identify attempts (a wrong named-target pick,
 // or "None of these match") in one wizard session, nudge toward Test Your
@@ -53,7 +53,7 @@ function nowForDatetimeLocal() {
 }
 
 export function mount(container, props = {}) {
-  const userId = props.userId || getCurrentUser().id;
+  const userId = props.userId || getCurrentUserId();
   const { onNavigate } = props; // optional — omitted when this screen is previewed standalone
 
   // The map is a live widget, not markup rebuilt from `state` — it lives
@@ -99,10 +99,22 @@ export function mount(container, props = {}) {
     photoUploadState: 'idle', // 'idle' | 'uploading' | 'done' | 'error'
     photoUploadError: null,
 
-    result: null, // { observation, isNewSpecies }
+    result: null, // { observation, isNewSpecies, stickersEarned }
+    photoIdEnabled: null, // null until GET /identify/config answers; false hides "Upload a photo"
   };
 
   render();
+  checkPhotoIdEnabled();
+
+  // Hides "Upload a photo" when the server has photo ID turned off
+  // (PHOTO_ID_ENABLED=false). Patches just that field instead of
+  // re-rendering, so anything already typed isn't lost. (`.ob-field` sets
+  // display:flex, which would override the `hidden` attribute.)
+  async function checkPhotoIdEnabled() {
+    state.photoIdEnabled = await identifyService.isPhotoEnabled();
+    const field = container.querySelector('[data-role="photo-id-field"]');
+    if (field) field.style.display = state.photoIdEnabled ? '' : 'none';
+  }
 
   function render() {
     container.innerHTML = `
@@ -201,7 +213,7 @@ export function mount(container, props = {}) {
             <button type="button" class="ob-btn ob-btn--sm ${state.sense === 'sound' ? 'ob-btn--primary' : 'ob-btn--ghost'}" data-sense="sound" role="radio" aria-checked="${state.sense === 'sound'}">I heard it</button>
           </div>
         </div>
-        <div class="ob-field">
+        <div class="ob-field" data-role="photo-id-field" style="${state.photoIdEnabled === false ? 'display:none;' : ''}">
           <label class="ob-label">Or upload a photo</label>
           <input type="file" id="identify-photo-input" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none;" />
           <button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="upload-photo" style="align-self:flex-start;">Upload a photo</button>
@@ -257,7 +269,7 @@ export function mount(container, props = {}) {
 
     const photoInput = form.querySelector('#identify-photo-input');
     form.querySelector('[data-action="upload-photo"]')?.addEventListener('click', () => photoInput.click());
-    photoInput.addEventListener('change', async () => {
+    photoInput?.addEventListener('change', async () => {
       const file = photoInput.files[0];
       if (!file) return;
 
@@ -945,7 +957,7 @@ export function mount(container, props = {}) {
   // ---- Step 4: done ------------------------------------------------------
 
   function renderDoneStep() {
-    const { observation, isNewSpecies } = state.result;
+    const { observation, isNewSpecies, stickersEarned = [] } = state.result;
     return `
       <div class="ob-card ob-stack ob-text-center">
         <h2>Observation logged!</h2>
@@ -955,13 +967,31 @@ export function mount(container, props = {}) {
         ${isNewSpecies
           ? '<span class="ob-tag ob-tag--success">New life list species!</span>'
           : '<span class="ob-tag ob-tag--info">Already on your life list</span>'}
+        ${renderStickersEarned(stickersEarned)}
         <div class="ob-cluster" style="justify-content:center;">
           <button type="button" class="ob-btn ob-btn--primary" data-action="log-another">Log another sighting</button>
           ${onNavigate ? `
             <button type="button" class="ob-btn ob-btn--ghost" data-action="view-life-list">View life list</button>
             <button type="button" class="ob-btn ob-btn--ghost" data-action="view-observations">View my observations</button>
+            ${isNewSpecies || stickersEarned.length ? '<button type="button" class="ob-btn ob-btn--ghost" data-action="view-stickers">View sticker shelf</button>' : ''}
           ` : ''}
         </div>
+      </div>
+    `;
+  }
+
+  // "You earned a sticker!" — the stickers this sighting just unlocked,
+  // drawn with the same card the sticker shelf uses. role="status" so
+  // screen readers announce it when the done step appears.
+  function renderStickersEarned(stickers) {
+    if (!stickers.length) return '';
+    const heading = stickers.length === 1
+      ? `You earned a sticker: ${escapeHtml(stickers[0].name)}!`
+      : `You earned ${stickers.length} stickers!`;
+    return `
+      <div class="ob-alert ob-alert--success ob-stack" role="status" style="text-align:left;">
+        <strong>${heading}</strong>
+        <div class="ob-sticker-grid">${stickers.map(renderStickerCard).join('')}</div>
       </div>
     `;
   }
@@ -1005,6 +1035,10 @@ export function mount(container, props = {}) {
     container.querySelector('[data-action="view-observations"]')?.addEventListener('click', () => {
       onNavigate('observation-log', { userId });
     });
+    const stickersBtn = container.querySelector('[data-action="view-stickers"]');
+    if (stickersBtn) {
+      stickersBtn.addEventListener('click', () => onNavigate('stickers', { userId }));
+    }
   }
 
   function wireStep() {
