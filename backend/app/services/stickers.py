@@ -2,20 +2,51 @@
 
 from __future__ import annotations
 
+import re
+
 from app.dao.notification_repo import notification_repo
 from app.dao.sticker_repo import sticker_repo
+from app.data.birds import all_birds
 from app.models.life_list import LifeListEntry
-from app.models.sticker import Sticker, StickerShelf, StickerShelfItem, UserSticker
+from app.models.sticker import (
+    Group,
+    GroupMember,
+    Sticker,
+    StickerShelf,
+    StickerShelfItem,
+    UserSticker,
+)
 from app.services.life_list import get_life_list
 
 
-def _species_codes(entries: list[LifeListEntry]) -> set[str]:
-    """Collect eBird species codes represented in the user's life list."""
-    return {
-        entry.species.source_ids["ebird"]
-        for entry in entries
-        if "ebird" in entry.species.source_ids
-    }
+_BIRD_GROUP_BY_SCIENTIFIC_NAME = {
+    bird["scientific_name"].casefold(): bird["group"] for bird in all_birds()
+}
+
+
+def _matches_group_member(entry: LifeListEntry, member: GroupMember) -> bool:
+    return (
+        entry.species.source_ids.get("ebird") == member.ebird_code
+        or (entry.species.scientific_name or "").casefold() == member.scientific_name.casefold()
+    )
+
+
+def _matches_taxon_group(entry: LifeListEntry, group: Group) -> bool:
+    inferred_group = _BIRD_GROUP_BY_SCIENTIFIC_NAME.get(
+        (entry.species.scientific_name or "").casefold()
+    )
+    if {entry.species.taxon_group, inferred_group} & set(group.taxon_groups):
+        return True
+
+    common_name_words = set(re.findall(r"[a-z]+", (entry.species.common_name or "").casefold()))
+    return bool(common_name_words & set(group.common_name_terms))
+
+
+def _matches_group(entry: LifeListEntry, group: Group) -> bool:
+    return (
+        any(_matches_group_member(entry, member) for member in group.members)
+        or _matches_taxon_group(entry, group)
+    )
 
 
 def _group_progress(group_code: str, entries: list[LifeListEntry]) -> tuple[int, int | None, bool]:
@@ -23,15 +54,13 @@ def _group_progress(group_code: str, entries: list[LifeListEntry]) -> tuple[int,
     group = sticker_repo.get_group(group_code)
     if group is None:
         return 0, None, False
-    seen_codes = _species_codes(entries)
-    if group.species_codes:
-        matched = len(seen_codes.intersection(group.species_codes))
-        return matched, len(group.species_codes), matched == len(group.species_codes)
-    matched = sum(
-        entry.species.taxon_group in group.taxon_groups
-        for entry in entries
-        if entry.species.taxon_group
-    )
+    if group.members:
+        matched = sum(
+            any(_matches_group_member(entry, member) for entry in entries)
+            for member in group.members
+        )
+        return matched, len(group.members), matched == len(group.members)
+    matched = sum(_matches_taxon_group(entry, group) for entry in entries)
     return matched, None, matched > 0
 
 
@@ -42,7 +71,8 @@ def _is_earned(sticker: Sticker, entries: list[LifeListEntry]) -> bool:
     if sticker.rule_type == "count_milestone":
         return len(entries) >= int(sticker.criteria["threshold"])
     if sticker.rule_type == "first_in_group":
-        return _group_progress(sticker.criteria["group"], entries)[0] > 0
+        group = sticker_repo.get_group(sticker.criteria["group"])
+        return group is not None and any(_matches_group(entry, group) for entry in entries)
     if sticker.rule_type == "group_complete":
         progress, target, complete = _group_progress(sticker.criteria["group"], entries)
         return target is not None and progress == target and complete
@@ -80,7 +110,12 @@ def stickers_for(awards: list[UserSticker]) -> list[Sticker]:
 def _shelf_item(sticker: Sticker, award: UserSticker | None, entries: list[LifeListEntry]) -> StickerShelfItem:
     """Combine catalog data, award state, and current progress for the UI."""
     progress = target = None
-    if sticker.rule_type in {"first_in_group", "group_complete"}:
+    if sticker.rule_type == "first_in_group":
+        group = sticker_repo.get_group(sticker.criteria["group"])
+        if group is not None:
+            progress = int(any(_matches_group(entry, group) for entry in entries))
+            target = 1
+    elif sticker.rule_type == "group_complete":
         progress, target, _ = _group_progress(sticker.criteria["group"], entries)
     elif sticker.rule_type == "count_milestone":
         progress = len(entries)
