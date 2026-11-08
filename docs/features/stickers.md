@@ -11,7 +11,8 @@
 ## 1. What you're building
 
 The reward layer. As users fill in their life list they earn **stickers** for
-milestones — first bird, first owl, first eagle, and so on. Stickers
+milestones — first bird, first owl, first eagle, new bird groups, and life-list
+milestones. Stickers
 live on the [profile](user-profiles.md) as a collectible shelf.
 
 ### Rule types
@@ -135,7 +136,12 @@ create table groups (
 | `first_owl` | Night Owl | `first_in_group {owls}` |
 | `first_eagle` | Eagle Eye | `first_in_group {eagles}` |
 | `first_raptor` | Bird of Prey | `first_in_group {raptors}` |
+| `first_waterfowl` | Duck, Duck, Goose | `first_in_group {waterfowl}` |
+| `first_woodpecker` | Forest Drummer | `first_in_group {woodpeckers}` |
+| `species_5` | Starter Flock | `count_milestone {5}` |
+| `species_10` | Ten Species | `count_milestone {10}` |
 | `species_25` | 25 Club | `count_milestone {25}` |
+| `species_50` | Half-Century | `count_milestone {50}` |
 | `species_100` | Century | `count_milestone {100}` |
 
 The current catalog is in `backend/app/data/stickers.json` and its groups are

@@ -20,5 +20,17 @@
     "kind": "set",
     "taxon_groups": ["raptors", "eagles", "hawks", "falcons", "vultures"],
     "common_name_terms": ["vulture", "owl", "eagle", "falcon", "hawk"]
+  },
+  {
+    "code": "waterfowl",
+    "kind": "set",
+    "taxon_groups": ["waterfowl"],
+    "common_name_terms": ["duck", "goose", "swan"]
+  },
+  {
+    "code": "woodpeckers",
+    "kind": "set",
+    "taxon_groups": ["woodpeckers"],
+    "common_name_terms": ["woodpecker", "sapsucker", "flicker"]
   }
 ]

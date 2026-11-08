@@ -40,6 +40,46 @@
     "sort_order": 3
   },
   {
+    "code": "first_waterfowl",
+    "name": "Duck, Duck, Goose",
+    "description": "Find your first duck, goose, or swan.",
+    "image_url": null,
+    "rule_type": "first_in_group",
+    "criteria": {"group": "waterfowl"},
+    "rarity": "common",
+    "sort_order": 4
+  },
+  {
+    "code": "first_woodpecker",
+    "name": "Forest Drummer",
+    "description": "Find your first woodpecker.",
+    "image_url": null,
+    "rule_type": "first_in_group",
+    "criteria": {"group": "woodpeckers"},
+    "rarity": "common",
+    "sort_order": 5
+  },
+  {
+    "code": "species_5",
+    "name": "Starter Flock",
+    "description": "Build a life list of 5 species.",
+    "image_url": null,
+    "rule_type": "count_milestone",
+    "criteria": {"threshold": 5},
+    "rarity": "common",
+    "sort_order": 1
+  },
+  {
+    "code": "species_10",
+    "name": "Ten Species",
+    "description": "Build a life list of 10 species.",
+    "image_url": null,
+    "rule_type": "count_milestone",
+    "criteria": {"threshold": 10},
+    "rarity": "common",
+    "sort_order": 2
+  },
+  {
     "code": "species_25",
     "name": "25 Club",
     "description": "Build a life list of 25 species.",
@@ -48,6 +88,16 @@
     "criteria": {"threshold": 25},
     "rarity": "uncommon",
     "sort_order": 2
+  },
+  {
+    "code": "species_50",
+    "name": "Half-Century",
+    "description": "Build a life list of 50 species.",
+    "image_url": null,
+    "rule_type": "count_milestone",
+    "criteria": {"threshold": 50},
+    "rarity": "uncommon",
+    "sort_order": 3
   },
   {
     "code": "species_100",

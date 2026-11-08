@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -30,12 +30,21 @@ def test_catalog_and_first_bird_award(client, isolated_stickers):
     catalog_codes = {sticker["code"] for sticker in catalog.json()}
     assert catalog_codes >= {"first_bird", "first_owl"}
     assert "all_eagles" not in catalog_codes
+    placeholder_codes = {
+        "first_waterfowl",
+        "first_woodpecker",
+        "species_5",
+        "species_10",
+        "species_50",
+    }
+    catalog_images = {sticker["code"]: sticker["image_url"] for sticker in catalog.json()}
+    assert placeholder_codes <= catalog_codes
+    assert all(catalog_images[code] is None for code in placeholder_codes)
     artwork = {
         "first_bird": "/static/stickers/first_bird.png",
         "first_owl": "/static/stickers/night_owl.png",
         "first_eagle": "/static/stickers/eagle_eye.png",
     }
-    catalog_images = {sticker["code"]: sticker["image_url"] for sticker in catalog.json()}
     assert {code: catalog_images[code] for code in artwork} == artwork
     for image_url in artwork.values():
         image = client.get(image_url)
@@ -185,6 +194,66 @@ def test_raptor_categories_award_bird_of_prey(
     assert response.status_code == 201
     earned = {sticker["code"] for sticker in response.json()["stickers_earned"]}
     assert earned == expected_stickers
+
+
+@pytest.mark.parametrize(
+    ("scientific_name", "common_name", "expected_sticker"),
+    [
+        ("Anas platyrhynchos", "Mallard", "first_waterfowl"),
+        ("Dryocopus pileatus", "Pileated Woodpecker", "first_woodpecker"),
+    ],
+)
+def test_first_waterfowl_and_woodpecker_awards_are_independent(
+    client, isolated_stickers, scientific_name, common_name, expected_sticker
+):
+    response = client.post(
+        "/observations",
+        json=observation(
+            "u1",
+            {"scientific_name": scientific_name, "common_name": common_name},
+            "2026-05-01T08:00:00+00:00",
+        ),
+    )
+
+    assert response.status_code == 201
+    earned = {sticker["code"] for sticker in response.json()["stickers_earned"]}
+    assert earned == {"first_bird", expected_sticker}
+
+
+def test_count_milestones_award_once_at_distinct_thresholds(client, isolated_stickers):
+    milestone_at_number = {
+        4: "species_5",
+        9: "species_10",
+        24: "species_25",
+        49: "species_50",
+    }
+    for number in range(50):
+        response = client.post(
+            "/observations",
+            json=observation(
+                "u1",
+                {"scientific_name": f"Milestone species {number}", "common_name": f"Bird {number}"},
+                (datetime(2026, 7, 1, tzinfo=timezone.utc) + timedelta(days=number)).isoformat(),
+            ),
+        )
+        assert response.status_code == 201
+        earned_now = {sticker["code"] for sticker in response.json()["stickers_earned"]}
+        if number in milestone_at_number:
+            assert earned_now == {milestone_at_number[number]}
+        else:
+            assert not (
+                {"species_5", "species_10", "species_25", "species_50"} & earned_now
+            )
+
+    shelf = client.get("/users/u1/stickers").json()
+    earned = {sticker["code"] for sticker in shelf["earned"]}
+    assert {"first_bird", "species_5", "species_10", "species_25", "species_50"} <= earned
+    assert "species_100" not in earned
+    assert all(
+        sticker["image_url"] is None
+        for sticker in shelf["earned"] + shelf["locked"]
+        if sticker["code"] in {"species_5", "species_10", "species_50"}
+    )
 
 
 def test_count_milestone_shows_progress_and_awards_at_threshold(client, isolated_stickers):
