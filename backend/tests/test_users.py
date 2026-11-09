@@ -98,3 +98,29 @@ def test_profile_counts_stickers(client):
     assert client.get("/users/hawkeye").json()["sticker_count"] == 1
     # The route from the real Render traceback (routers/users.py#get_user_by_id).
     assert client.get("/users/by-id/u1").json()["sticker_count"] == 1
+
+def test_favorite_species_defaults_to_none(client):
+    client.post("/users", json={"auth_provider_id": "u1", "username": "hawkeye"})
+
+    assert client.get("/users/hawkeye").json()["favorite_species"] is None
+
+
+def test_patch_favorite_species(client):
+    client.post("/users", json={"auth_provider_id": "u1", "username": "hawkeye"})
+
+    r = client.patch("/users/u1", json={"favorite_species": "Poecile atricapillus"})
+
+    assert r.status_code == 200
+    assert r.json()["favorite_species"] == "Poecile atricapillus"
+    assert client.get("/users/hawkeye").json()["favorite_species"] == "Poecile atricapillus"
+
+
+def test_patch_default_region_keeps_favorite_species(client):
+    client.post("/users", json={"auth_provider_id": "u1", "username": "hawkeye"})
+    client.patch("/users/u1", json={"favorite_species": "Poecile atricapillus"})
+
+    r = client.patch("/users/u1", json={"default_region": "US-NC"})
+
+    assert r.status_code == 200
+    assert r.json()["favorite_species"] == "Poecile atricapillus"
+    assert r.json()["default_region"] == "US-NC"
