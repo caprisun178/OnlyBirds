@@ -18,7 +18,7 @@ export function mount(container, props = {}) {
   const state = {
     loading: true,
     error: null,
-    profile: null, // { id, username, avatar_url, default_region, life_list_total, sticker_count }
+    profile: null, // { id, username, display_name, avatar_url, default_region, life_list_total, sticker_count }
     saving: false,
 
     pickerOpen: false,
@@ -31,6 +31,9 @@ export function mount(container, props = {}) {
     favoriteQuery: '',
     favoriteResults: [],
     favoriteSaving: false,
+    nameEditing: false,
+    nameDraft: '',
+    nameError: null,
     pickerState: '',
     pickerCounty: '',
   };
@@ -70,14 +73,21 @@ export function mount(container, props = {}) {
 
   function renderLoaded() {
     if (!state.profile) return '';
-    const { username, avatar_url, default_region, life_list_total, sticker_count } = state.profile;
+    const { username, display_name, avatar_url, default_region, life_list_total, sticker_count } = state.profile;
 
     return `
       <div class="ob-card ob-stack">
         <div class="ob-cluster" style="align-items:center; --ob-cluster-gap: var(--ob-space-4);">
           ${renderAvatar({ username, avatarUrl: avatar_url, size: 'lg' })}
           <div class="ob-stack" style="--ob-stack-gap: var(--ob-space-1);">
-            <h2 style="margin:0;">${escapeHtml(username || 'Unnamed birder')}</h2>
+            ${state.nameEditing ? renderNameForm() : `
+              <div class="ob-cluster" style="align-items:center;">
+                <h2 style="margin:0;">${escapeHtml(display_name || username || 'Unnamed birder')}</h2>
+                <button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="edit-name">
+                  ${display_name ? 'Edit name' : 'Add a display name'}
+                </button>
+              </div>
+              ${username ? `<p class="ob-text-muted ob-text-sm" style="margin:0;">@${escapeHtml(username)}</p>` : ''}`}
             <p class="ob-text-muted ob-text-sm" style="margin:0;">Default region: ${escapeHtml(default_region)}</p>
           </div>
         </div>
@@ -155,6 +165,22 @@ function renderFavoriteCard() {
     `;
   }
 
+  function renderNameForm() {
+    return `
+      <form class="ob-stack" data-role="name-form" style="--ob-stack-gap: var(--ob-space-2);">
+        <label class="ob-label" for="profile-display-name">Display name</label>
+        <input id="profile-display-name" class="ob-input" type="text" value="${escapeHtml(state.nameDraft)}"
+          maxlength="50" autocomplete="name" required />
+        <p class="ob-text-muted ob-text-sm" style="margin:0;">Up to 50 characters. Your username stays the same.</p>
+        ${state.nameError ? `<p class="ob-text-sm" style="margin:0; color: var(--ob-color-danger-text);">${escapeHtml(state.nameError)}</p>` : ''}
+        <div class="ob-cluster">
+          <button type="submit" class="ob-btn ob-btn--primary ob-btn--sm">Save</button>
+          <button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="cancel-name">Cancel</button>
+        </div>
+      </form>
+    `;
+  }
+
   function renderPickerSection() {
     return `
       <div class="ob-card ob-card--flat ob-stack">
@@ -200,8 +226,56 @@ function renderFavoriteCard() {
     container.querySelector('[data-action="go-life-list"]')?.addEventListener('click', () => onNavigate('life-list'));
     container.querySelector('[data-action="go-stickers"]')?.addEventListener('click', () => onNavigate('stickers'));
 
+    wireNameForm();
     wireFavoriteSearch();
     wireRegionPicker();
+  }
+
+  function wireNameForm() {
+    container.querySelector('[data-action="edit-name"]')?.addEventListener('click', () => {
+      state.nameEditing = true;
+      state.nameDraft = state.profile?.display_name || '';
+      state.nameError = null;
+      render();
+      container.querySelector('#profile-display-name')?.focus();
+    });
+    container.querySelector('[data-action="cancel-name"]')?.addEventListener('click', () => {
+      state.nameEditing = false;
+      state.nameError = null;
+      render();
+    });
+
+    const form = container.querySelector('[data-role="name-form"]');
+    if (!form) return;
+    const input = form.querySelector('#profile-display-name');
+    input.addEventListener('input', () => {
+      state.nameDraft = input.value;
+    });
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const displayName = input.value.trim();
+      if (!displayName) {
+        state.nameError = 'Enter a name, or press Cancel.';
+        render();
+        container.querySelector('#profile-display-name')?.focus();
+        return;
+      }
+      if (displayName === state.profile.display_name) {
+        state.nameEditing = false;
+        render();
+        return;
+      }
+      try {
+        state.profile = await profileService.updateDisplayName(state.profile.id, displayName);
+        state.nameEditing = false;
+        state.nameError = null;
+      } catch (err) {
+        state.nameDraft = displayName;
+        state.nameError = 'Could not save your display name.';
+      }
+      render();
+      if (state.nameEditing) container.querySelector('#profile-display-name')?.focus();
+    });
   }
 
   // Opens the picker on the user's current default region. eBird codes nest

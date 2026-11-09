@@ -73,7 +73,7 @@ class InMemoryUserRepo:
         return user
 
 
-_COLUMNS = "id, auth_provider_id, username, avatar_url, default_region, email, favorite_species, favorite_common_name"
+_COLUMNS = "id, auth_provider_id, username, avatar_url, default_region, email, favorite_species, favorite_common_name, display_name"
 
 
 class PostgresUserRepo:
@@ -105,6 +105,7 @@ class PostgresUserRepo:
             email=row["email"],
             favorite_species=row["favorite_species"],
             favorite_common_name=row["favorite_common_name"],
+            display_name=row["display_name"],
         )
 
     def _get_sync(self, column: str, value: str) -> User | None:
@@ -141,6 +142,7 @@ class PostgresUserRepo:
                 cur.execute(
                     f"""
                     update users set
+                        display_name         = coalesce(%s, display_name),
                         avatar_url           = coalesce(%s, avatar_url),
                         default_region       = coalesce(%s, default_region),
                         favorite_species     = coalesce(%s, favorite_species),
@@ -152,6 +154,7 @@ class PostgresUserRepo:
                     returning {_COLUMNS}
                     """,
                     (
+                        changes.display_name,
                         changes.avatar_url,
                         changes.default_region,
                         changes.favorite_species,

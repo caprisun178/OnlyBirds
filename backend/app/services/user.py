@@ -23,6 +23,7 @@ async def _to_profile(user: User) -> UserProfile:
     return UserProfile(
         id=user.auth_provider_id,
         username=user.username,
+        display_name=user.display_name,
         avatar_url=user.avatar_url,
         default_region=user.default_region,
         favorite_species=user.favorite_species,
