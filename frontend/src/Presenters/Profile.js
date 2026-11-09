@@ -50,6 +50,7 @@ export function mount(container, props = {}) {
   function render() {
     container.innerHTML = `
       <div class="ob-container ob-stack">
+              <button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="back" style="align-self:flex-start;">← Back</button>
         <h1>Your profile 🦉</h1>
         ${state.error ? `<div class="ob-alert ob-alert--danger">${escapeHtml(state.error)}</div>` : ''}
         ${state.loading ? renderLoading() : renderLoaded()}
@@ -138,6 +139,7 @@ export function mount(container, props = {}) {
       }
     });
 
+    container.querySelector('[data-action="back"]')?.addEventListener('click', () => onNavigate('home'));
     container.querySelector('[data-action="go-life-list"]')?.addEventListener('click', () => onNavigate('life-list'));
     container.querySelector('[data-action="go-stickers"]')?.addEventListener('click', () => onNavigate('stickers'));
 
