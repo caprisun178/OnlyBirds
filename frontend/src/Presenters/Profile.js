@@ -7,6 +7,7 @@
 
 import { profileService } from '../Services/profile.js';
 import { lifeListService } from '../Services/lifeList.js';
+import { speciesService } from '../Services/species.js';
 import { renderAvatar } from '../Components/Avatar.js';
 import { renderRegionPicker } from '../Components/RegionPicker.js';
 import { escapeHtml } from '../Components/htmlUtils.js';
@@ -26,6 +27,10 @@ export function mount(container, props = {}) {
     states: [],
     counties: [],
     pickerCountry: '',
+    favoriteSearchOpen: false,
+    favoriteQuery: '',
+    favoriteResults: [],
+    favoriteSaving: false,
     pickerState: '',
     pickerCounty: '',
   };
@@ -50,6 +55,7 @@ export function mount(container, props = {}) {
   function render() {
     container.innerHTML = `
       <div class="ob-container ob-stack">
+              <button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="back" style="align-self:flex-start;">← Back</button>
         <h1>Your profile 🦉</h1>
         ${state.error ? `<div class="ob-alert ob-alert--danger">${escapeHtml(state.error)}</div>` : ''}
         ${state.loading ? renderLoading() : renderLoaded()}
@@ -90,6 +96,8 @@ export function mount(container, props = {}) {
         ${state.pickerOpen ? renderPickerSection() : ''}
       </div>
 
+        ${renderFavoriteCard()}
+
       <div class="ob-cluster">
         <button type="button" class="ob-btn ob-btn--subtle ob-btn--sm" data-action="go-life-list">
           Open life list
@@ -98,6 +106,48 @@ export function mount(container, props = {}) {
           View stickers
         </button>
       </div>
+    `;
+  }
+
+
+function renderFavoriteSearch() {
+    return `
+      <div class="ob-field">
+        <label class="ob-label" for="favorite-search">Search for a bird</label>
+        <input id="favorite-search" class="ob-input" type="text" value="${escapeHtml(state.favoriteQuery)}" placeholder="e.g. chickadee" autocomplete="off" />
+      </div>
+      <div class="ob-stack" style="--ob-stack-gap: var(--ob-space-2);">
+        ${state.favoriteResults
+          .map(
+            (s) =>
+              `<button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" style="justify-content:flex-start;" data-favorite-pick="${escapeHtml(s.scientific_name)}">${escapeHtml(s.common_name || s.scientific_name)}</button>`
+          )
+          .join('')}
+      </div>
+    `;
+  }
+
+
+function renderFavoriteCard() {
+    const favorite = state.profile?.favorite_species;
+    return `
+      <div class="ob-card ob-stack">
+        <h2 class="ob-card__title">♥ Favorite bird</h2>
+        ${
+          favorite
+            ? `<p style="margin:0;"><em>${escapeHtml(favorite)}</em></p>`
+            : '<p class="ob-text-muted" style="margin:0;">No favorite yet.</p>'
+        }
+
+              <div>
+          <button type="button" class="ob-btn ob-btn--subtle ob-btn--sm" data-action="toggle-favorite-search">
+            ${favorite ? 'Change' : 'Choose my favorite'}
+          </button>
+        </div>
+
+        ${state.favoriteSearchOpen ? renderFavoriteSearch() : ''}
+      </div>
+
     `;
   }
 
@@ -138,9 +188,15 @@ export function mount(container, props = {}) {
       }
     });
 
+    container.querySelector('[data-action="back"]')?.addEventListener('click', () => onNavigate('home'));
+    container.querySelector('[data-action="toggle-favorite-search"]')?.addEventListener('click', () => {
+      state.favoriteSearchOpen = !state.favoriteSearchOpen;
+      render();
+    });
     container.querySelector('[data-action="go-life-list"]')?.addEventListener('click', () => onNavigate('life-list'));
     container.querySelector('[data-action="go-stickers"]')?.addEventListener('click', () => onNavigate('stickers'));
 
+    wireFavoriteSearch();
     wireRegionPicker();
   }
 
@@ -180,6 +236,45 @@ export function mount(container, props = {}) {
       state.pickerLoading = false;
       render();
     }
+  }
+
+  function wireFavoriteSearch() {
+    const input = container.querySelector('#favorite-search');
+    if (input) {
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+      let timer = null;
+      input.addEventListener('input', () => {
+        state.favoriteQuery = input.value;
+        clearTimeout(timer);
+        timer = setTimeout(async () => {
+          try {
+            state.favoriteResults = await speciesService.search(state.favoriteQuery);
+          } catch (err) {
+            state.favoriteResults = [];
+          }
+          render();
+        }, 300);
+      });
+    }
+
+    container.querySelectorAll('[data-favorite-pick]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        state.error = null;
+        try {
+          state.profile = await profileService.updateFavoriteSpecies(
+            state.profile.id,
+            btn.dataset.favoritePick
+          );
+          state.favoriteSearchOpen = false;
+          state.favoriteQuery = '';
+          state.favoriteResults = [];
+        } catch (err) {
+          state.error = err.message || 'Could not save your favorite.';
+        }
+        render();
+      });
+    });
   }
 
   function wireRegionPicker() {
