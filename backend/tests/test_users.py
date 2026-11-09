@@ -149,3 +149,30 @@ def test_new_favorite_without_common_name_clears_the_old_one(client):
 
     assert r.json()["favorite_species"] == "Strix varia"
     assert r.json()["favorite_common_name"] is None
+
+
+def test_patch_sets_display_name(client):
+    client.post("/users", json={"auth_provider_id": "u1", "username": "hawkeye"})
+
+    r = client.patch("/users/u1", json={"display_name": "  Sarah P.  "})
+
+    assert r.status_code == 200
+    assert r.json()["display_name"] == "Sarah P."
+    # The handle and its URL are untouched.
+    assert r.json()["username"] == "hawkeye"
+    assert client.get("/users/hawkeye").json()["display_name"] == "Sarah P."
+
+
+def test_display_names_need_not_be_unique(client):
+    client.post("/users", json={"auth_provider_id": "u1", "username": "hawkeye"})
+    client.post("/users", json={"auth_provider_id": "u2", "username": "robin"})
+    client.patch("/users/u1", json={"display_name": "Sam"})
+
+    assert client.patch("/users/u2", json={"display_name": "Sam"}).status_code == 200
+
+
+def test_display_name_rejects_blank_and_too_long(client):
+    client.post("/users", json={"auth_provider_id": "u1", "username": "hawkeye"})
+
+    assert client.patch("/users/u1", json={"display_name": "   "}).status_code == 422
+    assert client.patch("/users/u1", json={"display_name": "x" * 51}).status_code == 422
