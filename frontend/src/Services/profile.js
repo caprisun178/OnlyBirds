@@ -26,4 +26,9 @@ export const profileService = {
   async updateAvatar(userId, avatarUrl) {
     return usersDAO.update(userId, { avatar_url: avatarUrl });
   },
+
+  async updateFavoriteSpecies(userId, scientificName) {
+    return usersDAO.update(userId, { favorite_species: scientificName });
+  },
+
 };
