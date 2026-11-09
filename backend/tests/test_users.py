@@ -124,3 +124,28 @@ def test_patch_default_region_keeps_favorite_species(client):
     assert r.status_code == 200
     assert r.json()["favorite_species"] == "Poecile atricapillus"
     assert r.json()["default_region"] == "US-NC"
+
+
+def test_patch_favorite_saves_common_name(client):
+    client.post("/users", json={"auth_provider_id": "u1", "username": "hawkeye"})
+
+    r = client.patch(
+        "/users/u1",
+        json={"favorite_species": "Poecile atricapillus", "favorite_common_name": "Black-capped Chickadee"},
+    )
+
+    assert r.json()["favorite_common_name"] == "Black-capped Chickadee"
+    assert client.get("/users/hawkeye").json()["favorite_common_name"] == "Black-capped Chickadee"
+
+
+def test_new_favorite_without_common_name_clears_the_old_one(client):
+    client.post("/users", json={"auth_provider_id": "u1", "username": "hawkeye"})
+    client.patch(
+        "/users/u1",
+        json={"favorite_species": "Poecile atricapillus", "favorite_common_name": "Black-capped Chickadee"},
+    )
+
+    r = client.patch("/users/u1", json={"favorite_species": "Strix varia"})
+
+    assert r.json()["favorite_species"] == "Strix varia"
+    assert r.json()["favorite_common_name"] is None

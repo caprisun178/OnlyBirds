@@ -26,6 +26,7 @@ async def _to_profile(user: User) -> UserProfile:
         avatar_url=user.avatar_url,
         default_region=user.default_region,
         favorite_species=user.favorite_species,
+        favorite_common_name=user.favorite_common_name,
         life_list_total=len(life_list),
         sticker_count=len(await sticker_repo.list_awards(user.auth_provider_id)),
     )
