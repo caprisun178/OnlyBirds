@@ -120,7 +120,7 @@ function renderFavoriteSearch() {
         ${state.favoriteResults
           .map(
             (s) =>
-              `<button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" style="justify-content:flex-start;" data-favorite-pick="${escapeHtml(s.scientific_name)}">${escapeHtml(s.common_name || s.scientific_name)}</button>`
+              `<button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" style="justify-content:flex-start;" data-favorite-pick="${escapeHtml(s.scientific_name)}" data-favorite-common="${escapeHtml(s.common_name || '')}">${escapeHtml(s.common_name || s.scientific_name)}</button>`
           )
           .join('')}
       </div>
@@ -130,12 +130,16 @@ function renderFavoriteSearch() {
 
 function renderFavoriteCard() {
     const favorite = state.profile?.favorite_species;
+    const favoriteCommon = state.profile?.favorite_common_name;
     return `
       <div class="ob-card ob-stack">
         <h2 class="ob-card__title">♥ Favorite bird</h2>
         ${
           favorite
-            ? `<p style="margin:0;"><em>${escapeHtml(favorite)}</em></p>`
+            ? favoriteCommon
+              ? `<p style="margin:0;"><strong>${escapeHtml(favoriteCommon)}</strong></p>
+                 <p class="ob-text-muted" style="margin:0;"><em>${escapeHtml(favorite)}</em></p>`
+              : `<p style="margin:0;"><em>${escapeHtml(favorite)}</em></p>`
             : '<p class="ob-text-muted" style="margin:0;">No favorite yet.</p>'
         }
 
@@ -264,7 +268,8 @@ function renderFavoriteCard() {
         try {
           state.profile = await profileService.updateFavoriteSpecies(
             state.profile.id,
-            btn.dataset.favoritePick
+            btn.dataset.favoritePick,
+            btn.dataset.favoriteCommon || null
           );
           state.favoriteSearchOpen = false;
           state.favoriteQuery = '';

@@ -16,6 +16,7 @@ class User(BaseModel):
     avatar_url: str | None = None
     default_region: str = "world"
     favorite_species: str | None = None
+    favorite_common_name: str | None = None
 
 
 class UserCreate(BaseModel):
@@ -30,6 +31,7 @@ class UserUpdate(BaseModel):
     avatar_url: str | None = None
     default_region: str | None = None
     favorite_species: str | None = None
+    favorite_common_name: str | None = None
 
 
 class UserProfile(BaseModel):
@@ -44,5 +46,6 @@ class UserProfile(BaseModel):
     avatar_url: str | None = None
     default_region: str = "world"
     favorite_species: str | None = None
+    favorite_common_name: str | None = None
     life_list_total: int = 0
     sticker_count: int = 0
