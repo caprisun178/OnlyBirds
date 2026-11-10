@@ -23,7 +23,7 @@ export function renderStickerCard(sticker) {
       ? `${sticker.progress} species found`
       : `${sticker.progress} of ${sticker.target}`}</p>`;
   const awardDate = formatAwardDate(sticker.awarded_at);
-  const image = sticker.image_url
+  const image = sticker.earned && sticker.image_url
     ? `<img src="${escapeHtml(sticker.image_url)}" alt="" loading="lazy" />`
     : '<span class="ob-sticker__placeholder" aria-hidden="true">✦</span>';
 

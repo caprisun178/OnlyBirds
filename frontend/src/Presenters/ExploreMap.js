@@ -302,7 +302,9 @@ export function mount(container, props = {}) {
   }
 
   function isOwnSighting(sighting) {
-    return sighting.user_id === userId;
+    // Signed out, userId is null — and so is user_id on every eBird/iNaturalist
+    // sighting, so a bare === would claim all of them as "yours".
+    return userId != null && sighting.user_id === userId;
   }
 
   // A sighting's unique identity across all three sources. `id` alone isn't
@@ -1073,7 +1075,7 @@ export function mount(container, props = {}) {
     const mineCount = matches.filter(isOwnSighting).length;
     return `
       <p class="ob-text-muted ob-text-sm">${matches.length} sighting${matches.length === 1 ? '' : 's'}${filterNote} near ${escapeHtml(state.placeLabel || 'this area')} in the last ${state.daysBack} days.</p>
-      <p class="ob-text-muted ob-text-sm" style="margin-top: var(--ob-space-1);"><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--ob-color-success-text); margin-right: var(--ob-space-1); vertical-align:middle;"></span>${mineCount} ${mineCount === 1 ? 'is' : 'are'} yours.</p>
+      ${userId ? `<p class="ob-text-muted ob-text-sm" style="margin-top: var(--ob-space-1);"><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--ob-color-success-text); margin-right: var(--ob-space-1); vertical-align:middle;"></span>${mineCount} ${mineCount === 1 ? 'is' : 'are'} yours.</p>` : ''}
       <p class="ob-text-muted ob-text-sm" style="margin-top: var(--ob-space-1);"><span style="display:inline-block; width:14px; height:0; border-top: 2px dashed #3aa0ff; margin-right: var(--ob-space-1); vertical-align:middle;"></span>Dashed circle = your ${formatDistance(state.radiusKm)} search area. Drag its center to move it, or its edge to resize it.</p>
     `;
   }

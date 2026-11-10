@@ -7,6 +7,7 @@
 
 import { profileService } from '../Services/profile.js';
 import { lifeListService } from '../Services/lifeList.js';
+import { speciesService } from '../Services/species.js';
 import { renderAvatar } from '../Components/Avatar.js';
 import { renderRegionPicker } from '../Components/RegionPicker.js';
 import { escapeHtml } from '../Components/htmlUtils.js';
@@ -17,7 +18,7 @@ export function mount(container, props = {}) {
   const state = {
     loading: true,
     error: null,
-    profile: null, // { id, username, avatar_url, default_region, life_list_total, sticker_count }
+    profile: null, // { id, username, display_name, avatar_url, default_region, life_list_total, sticker_count }
     saving: false,
 
     pickerOpen: false,
@@ -26,6 +27,13 @@ export function mount(container, props = {}) {
     states: [],
     counties: [],
     pickerCountry: '',
+    favoriteSearchOpen: false,
+    favoriteQuery: '',
+    favoriteResults: [],
+    favoriteSaving: false,
+    nameEditing: false,
+    nameDraft: '',
+    nameError: null,
     pickerState: '',
     pickerCounty: '',
   };
@@ -50,6 +58,7 @@ export function mount(container, props = {}) {
   function render() {
     container.innerHTML = `
       <div class="ob-container ob-stack">
+              <button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="back" style="align-self:flex-start;">← Back</button>
         <h1>Your profile 🦉</h1>
         ${state.error ? `<div class="ob-alert ob-alert--danger">${escapeHtml(state.error)}</div>` : ''}
         ${state.loading ? renderLoading() : renderLoaded()}
@@ -64,14 +73,21 @@ export function mount(container, props = {}) {
 
   function renderLoaded() {
     if (!state.profile) return '';
-    const { username, avatar_url, default_region, life_list_total, sticker_count } = state.profile;
+    const { username, display_name, avatar_url, default_region, life_list_total, sticker_count } = state.profile;
 
     return `
       <div class="ob-card ob-stack">
         <div class="ob-cluster" style="align-items:center; --ob-cluster-gap: var(--ob-space-4);">
           ${renderAvatar({ username, avatarUrl: avatar_url, size: 'lg' })}
           <div class="ob-stack" style="--ob-stack-gap: var(--ob-space-1);">
-            <h2 style="margin:0;">${escapeHtml(username || 'Unnamed birder')}</h2>
+            ${state.nameEditing ? renderNameForm() : `
+              <div class="ob-cluster" style="align-items:center;">
+                <h2 style="margin:0;">${escapeHtml(display_name || username || 'Unnamed birder')}</h2>
+                <button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="edit-name">
+                  ${display_name ? 'Edit name' : 'Add a display name'}
+                </button>
+              </div>
+              ${username ? `<p class="ob-text-muted ob-text-sm" style="margin:0;">@${escapeHtml(username)}</p>` : ''}`}
             <p class="ob-text-muted ob-text-sm" style="margin:0;">Default region: ${escapeHtml(default_region)}</p>
           </div>
         </div>
@@ -90,6 +106,8 @@ export function mount(container, props = {}) {
         ${state.pickerOpen ? renderPickerSection() : ''}
       </div>
 
+        ${renderFavoriteCard()}
+
       <div class="ob-cluster">
         <button type="button" class="ob-btn ob-btn--subtle ob-btn--sm" data-action="go-life-list">
           Open life list
@@ -98,6 +116,68 @@ export function mount(container, props = {}) {
           View stickers
         </button>
       </div>
+    `;
+  }
+
+
+function renderFavoriteSearch() {
+    return `
+      <div class="ob-field">
+        <label class="ob-label" for="favorite-search">Search for a bird</label>
+        <input id="favorite-search" class="ob-input" type="text" value="${escapeHtml(state.favoriteQuery)}" placeholder="e.g. chickadee" autocomplete="off" />
+      </div>
+      <div class="ob-stack" style="--ob-stack-gap: var(--ob-space-2);">
+        ${state.favoriteResults
+          .map(
+            (s) =>
+              `<button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" style="justify-content:flex-start;" data-favorite-pick="${escapeHtml(s.scientific_name)}" data-favorite-common="${escapeHtml(s.common_name || '')}">${escapeHtml(s.common_name || s.scientific_name)}</button>`
+          )
+          .join('')}
+      </div>
+    `;
+  }
+
+
+function renderFavoriteCard() {
+    const favorite = state.profile?.favorite_species;
+    const favoriteCommon = state.profile?.favorite_common_name;
+    return `
+      <div class="ob-card ob-stack">
+        <h2 class="ob-card__title">♥ Favorite bird</h2>
+        ${
+          favorite
+            ? favoriteCommon
+              ? `<p style="margin:0;"><strong>${escapeHtml(favoriteCommon)}</strong></p>
+                 <p class="ob-text-muted" style="margin:0;"><em>${escapeHtml(favorite)}</em></p>`
+              : `<p style="margin:0;"><em>${escapeHtml(favorite)}</em></p>`
+            : '<p class="ob-text-muted" style="margin:0;">No favorite yet.</p>'
+        }
+
+              <div>
+          <button type="button" class="ob-btn ob-btn--subtle ob-btn--sm" data-action="toggle-favorite-search">
+            ${favorite ? 'Change' : 'Choose my favorite'}
+          </button>
+        </div>
+
+        ${state.favoriteSearchOpen ? renderFavoriteSearch() : ''}
+      </div>
+
+    `;
+  }
+
+  function renderNameForm() {
+    return `
+      <form class="ob-stack" data-role="name-form" style="--ob-stack-gap: var(--ob-space-2);">
+        <label class="ob-label" for="profile-display-name">Display name</label>
+        <input id="profile-display-name" class="ob-input" type="text" value="${escapeHtml(state.nameDraft)}"
+          maxlength="50" autocomplete="name" required />
+        <p class="ob-text-muted ob-text-sm" style="margin:0;">Up to 50 characters. Your username stays the same.</p>
+        ${state.nameError ? `<p class="ob-text-sm" style="margin:0; color: var(--ob-color-danger-text);">${escapeHtml(state.nameError)}</p>` : ''}
+        <div class="ob-cluster">
+          <button type="submit" class="ob-btn ob-btn--primary ob-btn--sm">Save</button>
+          <button type="button" class="ob-btn ob-btn--ghost ob-btn--sm" data-action="cancel-name">Cancel</button>
+        </div>
+      </form>
     `;
   }
 
@@ -138,10 +218,64 @@ export function mount(container, props = {}) {
       }
     });
 
+    container.querySelector('[data-action="back"]')?.addEventListener('click', () => onNavigate('home'));
+    container.querySelector('[data-action="toggle-favorite-search"]')?.addEventListener('click', () => {
+      state.favoriteSearchOpen = !state.favoriteSearchOpen;
+      render();
+    });
     container.querySelector('[data-action="go-life-list"]')?.addEventListener('click', () => onNavigate('life-list'));
     container.querySelector('[data-action="go-stickers"]')?.addEventListener('click', () => onNavigate('stickers'));
 
+    wireNameForm();
+    wireFavoriteSearch();
     wireRegionPicker();
+  }
+
+  function wireNameForm() {
+    container.querySelector('[data-action="edit-name"]')?.addEventListener('click', () => {
+      state.nameEditing = true;
+      state.nameDraft = state.profile?.display_name || '';
+      state.nameError = null;
+      render();
+      container.querySelector('#profile-display-name')?.focus();
+    });
+    container.querySelector('[data-action="cancel-name"]')?.addEventListener('click', () => {
+      state.nameEditing = false;
+      state.nameError = null;
+      render();
+    });
+
+    const form = container.querySelector('[data-role="name-form"]');
+    if (!form) return;
+    const input = form.querySelector('#profile-display-name');
+    input.addEventListener('input', () => {
+      state.nameDraft = input.value;
+    });
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const displayName = input.value.trim();
+      if (!displayName) {
+        state.nameError = 'Enter a name, or press Cancel.';
+        render();
+        container.querySelector('#profile-display-name')?.focus();
+        return;
+      }
+      if (displayName === state.profile.display_name) {
+        state.nameEditing = false;
+        render();
+        return;
+      }
+      try {
+        state.profile = await profileService.updateDisplayName(state.profile.id, displayName);
+        state.nameEditing = false;
+        state.nameError = null;
+      } catch (err) {
+        state.nameDraft = displayName;
+        state.nameError = 'Could not save your display name.';
+      }
+      render();
+      if (state.nameEditing) container.querySelector('#profile-display-name')?.focus();
+    });
   }
 
   // Opens the picker on the user's current default region. eBird codes nest
@@ -180,6 +314,46 @@ export function mount(container, props = {}) {
       state.pickerLoading = false;
       render();
     }
+  }
+
+  function wireFavoriteSearch() {
+    const input = container.querySelector('#favorite-search');
+    if (input) {
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+      let timer = null;
+      input.addEventListener('input', () => {
+        state.favoriteQuery = input.value;
+        clearTimeout(timer);
+        timer = setTimeout(async () => {
+          try {
+            state.favoriteResults = await speciesService.search(state.favoriteQuery);
+          } catch (err) {
+            state.favoriteResults = [];
+          }
+          render();
+        }, 300);
+      });
+    }
+
+    container.querySelectorAll('[data-favorite-pick]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        state.error = null;
+        try {
+          state.profile = await profileService.updateFavoriteSpecies(
+            state.profile.id,
+            btn.dataset.favoritePick,
+            btn.dataset.favoriteCommon || null
+          );
+          state.favoriteSearchOpen = false;
+          state.favoriteQuery = '';
+          state.favoriteResults = [];
+        } catch (err) {
+          state.error = err.message || 'Could not save your favorite.';
+        }
+        render();
+      });
+    });
   }
 
   function wireRegionPicker() {
