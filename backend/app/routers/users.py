@@ -6,7 +6,7 @@
                                (pins, life-list, observations, ...) already means
                                by "user id"
     GET   /users/{username}   public profile, by the user-chosen username instead
-    PATCH /users/{id}         update avatar_url, default_region and/or favorite_species
+    PATCH /users/{id}         update display_name, avatar_url, default_region and/or favorite bird
 
 `id` in the PATCH path (and the new by-id GET) is the external id. Defined
 *before* `GET /users/{username}` below so the literal `by-id` segment isn't

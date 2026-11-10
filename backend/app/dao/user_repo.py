@@ -64,12 +64,16 @@ class InMemoryUserRepo:
         existing = self._by_auth_id.get(auth_id)
         if existing is None:
             return None
-        user = existing.model_copy(update=changes.model_dump(exclude_none=True))
+        updates = changes.model_dump(exclude_none=True)
+        if changes.favorite_species is not None:
+            # Same rule as the Postgres repo: the common name travels with the species.
+            updates["favorite_common_name"] = changes.favorite_common_name
+        user = existing.model_copy(update=updates)
         self._by_auth_id[auth_id] = user
         return user
 
 
-_COLUMNS = "id, auth_provider_id, username, avatar_url, default_region, email, favorite_species"
+_COLUMNS = "id, auth_provider_id, username, avatar_url, default_region, email, favorite_species, favorite_common_name, display_name"
 
 
 class PostgresUserRepo:
@@ -100,6 +104,8 @@ class PostgresUserRepo:
             default_region=row["default_region"],
             email=row["email"],
             favorite_species=row["favorite_species"],
+            favorite_common_name=row["favorite_common_name"],
+            display_name=row["display_name"],
         )
 
     def _get_sync(self, column: str, value: str) -> User | None:
@@ -136,13 +142,26 @@ class PostgresUserRepo:
                 cur.execute(
                     f"""
                     update users set
-                        avatar_url     = coalesce(%s, avatar_url),
-                        default_region = coalesce(%s, default_region)
-                        favorite_species = coalesce(%s, favorite_species)
+                        display_name         = coalesce(%s, display_name),
+                        avatar_url           = coalesce(%s, avatar_url),
+                        default_region       = coalesce(%s, default_region),
+                        favorite_species     = coalesce(%s, favorite_species),
+                        -- The common name travels with the species: a new
+                        -- favorite replaces it even when the new bird has none.
+                        favorite_common_name = case when %s::text is null
+                                                    then favorite_common_name else %s end
                     where auth_provider_id = %s
                     returning {_COLUMNS}
                     """,
-                    (changes.avatar_url, changes.default_region, changes.favorite_species, auth_id),
+                    (
+                        changes.display_name,
+                        changes.avatar_url,
+                        changes.default_region,
+                        changes.favorite_species,
+                        changes.favorite_species,
+                        changes.favorite_common_name,
+                        auth_id,
+                    ),
                 )
                 row = cur.fetchone()
         return self._row_to_user(row) if row else None
